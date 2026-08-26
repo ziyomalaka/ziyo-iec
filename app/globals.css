@@ -2,25 +2,236 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1e293b;
+  --primary: #2563eb;
+  --primary-dark: #0c2340;
+  --primary-light: #3b82f6;
+  --primary-soft: #dbeafe;
+  --accent: #f59e0b;
+  --surface: #f8fafc;
+  --surface-blue: #eef5ff;
+  --surface-blue-deep: #e3edff;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --radius: 1rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-surface: var(--surface);
+  --color-surface-blue: var(--surface-blue);
+  --color-surface-blue-deep: var(--surface-blue-deep);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-inter);
+  --radius-xl: var(--radius);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  height: 100%;
+  width: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-background text-foreground font-sans antialiased;
+  min-height: 100%;
+  width: 100%;
+}
+
+video::-webkit-media-controls-download-button,
+audio::-webkit-media-controls-download-button {
+  display: none !important;
+}
+
+video::-webkit-media-controls-enclosure {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@utility page-shell {
+  @apply flex min-h-screen w-full flex-col;
+}
+
+@utility page-main {
+  @apply flex w-full flex-1 flex-col;
+}
+
+@utility container-app {
+  @apply w-full px-4 sm:px-6 lg:px-10 xl:px-14 2xl:px-16;
+}
+
+@utility section-padding {
+  @apply py-16 lg:py-20;
+}
+
+@utility section-padding-sm {
+  @apply py-10 lg:py-14;
+}
+
+@utility bg-hero {
+  @apply bg-gradient-to-br from-[#e8f2ff] via-[#f5f9ff] to-white;
+}
+
+@utility bg-section-alt {
+  @apply bg-[#f8fafc];
+}
+
+@utility bg-section-muted {
+  @apply bg-[#f0f6ff];
+}
+
+@utility heading-page {
+  @apply text-[2rem] font-extrabold leading-[1.15] tracking-tight text-primary-dark sm:text-5xl lg:text-[3.25rem];
+}
+
+@utility heading-section {
+  @apply text-2xl font-bold tracking-tight text-primary-dark sm:text-[1.75rem];
+}
+
+@utility text-body {
+  @apply text-base leading-relaxed text-muted;
+}
+
+@utility text-body-sm {
+  @apply text-sm leading-relaxed text-muted;
+}
+
+@utility card {
+  @apply rounded-2xl border border-border/60 bg-white shadow-[0_4px_24px_-4px_rgba(15,35,64,0.08)];
+}
+
+@utility card-hover {
+  @apply rounded-2xl border border-border/60 bg-white shadow-[0_4px_24px_-4px_rgba(15,35,64,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_-8px_rgba(37,99,235,0.18)];
+}
+
+@utility card-padding {
+  @apply p-5 lg:p-6;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-200;
+}
+
+@utility btn-primary {
+  @apply btn rounded-xl bg-primary px-6 py-3.5 text-white shadow-lg shadow-primary/30 hover:bg-primary-light hover:shadow-xl hover:shadow-primary/35 active:scale-[0.98];
+}
+
+@utility btn-primary-sm {
+  @apply btn rounded-xl bg-primary px-5 py-2.5 text-white shadow-md shadow-primary/25 hover:bg-primary-light active:scale-[0.98];
+}
+
+@utility btn-outline {
+  @apply btn rounded-xl border-2 border-primary/25 bg-white px-6 py-3.5 text-primary hover:border-primary hover:bg-surface-blue active:scale-[0.98];
+}
+
+@utility btn-outline-sm {
+  @apply btn rounded-xl border-2 border-primary/30 bg-white px-4 py-2 text-primary hover:border-primary hover:bg-surface-blue active:scale-[0.98];
+}
+
+@utility btn-white {
+  @apply btn rounded-xl bg-white px-6 py-3.5 text-primary shadow-sm hover:bg-surface-blue active:scale-[0.98];
+}
+
+@utility input-field {
+  @apply w-full rounded-xl border border-border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20;
+}
+
+@utility label-field {
+  @apply mb-1.5 block text-xs font-medium text-slate-700;
+}
+
+@utility icon-box {
+  @apply flex items-center justify-center rounded-xl bg-surface-blue text-primary;
+}
+
+@utility icon-box-outline {
+  @apply flex items-center justify-center rounded-full border-2 border-primary/20 bg-white text-primary shadow-sm;
+}
+
+@utility nav-active {
+  @apply font-semibold text-primary after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:rounded-full after:bg-primary;
+}
+
+@utility badge {
+  @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+}
+
+@utility badge-success {
+  @apply badge bg-emerald-100 text-emerald-700;
+}
+
+@utility badge-primary {
+  @apply badge bg-primary/10 text-primary;
+}
+
+@utility link-arrow {
+  @apply inline-flex items-center gap-1 text-sm font-semibold text-primary transition-all hover:gap-2 hover:text-primary-light;
+}
+
+@utility dot-pattern {
+  background-image: radial-gradient(circle, rgba(37, 99, 235, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@utility section-title-line {
+  @apply mx-auto mt-3 h-1 w-12 rounded-full bg-primary/80;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@theme inline {
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in-up: fade-in-up 0.4s ease-out both;
+}
+
+@utility content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 520px;
 }

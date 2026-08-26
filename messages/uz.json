@@ -1,0 +1,1389 @@
+{
+  "metadata": {
+    "siteTitle": "ZiyoMalaka — Pedagoglar uchun malaka oshirish va qayta tayyorlash",
+    "siteDescription": "ZiyoMalaka — o'qituvchi va pedagoglar uchun malaka oshirish va qayta tayyorlash platformasi. O'zingizga qulay vaqtda o'qing va rasmiy sertifikat oling.",
+    "pages": {
+      "home": {
+        "title": "ZiyoMalaka — Pedagoglar uchun malaka oshirish va qayta tayyorlash",
+        "description": "ZiyoMalaka — o'qituvchi va pedagoglar uchun malaka oshirish va qayta tayyorlash platformasi. O'zingizga qulay vaqtda o'qing va rasmiy sertifikat oling."
+      },
+      "contact": {
+        "title": "Aloqa — ZiyoMalaka",
+        "description": "ZiyoMalaka bilan bog'laning. Telefon, email, Telegram va aloqa formasi."
+      },
+      "howItWorks": {
+        "title": "Qanday ishlaydi? — ZiyoMalaka",
+        "description": "ZiyoMalaka platformasidan foydalanish — 5 oddiy bosqichda ro'yxatdan o'tishdan sertifikat olishgacha."
+      },
+      "certificate": {
+        "title": "Sertifikatni tekshirish — ZiyoMalaka",
+        "description": "Sertifikat raqami yoki QR kod orqali sertifikatning haqiqiyligini tekshiring."
+      },
+      "retrain": {
+        "title": "Qayta tayyorlash — ZiyoMalaka",
+        "description": "Yangi kasb egallash uchun qayta tayyorlash dasturlari. Davlat namunasidagi diplom bilan professional ta'lim."
+      },
+      "upgrade": {
+        "title": "Malaka oshirish — ZiyoMalaka",
+        "description": "Kasbiy malakangizni yangi bosqichga olib chiqing. Zamonaviy malaka oshirish yo'nalishi va rasmiy sertifikat."
+      },
+      "pedagogika": {
+        "title": "Pedagogika — ZiyoMalaka",
+        "description": "Pedagogika yo'nalishi: zamonaviy o'qitish usullari, raqamli pedagogika va pedagogik mahorat kurslari."
+      },
+      "login": {
+        "title": "Kirish — ZiyoMalaka",
+        "description": "ZiyoMalaka platformasiga kirish. Email yoki telefon raqam va parol orqali hisobingizga kiring."
+      },
+      "register": {
+        "title": "Ro'yxatdan o'tish — ZiyoMalaka",
+        "description": "ZiyoMalaka platformasida bepul ro'yxatdan o'ting. Malaka oshirish va qayta tayyorlash kurslariga yoziling."
+      },
+      "forgotPassword": {
+        "title": "Parolni unutish — ZiyoMalaka",
+        "description": "Email manzilingizga parolni tiklash kodi yuboriladi."
+      },
+      "resetPassword": {
+        "title": "Parolni qayta o'rnatish — ZiyoMalaka",
+        "description": "Emailga kelgan kod orqali yangi parol o'rnating."
+      }
+    }
+  },
+  "common": {
+    "nav": {
+      "home": "Bosh sahifa",
+      "directions": "Yo'nalishlar",
+      "upgrade": "Malaka oshirish",
+      "retrain": "Qayta tayyorlash",
+      "contact": "Aloqa"
+    },
+    "topLinks": {
+      "about": "Biz haqimizda",
+      "news": "Yangiliklar",
+      "contact": "Aloqa"
+    },
+    "buttons": {
+      "login": "Kirish",
+      "register": "Ro'yxatdan o'tish",
+      "viewDirections": "Yo'nalishlarni ko'rish",
+      "howItWorks": "Qanday ishlaydi?",
+      "viewCourses": "Kurslarni ko'rish",
+      "viewRetrainCourses": "Qayta tayyorlash kurslarini ko'rish",
+      "details": "Batafsil",
+      "enroll": "Kursga yozilish",
+      "contactUs": "Biz bilan bog'lanish",
+      "goToDirection": "Yo'nalishga o'tish",
+      "viewAllCourses": "Barcha kurslarni ko'rish",
+      "viewFaq": "FAQ'larni ko'rish",
+      "sendMessage": "Xabar yuborish",
+      "sending": "Yuborilmoqda...",
+      "verify": "Tekshirish",
+      "verifying": "Tekshirilmoqda...",
+      "startVerify": "Tekshirishni boshlash",
+      "verifyCertificate": "Sertifikatni tekshirish",
+      "verifyDiploma": "Diplomni tekshirish",
+      "scanQr": "QR kod skanerlash",
+      "openDirections": "Yo'nalishni ochish",
+      "requestHelp": "Yordam so'rash",
+      "aboutDirection": "Yo'nalish haqida batafsil",
+      "filters": "Filterlar"
+    },
+    "breadcrumbs": {
+      "home": "Bosh sahifa",
+      "directions": "Yo'nalishlar",
+      "contact": "Aloqa",
+      "howItWorks": "Qanday ishlaydi?",
+      "certificate": "Sertifikatni tekshirish",
+      "upgrade": "Malaka oshirish",
+      "pedagogika": "Pedagogika"
+    },
+    "workHoursLabel": "Ish vaqti: {hours}",
+    "workHoursShort": "Dush–Jum, {hours}",
+    "language": "Til",
+    "localeUz": "O'zbekcha",
+    "localeRu": "Русский",
+    "localeUzShort": "O'z",
+    "localeRuShort": "Ru",
+    "currency": "so'm",
+    "online": "Onlayn",
+    "brandName": "ZiyoMalaka",
+    "brandTagline": "Pedagoglar uchun malaka oshirish",
+    "back": "Orqaga",
+    "details": "Batafsil",
+    "viewAllDirections": "Barcha yo'nalishlar",
+    "viewAllDirectionsFull": "Barcha yo'nalishlarni ko'rish",
+    "viewAllNews": "Barcha yangiliklar",
+    "viewAllCourses": "Barcha kurslarni ko'rish",
+    "hoursSuffix": "soat",
+    "monthsSuffix": "oy",
+    "daysSuffix": "kun",
+    "lessonsSuffix": "dars",
+    "coursesAvailable": "{count} ta kurs mavjud",
+    "coursesCount": "{count} kurs",
+    "faqTitle": "Ko'p beriladigan savollar",
+    "forWhom": "Kimlar uchun?",
+    "certificateLabel": "Sertifikat",
+    "diplomLabel": "Diplom",
+    "validCertificate": "Haqiqiy sertifikat",
+    "validStatus": "Haqiqiy",
+    "upgradeType": "Malaka oshirish",
+    "retrainType": "Qayta tayyorlash",
+    "badges": {
+      "popular": "Ommabop",
+      "mostPopular": "Eng ommabop",
+      "newCourse": "Yangi kurs",
+      "discount": "-30% chegirma",
+      "mostPopularDirection": "Eng ommabop yo'nalish"
+    },
+    "dashboard": "Dashboard",
+    "dashboardBrand": "ZiyoMalaka Dashboard",
+    "addToFavorites": "Sevimlilarga qo'shish",
+    "moreQuestions": "Savollaringiz bormi?",
+    "moreQuestionsAlt": "Yana savollaringiz bormi?",
+    "copyright": "© 2025 ZiyoMalaka. Barcha huquqlar himoyalangan."
+  },
+  "footer": {
+    "description": "O'zbekistondagi yetakchi onlayn ta'lim platformasi. Malaka oshirish va qayta tayyorlash yo'nalishlari.",
+    "platform": "Platforma",
+    "usefulLinks": "Foydali havolalar",
+    "contact": "Aloqa",
+    "subscribe": "Obuna bo'ling",
+    "subscribeDescription": "Yangiliklar va aksiyalar haqida xabardor bo'ling",
+    "emailPlaceholder": "Email manzilingiz",
+    "address": "Toshkent shahri — 41°12'26.6\"N 69°13'24.0\"E",
+    "platformLinks": [
+      "Bosh sahifa",
+      "Yo'nalishlar",
+      "Malaka oshirish",
+      "Qayta tayyorlash"
+    ],
+    "usefulLinksItems": [
+      { "label": "Biz haqimizda", "href": "#" },
+      { "label": "Yangiliklar", "href": "/#yangiliklar" },
+      { "label": "FAQ", "href": "#" },
+      { "label": "Maxfiylik siyosati", "href": "#" },
+      { "label": "Foydalanish shartlari", "href": "#" },
+      { "label": "Aloqa", "href": "/aloqa" }
+    ],
+    "social": {
+      "facebook": "Facebook",
+      "telegram": "Telegram",
+      "instagram": "Instagram",
+      "youtube": "YouTube"
+    }
+  },
+  "home": {
+    "hero": {
+      "title": "Pedagogik malakangizni oshiring,",
+      "titleHighlight": "kelajagingizni yoriting!",
+      "description": "ZiyoMalaka — o'qituvchi va pedagoglar uchun malaka oshirish va qayta tayyorlash platformasi. O'zingizga qulay vaqtda o'qing va rasmiy sertifikat oling."
+    },
+    "stats": {
+      "items": [
+        { "value": "15,000+", "label": "Faol foydalanuvchilar" },
+        { "value": "350+", "label": "Yo'nalishlar soni" },
+        { "value": "2,500+", "label": "Video darslar" },
+        { "value": "10,000+", "label": "Berilgan sertifikatlar" },
+        { "value": "98%", "label": "Foydalanuvchilar qoniqishi" }
+      ]
+    },
+    "categories": {
+      "title": "Bizning yo'nalishlarimiz",
+      "items": [
+        {
+          "title": "Malaka oshirish",
+          "description": "Kasbiy malakangizni oshirish uchun zamonaviy va sifatli yo'nalishlar"
+        },
+        {
+          "title": "Qayta tayyorlash",
+          "description": "Yangi kasb egallash uchun to'liq qayta tayyorlash dasturlari"
+        },
+        {
+          "title": "Onlayn tayyorlov yo'nalishlari",
+          "description": "Istalgan vaqtda, istalgan joydan o'qish imkoniyati"
+        },
+        {
+          "title": "Korxona va tashkilotlar uchun",
+          "description": "Xodimlaringiz malakasini oshirish uchun korporativ yechimlar"
+        }
+      ]
+    },
+    "whyUs": {
+      "title": "Nega aynan ZiyoMalaka?",
+      "items": [
+        {
+          "title": "Sifatli ta'lim",
+          "description": "Tajribali o'qituvchilar va zamonaviy o'quv dasturlari"
+        },
+        {
+          "title": "Davlat litsenziyasi",
+          "description": "Rasmiy litsenziyaga ega ta'lim muassasasi"
+        },
+        {
+          "title": "Rasmiy sertifikat",
+          "description": "Davlat namunasidagi sertifikat olish imkoniyati"
+        },
+        {
+          "title": "Moslashuvchan o'qish",
+          "description": "O'zingizga qulay vaqtda va joyda o'qish"
+        },
+        {
+          "title": "Doimiy qo'llab-quvvatlash",
+          "description": "24/7 texnik va o'quv yordami xizmati"
+        }
+      ]
+    },
+    "howItWorks": {
+      "title": "Qanday ishlaydi?",
+      "steps": [
+        {
+          "number": 1,
+          "title": "Ro'yxatdan o'ting",
+          "description": "Platformada bepul ro'yxatdan o'ting"
+        },
+        {
+          "number": 2,
+          "title": "Yo'nalish tanlang",
+          "description": "O'zingizga mos yo'nalishni tanlang"
+        },
+        {
+          "number": 3,
+          "title": "Darslarni o'rganing",
+          "description": "Video darslar va materiallarni o'rganing"
+        },
+        {
+          "number": 4,
+          "title": "Imtihon topshiring",
+          "description": "Onlayn imtihonni muvaffaqiyatli topshiring"
+        },
+        {
+          "number": 5,
+          "title": "Sertifikat oling",
+          "description": "Rasmiy sertifikatni qo'lga kiriting"
+        }
+      ]
+    },
+    "popularCourses": {
+      "title": "Mashhur yo'nalishlar",
+      "items": [
+        {
+          "title": "Mehnat muhofazasi va xavfsizligi",
+          "hours": "72 soat",
+          "rating": 4.8,
+          "reviews": 320
+        },
+        {
+          "title": "Buxgalteriya hisobi va soliqqa tortish",
+          "hours": "96 soat",
+          "rating": 4.9,
+          "reviews": 256
+        },
+        {
+          "title": "Raqamli pedagogika",
+          "hours": "48 soat",
+          "rating": 4.7,
+          "reviews": 189
+        },
+        {
+          "title": "Kadrlar boshqaruvi",
+          "hours": "64 soat",
+          "rating": 4.6,
+          "reviews": 145
+        },
+        {
+          "title": "Axborot xavfsizligi asoslari",
+          "hours": "56 soat",
+          "rating": 4.8,
+          "reviews": 210
+        }
+      ]
+    },
+    "testimonials": {
+      "title": "Foydalanuvchilar fikri",
+      "items": [
+        {
+          "name": "Dilnoza Karimova",
+          "role": "Buxgalter",
+          "text": "ZiyoMalaka platformasi orqali malaka oshirish yo'nalishini muvaffaqiyatli tamomladim. Video darslar juda sifatli va tushunarli edi.",
+          "initials": "DK"
+        },
+        {
+          "name": "Javohir Toshmatov",
+          "role": "O'qituvchi",
+          "text": "Raqamli pedagogika yo'nalishi menga zamonaviy o'qitish usullarini o'rganishda katta yordam berdi. Tavsiya qilaman!",
+          "initials": "JT"
+        },
+        {
+          "name": "Malika Rahimova",
+          "role": "HR menejer",
+          "text": "Kadrlar boshqaruvi yo'nalishi professional rivojlanishimga katta hissa qo'shdi. Sertifikat rasmiy va tan olinadi.",
+          "initials": "MR"
+        }
+      ]
+    },
+    "news": {
+      "title": "Yangiliklar",
+      "items": [
+        {
+          "title": "2025-yil uchun yangi malaka oshirish yo'nalishlari e'lon qilindi",
+          "date": "12.05.2025"
+        },
+        {
+          "title": "ZiyoMalaka platformasi yangi interfeysga ega bo'ldi",
+          "date": "28.04.2025"
+        },
+        {
+          "title": "Raqamli pedagogika bo'yicha bepul vebinar o'tkaziladi",
+          "date": "15.04.2025"
+        },
+        {
+          "title": "10,000-sertifikat rasmiylashtirildi — yangi yutuq!",
+          "date": "01.04.2025"
+        }
+      ]
+    },
+    "partners": {
+      "title": "Bizga ishonishadi",
+      "items": [
+        {
+          "name": "O'zbekiston Respublikasi Vazirlar Mahkamasi",
+          "abbr": "O'RM"
+        },
+        {
+          "name": "Oliy va o'rta maxsus ta'lim vazirligi",
+          "abbr": "O'OMTV"
+        },
+        {
+          "name": "Mehnat va aholini ijtimoiy himoya vazirligi",
+          "abbr": "MAIHV"
+        },
+        {
+          "name": "Raqamli texnologiyalar vazirligi",
+          "abbr": "RTV"
+        }
+      ]
+    },
+    "faqBanner": {
+      "title": "Savollaringiz bormi?",
+      "description": "Ko'p beriladigan savollarga javoblarni FAQ bo'limida topishingiz mumkin"
+    }
+  },
+  "contact": {
+    "hero": {
+      "title": "Aloqa",
+      "description": "Savollaringiz bormi? Biz bilan bog'laning — mutaxassislarimiz sizga tez orada javob beradi.",
+      "subtitle": "Malaka oshirish platformasi — ZiyoMalaka"
+    },
+    "cards": {
+      "items": [
+        {
+          "title": "Telefon raqam",
+          "value": "+998 94 938 04 40"
+        },
+        {
+          "title": "Telegram",
+          "value": "@ziyomalaka_uz"
+        },
+        {
+          "title": "Instagram",
+          "value": "@ziyomalaka_uz"
+        },
+        {
+          "title": "Email",
+          "value": "ziyomalaka@gmail.com"
+        }
+      ]
+    },
+    "form": {
+      "title": "Bizga xabar yuboring",
+      "description": "Formani to'ldiring, ish vaqti: {hours} javob beramiz",
+      "labels": {
+        "name": "Ism va familiya",
+        "phone": "Telefon raqam",
+        "email": "Email manzil",
+        "subject": "Mavzu",
+        "message": "Xabar"
+      },
+      "placeholders": {
+        "name": "Ismingiz",
+        "phone": "+998 90 123 45 67",
+        "email": "ziyomalaka@gmail.com",
+        "subject": "Mavzuni tanlang",
+        "message": "Xabaringizni yozing..."
+      },
+      "subjects": [
+        "Umumiy savol",
+        "Kurslar haqida",
+        "To'lov masalasi",
+        "Texnik yordam",
+        "Hamkorlik"
+      ],
+      "toast": {
+        "successTitle": "Xabaringiz yuborildi!",
+        "successDescription": "{name}, tez orada siz bilan bog'lanamiz."
+      }
+    },
+    "map": {
+      "title": "Bizning manzilimiz",
+      "addressLine1": "Toshkent shahri",
+      "addressLine2": "ZiyoMalaka ofisi",
+      "coordinates": "41°12'26.6\"N 69°13'24.0\"E"
+    }
+  },
+  "howItWorks": {
+    "hero": {
+      "title": "Qanday ishlaydi?",
+      "description": "ZiyoMalaka platformasidan foydalanish juda oson. Bir necha oddiy bosqichda ro'yxatdan o'ting, kurs tanlang va rasmiy sertifikat oling."
+    },
+    "steps": {
+      "title": "5 oddiy bosqichda o'qish",
+      "items": [
+        {
+          "number": 1,
+          "title": "Ro'yxatdan o'ting",
+          "description": "Platformada bepul ro'yxatdan o'ting"
+        },
+        {
+          "number": 2,
+          "title": "Kurs tanlang",
+          "description": "O'zingizga mos kursni toping"
+        },
+        {
+          "number": 3,
+          "title": "Darslarni o'rganing",
+          "description": "Video darslar va materiallar"
+        },
+        {
+          "number": 4,
+          "title": "Test va imtihon",
+          "description": "Bilimingizni sinab ko'ring"
+        },
+        {
+          "number": 5,
+          "title": "Sertifikat oling",
+          "description": "Rasmiy sertifikatni qo'lga kiriting"
+        }
+      ]
+    },
+    "stepDetails": {
+      "title": "Har bir bosqich haqida batafsil",
+      "items": [
+        {
+          "title": "Ro'yxatdan o'ting",
+          "description": "Platformada ro'yxatdan o'tish uchun email yoki telefon raqamingizni kiriting. Bir necha daqiqada shaxsiy kabinetingiz tayyor bo'ladi.",
+          "checklist": [
+            "Email yoki telefon orqali ro'yxatdan o'tish",
+            "Shaxsiy profil yaratish",
+            "Xavfsizlik sozlamalarini belgilash"
+          ]
+        },
+        {
+          "title": "Kurs tanlang",
+          "description": "Malaka oshirish, qayta tayyorlash yoki boshqa yo'nalishlardan o'zingizga mos kursni tanlang. Filter va qidiruv yordamida tez toping.",
+          "checklist": [
+            "Yo'nalishlar bo'yicha ko'rish",
+            "Filter va qidiruv imkoniyati",
+            "Kurs haqida batafsil ma'lumot"
+          ]
+        },
+        {
+          "title": "Darslarni o'rganing",
+          "description": "Video darslar, PDF materiallar va amaliy topshiriqlar orqali o'qing. O'zingizga qulay vaqtda va joyda o'rganing.",
+          "checklist": [
+            "Sifatli video darslar",
+            "PDF va qo'shimcha materiallar",
+            "Progress kuzatuvi"
+          ]
+        },
+        {
+          "title": "Test va imtihon topshiring",
+          "description": "Har bir modul bo'yicha testlar va yakuniy imtihonni topshiring. Bilimingizni sinab ko'ring va natijani darhol bilib oling.",
+          "checklist": [
+            "Modul bo'yicha testlar",
+            "Yakuniy onlayn imtihon",
+            "Qayta topshirish imkoniyati"
+          ]
+        },
+        {
+          "title": "Sertifikat oling",
+          "description": "Kursni muvaffaqiyatli tamomlaganingizdan so'ng davlat namunasidagi rasmiy sertifikatni oling va onlayn tekshiring.",
+          "checklist": [
+            "Davlat namunasidagi sertifikat",
+            "QR kod orqali tekshirish",
+            "Elektron va bosma nusxa"
+          ]
+        }
+      ]
+    },
+    "whyUs": {
+      "title": "Nega ZiyoMalaka?",
+      "items": [
+        {
+          "title": "Sifatli ta'lim",
+          "description": "Tajribali o'qituvchilar va zamonaviy dasturlar"
+        },
+        {
+          "title": "Qulay format",
+          "description": "Istalgan vaqtda va joydan onlayn o'qish"
+        },
+        {
+          "title": "Rasmiy sertifikat",
+          "description": "Davlat namunasidagi sertifikat olish"
+        },
+        {
+          "title": "Natijaga yo'naltirilgan",
+          "description": "Amaliy bilim va ko'nikmalarni egallash"
+        },
+        {
+          "title": "Qo'llab-quvvatlash",
+          "description": "24/7 texnik va o'quv yordami"
+        },
+        {
+          "title": "Xavfsiz platforma",
+          "description": "Ma'lumotlaringiz to'liq himoyalangan"
+        }
+      ]
+    },
+    "faq": {
+      "items": [
+        {
+          "question": "Ro'yxatdan o'tish bepulmi?",
+          "answer": "Ha, platformada ro'yxatdan o'tish to'liq bepul. Faqat kursga yozilganda to'lov talab qilinadi."
+        },
+        {
+          "question": "Qancha vaqtda o'qish mumkin?",
+          "answer": "Kurslarni istalgan vaqtda va joydan o'qishingiz mumkin. Muddat kurs turiga bog'liq."
+        },
+        {
+          "question": "Sertifikat qachon beriladi?",
+          "answer": "Kursni muvaffaqiyatli tamomlagan va imtihondan o'tganingizdan so'ng sertifikat beriladi."
+        },
+        {
+          "question": "To'lov qanday amalga oshiriladi?",
+          "answer": "Bank kartasi, Click, Payme va boshqa onlayn to'lov tizimlari orqali to'lov qilishingiz mumkin."
+        },
+        {
+          "question": "Texnik yordam bormi?",
+          "answer": "Ha, ish vaqti: {hours} texnik va o'quv yordami xizmati mavjud. Biz bilan bog'laning."
+        }
+      ]
+    },
+    "contactCard": {
+      "title": "Yana savollaringiz bormi?",
+      "description": "Mutaxassislarimiz sizga yordam berishga tayyor",
+      "hours": "Ish vaqti: {hours}"
+    }
+  },
+  "certificate": {
+    "hero": {
+      "title": "Sertifikatni tekshirish",
+      "description": "Sertifikat raqamini kiriting yoki QR kodni skanerlang va sertifikatning haqiqiyligini tekshiring. Barcha ma'lumotlar rasmiy bazadan olinadi."
+    },
+    "form": {
+      "tabs": {
+        "number": "Sertifikat raqami orqali",
+        "qr": "QR kod orqali"
+      },
+      "placeholder": "Masalan: ZM-2024-000123",
+      "hint": "Sertifikat raqami sertifikatning pastki qismida yoki QR kod yonida joylashgan",
+      "qrDescription": "QR kodni skanerlang yoki rasm yuklang",
+      "toast": {
+        "verifyTitle": "Tekshiruv bajarildi",
+        "verifyDescription": "{certificateNumber} raqamli sertifikat qidirilmoqda...",
+        "qrTitle": "QR skaner",
+        "qrDescription": "Kamera orqali QR kod skanerlash tez orada qo'shiladi."
+      }
+    },
+    "features": {
+      "title": "Tekshirishdan oldin e'tibor bering",
+      "items": [
+        {
+          "title": "Haqiqiylik kafolati",
+          "description": "Sertifikat rasmiy bazadan tekshiriladi"
+        },
+        {
+          "title": "Rasmiy ma'lumot",
+          "description": "Davlat reestridagi aniq ma'lumotlar"
+        },
+        {
+          "title": "Ma'lumotlar xavfsizligi",
+          "description": "Shaxsiy ma'lumotlaringiz himoyalangan"
+        },
+        {
+          "title": "24/7 xizmat",
+          "description": "Istalgan vaqtda tekshirish imkoniyati"
+        }
+      ]
+    },
+    "sample": {
+      "title": "Tekshirish natijasi namunasi",
+      "fields": [
+        { "label": "Sertifikat raqami", "value": "ZM-2024-000123" },
+        { "label": "Tinglovchi F.I.Sh.", "value": "Abdullayev Sardorbek O'ktam o'g'li" },
+        { "label": "Kurs nomi", "value": "Zamonaviy pedagogik texnologiyalar" },
+        { "label": "Kurs turi", "value": "Malaka oshirish" },
+        { "label": "Davomiyligi", "value": "72 soat" },
+        { "label": "Berilgan sana", "value": "20.06.2024" },
+        { "label": "Sertifikat holati", "value": "Haqiqiy", "highlight": true },
+        { "label": "Tekshirilgan sana", "value": "12.05.2025 14:35" }
+      ]
+    },
+    "cta": {
+      "title": "Sertifikat haqiqiyligini tekshiring!",
+      "description": "Rasmiy bazadan tez va ishonchli tekshirish xizmati"
+    },
+    "faq": {
+      "items": [
+        {
+          "question": "Sertifikat raqamini qayerdan topaman?",
+          "answer": "Sertifikat raqami sertifikatning pastki qismida, QR kod yonida joylashgan. Format: ZM-YYYY-XXXXXX"
+        },
+        {
+          "question": "Sertifikat topilmasa nima qilish kerak?",
+          "answer": "Raqamni to'g'ri kiritganingizga ishonch hosil qiling. Muammo davom etsa, biz bilan bog'laning."
+        },
+        {
+          "question": "Ma'lumotlar noto'g'ri bo'lsa?",
+          "answer": "Agar sertifikatdagi ma'lumotlar bazadagi ma'lumotlardan farq qilsa, darhol biz bilan bog'laning."
+        },
+        {
+          "question": "QR kod qanday ishlaydi?",
+          "answer": "QR kodni telefon kamerasi yoki skaner dasturi orqali o'qing. Avtomatik tekshirish sahifasi ochiladi."
+        },
+        {
+          "question": "Tekshirish bepulmi?",
+          "answer": "Ha, sertifikatni tekshirish xizmati to'liq bepul va cheklanmagan."
+        },
+        {
+          "question": "Qancha vaqt saqlanadi?",
+          "answer": "Tekshirish natijalari va tarix tizimda doimiy saqlanadi."
+        }
+      ]
+    }
+  },
+  "retrain": {
+    "hero": {
+      "title": "Qayta tayyorlash",
+      "description": "Yangi kasb egallash va professional rivojlanish uchun davlat namunasidagi diplom bilan qayta tayyorlash dasturlari. Kelajagingizni bugundan boshlang!",
+      "diplomDecor": "DIPLOM"
+    },
+    "features": {
+      "items": [
+        "Rasmiy diplom",
+        "Yangi kasb egallash",
+        "Moslashuvchan o'qish",
+        "Amaliy yo'naltirilgan",
+        "Ish bilan ta'minlash yordami"
+      ]
+    },
+    "info": {
+      "title": "Qayta tayyorlash nima?",
+      "paragraphs": [
+        "Qayta tayyorlash — bu yangi kasb egallash yoki mavjud kasbiy bilimlarni chuqurlashtirish uchun mo'ljallangan ta'lim dasturi. Dastur davomida siz zamonaviy bilim va ko'nikmalarni egallaysiz.",
+        "Muvaffaqiyatli tamomlagan bitiruvchilar davlat namunasidagi diplom oladi va yangi kasb bo'yicha ishga joylashish imkoniyatiga ega bo'ladi."
+      ],
+      "benefits": [
+        "Davlat litsenziyasi",
+        "Karyera o'sishi",
+        "Amaliy bilim",
+        "Mutaxassis o'qituvchilar"
+      ],
+      "forWhom": [
+        "Kasbini o'zgartirmoqchi bo'lganlar",
+        "Yangi sohada ishlashni xohlaydiganlar",
+        "Oliy ma'lumotli mutaxassislar",
+        "Ishsiz yoki qayta ishga joylashmoqchi bo'lganlar",
+        "Kasbiy qayta tayyorlash talab qilinadiganlar"
+      ]
+    },
+    "directions": {
+      "title": "Qayta tayyorlash yo'nalishlari",
+      "items": [
+        { "title": "Pedagogika", "courses": 12 },
+        { "title": "Buxgalteriya", "courses": 8 },
+        { "title": "Axborot texnologiyalari", "courses": 15 },
+        { "title": "Tibbiyot", "courses": 6 },
+        { "title": "Yuridik", "courses": 5 },
+        { "title": "Chet tillari", "courses": 9 }
+      ]
+    },
+    "popularCourses": {
+      "title": "Ommabop qayta tayyorlash kurslari",
+      "items": [
+        {
+          "title": "Python dasturlash",
+          "category": "Axborot texnologiyalari",
+          "months": "6 oy",
+          "hours": "360 soat",
+          "rating": 4.9,
+          "reviews": 342,
+          "price": "2,500,000",
+          "badge": "Ommabop"
+        },
+        {
+          "title": "Buxgalteriya hisobi",
+          "category": "Buxgalteriya",
+          "months": "4 oy",
+          "hours": "240 soat",
+          "rating": 4.8,
+          "reviews": 256,
+          "price": "1,800,000",
+          "badge": "Yangi kurs"
+        },
+        {
+          "title": "Ingliz tili o'qituvchisi",
+          "category": "Pedagogika",
+          "months": "5 oy",
+          "hours": "300 soat",
+          "rating": 4.7,
+          "reviews": 189,
+          "price": "2,100,000",
+          "badge": "Ommabop"
+        },
+        {
+          "title": "Kadrlar boshqaruvi",
+          "category": "Menejment",
+          "months": "3 oy",
+          "hours": "180 soat",
+          "rating": 4.6,
+          "reviews": 145,
+          "price": "1,500,000",
+          "badge": null
+        },
+        {
+          "title": "Web dizayn va dasturlash",
+          "category": "Axborot texnologiyalari",
+          "months": "6 oy",
+          "hours": "360 soat",
+          "rating": 4.8,
+          "reviews": 210,
+          "price": "2,800,000",
+          "badge": "Yangi kurs"
+        }
+      ]
+    },
+    "process": {
+      "title": "Qayta tayyorlash jarayoni",
+      "steps": [
+        "Yo'nalishni tanlang",
+        "Kursni tanlang",
+        "Ro'yxatdan o'ting",
+        "Ariza yuboring",
+        "To'lovni amalga oshiring",
+        "Darslarni o'rganing",
+        "Test va yakuniy imtihon",
+        "Diplom oling"
+      ]
+    },
+    "diploma": {
+      "title": "Diplom haqida",
+      "benefits": [
+        "Davlat namunasidagi rasmiy diplom",
+        "QR kod orqali onlayn tekshirish imkoniyati",
+        "Yagona elektron reestrda ro'yxatdan o'tkaziladi",
+        "Ish beruvchilar tomonidan tan olinadi",
+        "Yangi kasb bo'yicha ishga joylashish imkoniyati",
+        "Xalqaro standartlarga mos ta'lim dasturi"
+      ]
+    },
+    "cta": {
+      "title": "Yangi kasb — yangi imkoniyatlar sari qadam!",
+      "description": "Hoziroq ro'yxatdan o'ting va kelajagingizni o'zgartiring"
+    },
+    "faq": {
+      "items": [
+        {
+          "question": "Qayta tayyorlash kursi qancha davom etadi?",
+          "answer": "Kurslar odatda 3 oydan 6 oygacha davom etadi. Aniq muddat tanlangan yo'nalish va kursga bog'liq."
+        },
+        {
+          "question": "Qanday hujjatlar talab qilinadi?",
+          "answer": "Oliy yoki o'rta maxsus ma'lumot diplomi, pasport nusxasi va ariza shakli talab qilinadi."
+        },
+        {
+          "question": "Diplom beriladimi?",
+          "answer": "Ha, kursni muvaffaqiyatli tamomlagan va imtihondan o'tgan bitiruvchilarga davlat namunasidagi diplom beriladi."
+        },
+        {
+          "question": "Onlayn o'qish mumkinmi?",
+          "answer": "Ha, barcha qayta tayyorlash kurslari to'liq onlayn formatda taqdim etiladi."
+        },
+        {
+          "question": "To'lov qanday amalga oshiriladi?",
+          "answer": "Bank kartasi, Click, Payme va boshqa onlayn to'lov tizimlari orqali to'lov qilishingiz mumkin. Bo'lib to'lash imkoniyati ham mavjud."
+        },
+        {
+          "question": "Ish bilan ta'minlash yordami bormi?",
+          "answer": "Ha, bitiruvchilarga ish topishda yordam berish xizmati taqdim etiladi."
+        },
+        {
+          "question": "Qayta topshirish imkoniyati bormi?",
+          "answer": "Ha, imtihondan o'ta olmagan o'quvchilar belgilangan muddat ichida qayta topshirish imkoniyatiga ega."
+        },
+        {
+          "question": "Kimlar qabul qilinadi?",
+          "answer": "Oliy yoki o'rta maxsus ma'lumotga ega, yangi kasb egallashni xohlaydigan barcha fuqarolar qabul qilinadi."
+        }
+      ]
+    }
+  },
+  "upgrade": {
+    "hero": {
+      "title": "Kasbiy malakangizni yangi bosqichga olib chiqing",
+      "description": "Zamonaviy bilim va ko'nikmalarni egallash orqali kasbiy rivojlanishingizni ta'minlang. Rasmiy sertifikat bilan malakangizni tasdiqlang."
+    },
+    "info": {
+      "title": "Malaka oshirish nima?",
+      "benefits": [
+        {
+          "title": "Bilimlarni yangilash",
+          "description": "Kasbiy bilimlaringizni zamonaviy talablarga moslashtiring"
+        },
+        {
+          "title": "Yangi usullar",
+          "description": "Zamonaviy o'qitish va ish usullarini o'rganing"
+        },
+        {
+          "title": "Karyera o'sishi",
+          "description": "Kasbiy rivojlanish va lavozim ko'tarilish imkoniyati"
+        },
+        {
+          "title": "Rasmiy sertifikat",
+          "description": "Davlat namunasidagi sertifikat olish imkoniyati"
+        }
+      ],
+      "forWhom": [
+        "O'qituvchilar va pedagoglar",
+        "Rahbarlar va menejerlar",
+        "Mutaxassislar va xodimlar",
+        "Tashkilot rahbarlari"
+      ]
+    },
+    "directions": {
+      "title": "Malaka oshirish yo'nalishlari",
+      "items": [
+        { "title": "Pedagogika", "courses": "40+" },
+        { "title": "Mehnat muhofazasi", "courses": "25+" },
+        { "title": "Raqamli texnologiyalar", "courses": "35+" },
+        { "title": "Buxgalteriya", "courses": "20+" },
+        { "title": "Menejment", "courses": "18+" }
+      ]
+    },
+    "popularCourses": {
+      "title": "Ommabop malaka oshirish yo'nalishi",
+      "items": [
+        {
+          "title": "Zamonaviy pedagogik texnologiyalar",
+          "category": "Pedagogika",
+          "hours": "72 soat",
+          "days": "14 kun",
+          "rating": 4.9,
+          "reviews": 412,
+          "price": "380,000",
+          "badge": "Eng ommabop"
+        },
+        {
+          "title": "Mehnat muhofazasi va xavfsizligi",
+          "category": "Mehnat muhofazasi",
+          "hours": "72 soat",
+          "days": "14 kun",
+          "rating": 4.8,
+          "reviews": 320,
+          "price": "350,000",
+          "badge": "Eng ommabop"
+        },
+        {
+          "title": "Raqamli pedagogika",
+          "category": "Pedagogika",
+          "hours": "48 soat",
+          "days": "10 kun",
+          "rating": 4.7,
+          "reviews": 189,
+          "price": "280,000",
+          "badge": "Yangi kurs"
+        },
+        {
+          "title": "Buxgalteriya hisobi",
+          "category": "Buxgalteriya",
+          "hours": "96 soat",
+          "days": "18 kun",
+          "rating": 4.8,
+          "reviews": 256,
+          "price": "420,000",
+          "badge": null
+        },
+        {
+          "title": "Kadrlar boshqaruvi",
+          "category": "Menejment",
+          "hours": "64 soat",
+          "days": "12 kun",
+          "rating": 4.6,
+          "reviews": 145,
+          "price": "320,000",
+          "badge": "Yangi kurs"
+        }
+      ]
+    },
+    "process": {
+      "title": "Malaka oshirish qanday amalga oshiriladi?",
+      "steps": [
+        "Yo'nalishni tanlang",
+        "Kursni tanlang",
+        "Ro'yxatdan o'ting",
+        "Ariza yuboring",
+        "To'lov qiling",
+        "Darslarni o'rganing",
+        "Imtihon topshiring",
+        "Sertifikat oling"
+      ]
+    },
+    "learningCert": {
+      "learningTitle": "O'qish jarayoni",
+      "certTitle": "Sertifikat",
+      "learningItems": [
+        "Video darslar",
+        "PDF materiallar",
+        "Amaliy topshiriqlar",
+        "Mentor yordami",
+        "Progress kuzatuvi",
+        "Yakuniy imtihon",
+        "Materiallarni yuklab olish",
+        "24/7 qo'llab-quvvatlash"
+      ],
+      "certFeatures": [
+        "QR kod orqali onlayn tekshirish",
+        "Noyob seriya raqami",
+        "Amal qilish muddati ko'rsatilgan",
+        "Davlat namunasidagi rasmiy sertifikat",
+        "Elektron reestrda ro'yxatdan o'tkazilgan"
+      ]
+    },
+    "cta": {
+      "title": "Bugundan boshlab malakangizni oshiring!",
+      "description": "Minglab o'quvchilar allaqachon biz bilan rivojlanmoqda"
+    },
+    "faq": {
+      "title": "Nega ZiyoMalaka orqali malaka oshirish?",
+      "items": [
+        {
+          "question": "Malaka oshirish kursi qancha davom etadi?",
+          "answer": "Kurslar odatda 48 soatdan 96 soatgacha davom etadi. Aniq muddat tanlangan kursga bog'liq."
+        },
+        {
+          "question": "Sertifikat beriladimi?",
+          "answer": "Ha, kursni muvaffaqiyatli tamomlagan va imtihondan o'tgan o'quvchilarga davlat namunasidagi sertifikat beriladi."
+        },
+        {
+          "question": "Onlayn o'qish mumkinmi?",
+          "answer": "Ha, barcha malaka oshirish yo'nalishi to'liq onlayn formatda taqdim etiladi."
+        },
+        {
+          "question": "Nega aynan ZiyoMalaka?",
+          "answer": "ZiyoMalaka — davlat litsenziyasiga ega, tajribali o'qituvchilar va zamonaviy o'quv dasturlari bilan ta'minlangan yetakchi platforma."
+        },
+        {
+          "question": "To'lov qanday amalga oshiriladi?",
+          "answer": "Bank kartasi, Click, Payme va boshqa onlayn to'lov tizimlari orqali to'lov qilishingiz mumkin."
+        },
+        {
+          "question": "Qayta topshirish imkoniyati bormi?",
+          "answer": "Ha, imtihondan o'ta olmagan o'quvchilar belgilangan muddat ichida qayta topshirish imkoniyatiga ega."
+        }
+      ],
+      "sidebar": {
+        "title": "Savollaringiz bormi?",
+        "description": "Biz bilan bog'laning, yordam beramiz"
+      }
+    }
+  },
+  "pedagogika": {
+    "hero": {
+      "badge": "Eng ommabop yo'nalish",
+      "title": "Pedagogika",
+      "description": "Zamonaviy pedagogik bilim va ko'nikmalarni egallash uchun professional ta'lim yo'nalishi. O'qituvchilar va pedagoglar uchun mo'ljallangan.",
+      "stats": [
+        { "value": "45+", "label": "Kurslar" },
+        { "value": "12,500+", "label": "Faol o'quvchilar" },
+        { "value": "10,000+", "label": "Sertifikatlar" },
+        { "value": "4.8/5", "label": "Reyting" }
+      ]
+    },
+    "about": {
+      "title": "Yo'nalish haqida",
+      "sidebar": [
+        "Yo'nalish haqida",
+        "Bo'limlar",
+        "Kurslar",
+        "Nima o'rganasiz?",
+        "O'qish jarayoni",
+        "Sertifikat",
+        "FAQ"
+      ],
+      "cards": [
+        {
+          "title": "Maqsad",
+          "description": "Zamonaviy pedagogik bilim va ko'nikmalarni egallash, o'qitish sifatini oshirish"
+        },
+        {
+          "title": "Nimalarni o'rganasiz?",
+          "description": "O'qitish usullari, raqamli vositalar, baholash metodlari va pedagogik mahorat"
+        },
+        {
+          "title": "Kimlar uchun?",
+          "description": "O'qituvchilar, tarbiyachilar, metodistlar va pedagogika sohasidagi mutaxassislar"
+        },
+        {
+          "title": "Kasbiy foydasi",
+          "description": "Karyera o'sishi, malaka oshirish va rasmiy sertifikat olish imkoniyati"
+        }
+      ]
+    },
+    "subsections": {
+      "title": "Yo'nalish ichidagi bo'limlar",
+      "items": [
+        "Zamonaviy pedagogik texnologiyalar",
+        "O'qitish metodikasi",
+        "Baholash metodikasi",
+        "Inklyuziv ta'lim",
+        "Raqamli pedagogika",
+        "Pedagogik mahorat"
+      ]
+    },
+    "courses": {
+      "title": "Pedagogika yo'nalishidagi kurslar",
+      "searchPlaceholder": "Yo'nalish qidirish...",
+      "filters": [
+        "Yo'nalish",
+        "Davomiyligi"
+      ],
+      "items": [
+        {
+          "title": "Zamonaviy pedagogik texnologiyalar",
+          "badge": "Eng ommabop",
+          "type": "Malaka oshirish",
+          "hours": "72 soat",
+          "lessons": "24 dars",
+          "rating": 4.9,
+          "reviews": 412,
+          "price": "300,000",
+          "oldPrice": null
+        },
+        {
+          "title": "Raqamli pedagogika asoslari",
+          "badge": "Yangi kurs",
+          "type": "Malaka oshirish",
+          "hours": "48 soat",
+          "lessons": "16 dars",
+          "rating": 4.8,
+          "reviews": 189,
+          "price": "250,000",
+          "oldPrice": null
+        },
+        {
+          "title": "Inklyuziv ta'lim metodlari",
+          "badge": null,
+          "type": "Qayta tayyorlash",
+          "hours": "96 soat",
+          "lessons": "32 dars",
+          "rating": 4.7,
+          "reviews": 256,
+          "price": "210,000",
+          "oldPrice": "300,000"
+        },
+        {
+          "title": "Baholash va monitoring",
+          "badge": null,
+          "type": "Malaka oshirish",
+          "hours": "56 soat",
+          "lessons": "18 dars",
+          "rating": 4.6,
+          "reviews": 134,
+          "price": "180,000",
+          "oldPrice": null
+        },
+        {
+          "title": "Pedagogik mahorat",
+          "badge": "Eng ommabop",
+          "type": "Malaka oshirish",
+          "hours": "64 soat",
+          "lessons": "20 dars",
+          "rating": 4.9,
+          "reviews": 378,
+          "price": "280,000",
+          "oldPrice": null
+        }
+      ]
+    },
+    "whatYouLearn": {
+      "title": "Nima o'rganasiz?",
+      "items": [
+        {
+          "title": "Zamonaviy usullar",
+          "description": "Interaktiv va zamonaviy o'qitish metodlarini qo'llash"
+        },
+        {
+          "title": "Samarali dars rejalashtirish",
+          "description": "Samarali dars rejalari tuzish va o'tkazish ko'nikmalari"
+        },
+        {
+          "title": "Baholash metodlari",
+          "description": "O'quvchilarni baholash va monitoring qilish usullari"
+        },
+        {
+          "title": "Raqamli vositalar",
+          "description": "Ta'lim jarayonida raqamli texnologiyalardan foydalanish"
+        },
+        {
+          "title": "Pedagogik mahorat",
+          "description": "Pedagogik mahoratni rivojlantirish va oshirish"
+        }
+      ]
+    },
+    "studyProcess": {
+      "title": "O'qish jarayoni",
+      "steps": [
+        "Kurs tanlang",
+        "Ro'yxatdan o'ting",
+        "To'lov qiling",
+        "Darslarni o'rganing",
+        "Imtihon topshiring",
+        "Sertifikat oling"
+      ]
+    },
+    "certificate": {
+      "title": "Sertifikat haqida",
+      "benefits": [
+        "Davlat namunasidagi rasmiy sertifikat",
+        "QR kod orqali onlayn tekshirish imkoniyati",
+        "Malaka oshirish va qayta tayyorlash uchun amal qiladi",
+        "Ish beruvchilar tomonidan tan olinadi"
+      ]
+    },
+    "faq": {
+      "title": "Ko'p beriladigan savollar",
+      "items": [
+        {
+          "question": "Kurs davomiyligi qancha?",
+          "answer": "Kurslar 48 soatdan 96 soatgacha davom etadi. Har bir kursning aniq davomiyligi kurs sahifasida ko'rsatilgan."
+        },
+        {
+          "question": "Sertifikat beriladimi?",
+          "answer": "Ha, kursni muvaffaqiyatli tamomlagan va imtihondan o'tgan o'quvchilarga davlat namunasidagi rasmiy sertifikat beriladi."
+        },
+        {
+          "question": "Onlayn o'qish mumkinmi?",
+          "answer": "Ha, barcha kurslar to'liq onlayn formatda taqdim etiladi. Istalgan vaqtda va joydan o'qishingiz mumkin."
+        },
+        {
+          "question": "To'lov qanday amalga oshiriladi?",
+          "answer": "Bank kartasi, Click, Payme va boshqa onlayn to'lov tizimlari orqali to'lov qilishingiz mumkin."
+        },
+        {
+          "question": "Qayta topshirish imkoniyati bormi?",
+          "answer": "Ha, imtihondan o'ta olmagan o'quvchilar belgilangan muddat ichida qayta topshirish imkoniyatiga ega."
+        },
+        {
+          "question": "Kimlar o'qishga qabul qilinadi?",
+          "answer": "O'qituvchilar, tarbiyachilar, metodistlar va pedagogika sohasida faoliyat yurituvchi barcha mutaxassislar qabul qilinadi."
+        },
+        {
+          "question": "Darslar qay tarzda o'tkaziladi?",
+          "answer": "Darslar video formatda taqdim etiladi. Shuningdek, interaktiv topshiriqlar va amaliy mashg'ulotlar mavjud."
+        },
+        {
+          "question": "Texnik yordam bormi?",
+          "answer": "Ha, platformamiz ish vaqti: {hours} texnik va o'quv yordami xizmatini taqdim etadi."
+        }
+      ],
+      "sidebar": {
+        "title": "Sizga mos kursni topa olmayapsizmi?",
+        "description": "Mutaxassislarimiz sizga mos kursni tanlashda yordam beradi",
+        "hours": "Ish vaqti: {hours}",
+        "cta": "Yordam so'rash"
+      }
+    }
+  },
+  "validation": {
+    "contact": {
+      "nameMin": "Ism kamida 2 ta harfdan iborat bo'lishi kerak",
+      "nameMax": "Ism juda uzun",
+      "phoneMin": "Telefon raqam noto'g'ri",
+      "phoneFormat": "Telefon raqam formati noto'g'ri",
+      "email": "Email manzil noto'g'ri",
+      "subject": "Mavzuni tanlang",
+      "messageMin": "Xabar kamida 10 ta harfdan iborat bo'lishi kerak",
+      "messageMax": "Xabar juda uzun"
+    },
+    "certificate": {
+      "numberMin": "Sertifikat raqami kamida 5 ta belgidan iborat bo'lishi kerak",
+      "numberFormat": "Faqat harflar, raqamlar va tire (-) ishlatiladi"
+    },
+    "login": {
+      "email": "Email manzil noto'g'ri",
+      "passwordMin": "Parol kamida 6 ta belgidan iborat bo'lishi kerak"
+    },
+    "register": {
+      "nameMin": "Ism kamida 2 ta harfdan iborat bo'lishi kerak",
+      "nameMax": "Ism juda uzun",
+      "email": "Email manzil noto'g'ri",
+      "phoneMin": "Telefon raqam noto'g'ri",
+      "phoneFormat": "Telefon raqam formati noto'g'ri",
+      "passwordMin": "Parol kamida 6 ta belgidan iborat bo'lishi kerak",
+      "confirmRequired": "Parolni tasdiqlang",
+      "passwordMismatch": "Parollar mos kelmaydi",
+      "termsRequired": "Foydalanish shartlarini qabul qilishingiz kerak"
+    },
+    "passwordReset": {
+      "email": "Email manzil noto'g'ri",
+      "codeMin": "Kod 4 ta raqamdan iborat bo'lishi kerak",
+      "codeMax": "Kod 4 ta raqamdan iborat bo'lishi kerak",
+      "codeFormat": "Faqat 4 ta raqam kiriting",
+      "passwordMin": "Parol kamida 6 ta belgidan iborat bo'lishi kerak"
+    }
+  },
+  "login": {
+    "branding": {
+      "tagline": "Pedagoglar uchun malaka oshirish",
+      "headline": "Bilimingizni oshiring, kelajagingizni <highlight>yarating</highlight>!",
+      "description": "ZiyoMalaka — zamonaviy malaka oshirish va qayta tayyorlash kurslari. O'zingizga qulay vaqtda o'qing va rasmiy sertifikat oling.",
+      "features": [
+        {
+          "title": "Sifatli ta'lim",
+          "description": "Zamonaviy dasturlar va tajribali mutaxassislar"
+        },
+        {
+          "title": "Onlayn o'qish",
+          "description": "Istalgan joydan va istalgan vaqtda o'qish imkoniyati"
+        },
+        {
+          "title": "Rasmiy sertifikat",
+          "description": "Tegishli kurslar yakunida rasmiy sertifikat olish"
+        },
+        {
+          "title": "Natijani kuzatish",
+          "description": "O'quv jarayoni va natijalaringizni kuzatib boring"
+        }
+      ],
+      "trustItems": [
+        "Ishonchli va xavfsiz",
+        "Rasmiy va qonuniy",
+        "24/7 qo'llab-quvvatlash"
+      ]
+    },
+    "form": {
+      "subtitle": "Hisobingizga kirish uchun ma'lumotlaringizni kiriting",
+      "help": "Yordam",
+      "labels": {
+        "email": "Email manzil",
+        "password": "Parol"
+      },
+      "placeholders": {
+        "email": "Email manzilingiz",
+        "password": "Parolingiz"
+      },
+      "rememberMe": "Meni eslab qolish",
+      "forgotPassword": "Parolni unutdingizmi?",
+      "or": "yoki",
+      "googleLogin": "Google orqali kirish",
+      "telegramLogin": "Telegram orqali kirish",
+      "noAccount": "Hisobingiz yo'qmi?",
+      "showPassword": "Parolni ko'rsatish",
+      "hidePassword": "Parolni yashirish",
+      "submitting": "Kirilmoqda...",
+      "toast": {
+        "successTitle": "Muvaffaqiyatli kirildi!",
+        "successDescription": "Bosh sahifaga yo'naltirilmoqda...",
+        "errorTitle": "Kirish amalga oshmadi",
+        "errorDescription": "Email yoki parol noto'g'ri. Qayta urinib ko'ring."
+      }
+    },
+    "footer": {
+      "privacy": "Maxfiylik siyosati",
+      "terms": "Foydalanish shartlari"
+    }
+  },
+  "register": {
+    "form": {
+      "subtitle": "Platformada ro'yxatdan o'tish uchun ma'lumotlaringizni kiriting",
+      "help": "Yordam",
+      "labels": {
+        "firstName": "Ism",
+        "lastName": "Familiya",
+        "fatherName": "Otasining ismi",
+        "email": "Email manzil",
+        "phone": "Telefon raqam",
+        "password": "Parol",
+        "confirmPassword": "Parolni tasdiqlash"
+      },
+      "placeholders": {
+        "firstName": "Ismingiz",
+        "lastName": "Familiyangiz",
+        "fatherName": "Otasining ismi",
+        "email": "Email manzilingiz",
+        "phone": "+998 (__) ___-__-__",
+        "password": "Parol yarating",
+        "confirmPassword": "Parolni qayta kiriting"
+      },
+      "acceptTerms": "<terms>Foydalanish shartlari</terms> va <privacy>Maxfiylik siyosati</privacy>ni qabul qilaman",
+      "or": "yoki",
+      "googleRegister": "Google orqali ro'yxatdan o'tish",
+      "telegramRegister": "Telegram orqali ro'yxatdan o'tish",
+      "hasAccount": "Hisobingiz bormi?",
+      "showPassword": "Parolni ko'rsatish",
+      "hidePassword": "Parolni yashirish",
+      "submitting": "Ro'yxatdan o'tilmoqda...",
+      "toast": {
+        "successTitle": "Muvaffaqiyatli ro'yxatdan o'tdingiz!",
+        "successDescription": "Bosh sahifaga yo'naltirilmoqda...",
+        "errorTitle": "Ro'yxatdan o'tish amalga oshmadi",
+        "errorDescription": "Ma'lumotlarni tekshirib, qayta urinib ko'ring."
+      }
+    }
+  },
+  "auth": {
+    "forgotPassword": {
+      "title": "Parolni unutdingizmi?",
+      "subtitle": "Email manzilingizni kiriting — sizga 4 xonali kod yuboramiz",
+      "labels": {
+        "email": "Email manzil"
+      },
+      "placeholders": {
+        "email": "Email manzilingiz"
+      },
+      "submit": "Kod yuborish",
+      "submitting": "Yuborilmoqda...",
+      "backToLogin": "Kirish sahifasiga qaytish",
+      "toast": {
+        "successTitle": "Kod yuborildi!",
+        "successDescription": "Email manzilingizni tekshiring va kodni kiriting.",
+        "errorTitle": "Kod yuborilmadi",
+        "errorDescription": "Email manzilni tekshirib, qayta urinib ko'ring."
+      }
+    },
+    "resetPassword": {
+      "title": "Yangi parol o'rnatish",
+      "subtitle": "Emailga kelgan 4 xonali kod va yangi parolni kiriting",
+      "labels": {
+        "email": "Email manzil",
+        "code": "Tasdiqlash kodi",
+        "newPassword": "Yangi parol"
+      },
+      "placeholders": {
+        "email": "Email manzilingiz",
+        "code": "1234",
+        "newPassword": "Yangi parol"
+      },
+      "submit": "Parolni yangilash",
+      "submitting": "Yangilanmoqda...",
+      "showPassword": "Parolni ko'rsatish",
+      "hidePassword": "Parolni yashirish",
+      "backToLogin": "Kirish sahifasiga qaytish",
+      "toast": {
+        "successTitle": "Parol yangilandi!",
+        "successDescription": "Endi yangi parol bilan kirishingiz mumkin.",
+        "errorTitle": "Parol yangilanmadi",
+        "errorDescription": "Kod yoki ma'lumotlarni tekshirib, qayta urinib ko'ring."
+      }
+    }
+  }
+}
