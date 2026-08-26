@@ -40,7 +40,7 @@ const report = {
   knownRoles: ["student", "boshqaruv", "nazoratchi", "it"],
   risks: [
     "Client-only auth guards (no middleware)",
-    "Mock data still used in QualificationView / PortfolioView",
+    "Mock data still used in PortfolioView",
     "Material progress may fall back to localStorage",
     "Results may fall back to localStorage if /learning/results missing",
     "Hardcoded ngrok default in upstream/upload",

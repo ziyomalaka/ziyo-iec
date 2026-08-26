@@ -6,7 +6,6 @@ import {
   FileText,
   GraduationCap,
   Home,
-  Medal,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -28,7 +27,6 @@ export const dashboardNavItems: DashboardNavItem[] = [
   { href: "/dashboard/applications", labelKey: "applications", icon: FileText },
   { href: "/dashboard/learning", labelKey: "learning", icon: BookMarked },
   { href: "/dashboard/results", labelKey: "results", icon: Award },
-  { href: "/dashboard/qualification", labelKey: "qualification", icon: Medal },
   { href: "/dashboard/notifications", labelKey: "notifications", icon: Bell },
   { href: "/dashboard/profile", labelKey: "profile", icon: User },
 ];
@@ -40,7 +38,6 @@ export const dashboardPageTitles: Record<string, string> = {
   "/dashboard/applications": "Arizalarim",
   "/dashboard/learning": "O'quv jarayoni",
   "/dashboard/results": "Natijalarim",
-  "/dashboard/qualification": "Mening malakam",
   "/dashboard/portfolio": "Portfolio",
   "/dashboard/notifications": "Bildirishnomalar",
   "/dashboard/profile": "Profil",
