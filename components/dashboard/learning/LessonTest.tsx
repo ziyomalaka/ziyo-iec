@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
+import { useLockBodyScroll } from "@/lib/hooks/useLockBodyScroll";
 import type { LearningMaterial } from "@/lib/api/types/learning";
 import type { LessonTestData, LessonTestResult, TestSubmitAnswer } from "@/lib/api/learning-test";
 import {
@@ -795,10 +796,11 @@ function TestModal({
   const secs = seconds % 60;
   const OPTS = ["A", "B", "C", "D", "E"];
   const isLowTime = seconds > 0 && seconds <= 60;
+  useLockBodyScroll(true);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#F7F9FC]">
-      <header className="flex items-center justify-between gap-4 border-b border-[#E8EDF5] bg-white px-6 py-3 shadow-sm">
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#F7F9FC] pb-[env(safe-area-inset-bottom)]">
+      <header className="flex items-start justify-between gap-3 border-b border-[#E8EDF5] bg-white px-3 py-3 shadow-sm sm:items-center sm:gap-4 sm:px-6">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-[#0C2340]">
             {test.title || "Dars testi"}
@@ -886,16 +888,37 @@ function TestModal({
                 </p>
               ) : null}
 
-              <h2 className="mb-5 text-lg font-semibold leading-snug text-[#0C2340]">
+              <h2 className="mb-5 break-words text-base font-semibold leading-snug text-[#0C2340] sm:text-lg">
                 {question.question}
               </h2>
+
+              <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1 lg:hidden">
+                {questions.map((q, i) => (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => onJump(i)}
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-all",
+                      current === i && "ring-2 ring-[#2563EB] ring-offset-1",
+                      answers[q.id]
+                        ? "bg-[#2563EB] text-white"
+                        : marked[q.id]
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-[#F1F5F9] text-[#64748B]"
+                    )}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
 
               <div className="space-y-3">
                 {question.answers.map((opt, idx) => (
                   <label
                     key={opt.id}
                     className={cn(
-                      "flex cursor-pointer items-center gap-4 rounded-2xl border-2 px-5 py-4 text-sm transition-all",
+                      "flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3 text-sm transition-all sm:gap-4 sm:px-5 sm:py-4",
                       answers[question.id] === opt.id
                         ? "border-[#2563EB] bg-[#EEF4FF] font-semibold text-[#2563EB]"
                         : "border-[#E8EDF5] bg-white text-[#0C2340] hover:border-[#93C5FD]"
@@ -909,7 +932,7 @@ function TestModal({
                     )}>
                       {OPTS[idx] ?? idx + 1}
                     </span>
-                    <span className="flex-1">{opt.text}</span>
+                    <span className="min-w-0 flex-1 break-words">{opt.text}</span>
                     <input
                       type="radio"
                       name={`q-${question.id}`}
@@ -921,14 +944,14 @@ function TestModal({
                 ))}
               </div>
 
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <button type="button" disabled={current === 0} onClick={onPrev}
-                  className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-2 text-sm font-medium disabled:opacity-40 hover:bg-[#F1F5F9]">
+                  className="min-h-11 w-full rounded-xl border border-[#E8EDF5] bg-white px-4 py-2 text-sm font-medium disabled:opacity-40 hover:bg-[#F1F5F9] sm:w-auto">
                   ← Oldingi
                 </button>
                 <button type="button" onClick={() => onMark(question.id)}
                   className={cn(
-                    "rounded-xl border px-4 py-2 text-sm font-medium",
+                    "min-h-11 w-full rounded-xl border px-4 py-2 text-sm font-medium sm:w-auto",
                     marked[question.id]
                       ? "border-amber-300 bg-amber-50 text-amber-700"
                       : "border-[#E8EDF5] bg-white text-[#64748B] hover:bg-[#F1F5F9]"
@@ -937,7 +960,7 @@ function TestModal({
                 </button>
                 {current < questions.length - 1 ? (
                   <button type="button" onClick={onNext}
-                    className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-2 text-sm font-medium hover:bg-[#F1F5F9]">
+                    className="min-h-11 w-full rounded-xl border border-[#E8EDF5] bg-white px-4 py-2 text-sm font-medium hover:bg-[#F1F5F9] sm:w-auto">
                     Keyingi →
                   </button>
                 ) : null}
@@ -945,7 +968,7 @@ function TestModal({
                   type="button"
                   onClick={onSubmit}
                   disabled={!allAnswered || isSubmitting}
-                  className="ml-auto rounded-xl bg-[#2563EB] px-6 py-2 text-sm font-bold text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="min-h-11 w-full rounded-xl bg-[#2563EB] px-6 py-2 text-sm font-bold text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-slate-300 sm:ml-auto sm:w-auto"
                 >
                   {allAnswered
                     ? "Testni yakunlash"

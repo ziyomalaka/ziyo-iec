@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "../globals.css";
 import Providers from "@/components/providers/Providers";
@@ -19,6 +19,12 @@ const inter = Inter({
 type Props = {
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export function generateStaticParams() {
@@ -50,8 +56,8 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.variable} h-full w-full antialiased`}>
-      <body className="min-h-screen w-full bg-background text-foreground">
+    <html lang={locale} className={`${inter.variable} h-full w-full overflow-x-clip antialiased`}>
+      <body className="min-h-screen w-full overflow-x-clip bg-background text-foreground">
         <NextIntlClientProvider messages={pickClientMessages(messages)}>
           <Providers>{children}</Providers>
         </NextIntlClientProvider>

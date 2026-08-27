@@ -31,7 +31,7 @@ function mergeBlog(prev: QualificationDirection | undefined, next: Qualification
       category_id: next.category_id ?? prev.category_id,
       category_name: next.category_name || prev.category_name,
       modules: prev.modules,
-      module_count: next.module_count ?? prev.module_count,
+      module_count: prev.modules?.length ?? next.module_count ?? prev.module_count,
     };
   }
   return dropRemovedLessonsFromTree({
@@ -44,7 +44,7 @@ function mergeBlog(prev: QualificationDirection | undefined, next: Qualification
     category_id: next.category_id ?? prev.category_id,
     category_name: next.category_name || prev.category_name,
     modules: next.modules,
-    module_count: next.module_count ?? next.modules?.length ?? prev.module_count,
+    module_count: next.modules.length,
   });
 }
 
@@ -77,21 +77,36 @@ function fingerprint(items: QualificationDirection[]) {
 
 let memoryCache: QualificationDirection[] | null = null;
 let memoryCacheAt = 0;
+let localUpdatedAt = 0;
 let inflightNetwork: Promise<QualificationDirection[]> | null = null;
 
-export function readMandatorySnapshotLocal(): QualificationDirection[] {
-  if (typeof window === "undefined") return [];
+function readLocalBundle(): { items: QualificationDirection[]; updatedAt: number } {
+  if (typeof window === "undefined") return { items: [], updatedAt: 0 };
   try {
-    return asBlogs(JSON.parse(localStorage.getItem(KEY) || "[]"));
+    const parsed = JSON.parse(localStorage.getItem(KEY) || "null") as unknown;
+    if (Array.isArray(parsed)) return { items: asBlogs(parsed), updatedAt: 0 };
+    if (parsed && typeof parsed === "object") {
+      const row = parsed as { items?: unknown; updatedAt?: unknown };
+      return {
+        items: asBlogs(parsed),
+        updatedAt: Number(row.updatedAt) || 0,
+      };
+    }
   } catch {
-    return [];
+    /* ignore */
   }
+  return { items: [], updatedAt: 0 };
 }
 
-function writeLocal(items: QualificationDirection[]) {
+export function readMandatorySnapshotLocal(): QualificationDirection[] {
+  return readLocalBundle().items;
+}
+
+function writeLocal(items: QualificationDirection[], updatedAt = Date.now()) {
   if (typeof window === "undefined") return;
+  localUpdatedAt = updatedAt;
   try {
-    const raw = JSON.stringify(items);
+    const raw = JSON.stringify({ items, updatedAt });
     if (localStorage.getItem(KEY) === raw) return;
     localStorage.setItem(KEY, raw);
   } catch {
@@ -108,7 +123,9 @@ async function fetchMandatorySnapshotFromNetwork(): Promise<QualificationDirecti
   if (inflightNetwork) return inflightNetwork;
 
   inflightNetwork = (async () => {
-    const local = readMandatorySnapshotLocal();
+    const localBundle = readLocalBundle();
+    const local = localBundle.items;
+    const localAt = Math.max(localBundle.updatedAt, localUpdatedAt);
     try {
       const response = await fetch(PATH, { cache: "no-store" });
       const json = await response.json().catch(() => null);
@@ -119,13 +136,19 @@ async function fetchMandatorySnapshotFromNetwork(): Promise<QualificationDirecti
         rememberMemory(local);
         return local;
       }
-      const items = asBlogs(json);
+      const serverAt = json && typeof json === "object" ? Number((json as { updatedAt?: unknown }).updatedAt) || 0 : 0;
+      const items = asBlogs(json).map((item) => dropRemovedLessonsFromTree(item));
+      // Admin hozir o'chirgan daraxt (local yangiroq) serverdagi eski fayl bilan qayta tiklanmasin.
+      if (local.length && localAt > serverAt) {
+        rememberMemory(local);
+        return local;
+      }
       const next = mergeIncoming(local, items);
       if (local.length && fingerprint(next) === fingerprint(local)) {
         rememberMemory(local);
         return local;
       }
-      writeLocal(next);
+      writeLocal(next, serverAt || Date.now());
       rememberMemory(next);
       return next;
     } catch {
@@ -176,7 +199,7 @@ async function flushSnapshot() {
     await fetch(PATH, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, updatedAt: localUpdatedAt || Date.now() }),
     });
   } catch {
     /* server cache ixtiyoriy */

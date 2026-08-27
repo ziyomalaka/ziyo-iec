@@ -3,7 +3,7 @@ import ResetPasswordFormCard from "@/components/auth/ResetPasswordFormCard";
 
 export default function ResetPasswordPage() {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
+    <div className="flex min-h-dvh flex-col">
       <Suspense fallback={null}>
         <ResetPasswordFormCard />
       </Suspense>

@@ -40,6 +40,7 @@ import {
   getQualificationDirection,
   publishLesson,
   saveLessonDraft,
+  setModuleStatus,
   submitLessonMaterial,
   updateQualificationLesson,
   updateQualificationModule,
@@ -65,7 +66,7 @@ import type {
 } from "@/lib/api/types/qualification";
 import { formatLessonCode } from "@/lib/qualification/constants";
 import { isItSource, isMandatorySource, directionKey, mapItDirection, mergeModules } from "@/lib/qualification/it-bridge";
-import { loadMergedDirections } from "@/lib/qualification/load-directions";
+import { loadMergedDirections, buildAdminQualificationList } from "@/lib/qualification/load-directions";
 import { persistSelectedLessonKind } from "@/lib/qualification/lesson-kind-sync";
 import { lessonSchema, moduleSchema } from "@/lib/qualification/schemas";
 import {
@@ -109,6 +110,27 @@ function fieldError(errors: Record<string, string>, ...keys: string[]) {
     if (errors[key]) return errors[key];
   }
   return undefined;
+}
+
+async function pushQualificationSnapshotForDirection(directionId: number, source?: ContentSource) {
+  const detailed = isItSource(source)
+    ? await getItDirection(directionId)
+        .then(mapItDirection)
+        .catch(() => null)
+    : await getQualificationDirection(directionId).catch(() => null);
+  if (!detailed) return;
+  let snapshot = detailed;
+  const itId = detailed.itId ?? (isItSource(source) ? detailed.id : undefined);
+  if (itId && !isItSource(snapshot.source)) {
+    const it = await getItDirection(itId)
+      .then(mapItDirection)
+      .catch(() => null);
+    if (it?.modules?.length) {
+      snapshot = { ...detailed, itId, modules: mergeModules(detailed.modules ?? [], it.modules) };
+    }
+  }
+  const { publishQualificationSnapshot } = await import("@/lib/qualification/published-snapshot");
+  await publishQualificationSnapshot([snapshot], { notify: true, immediate: true, replaceEmpty: true });
 }
 
 export default function MaterialWizard() {
@@ -202,7 +224,9 @@ export default function MaterialWizard() {
           if (!cancelled) setDirections(items);
         })
       : loadMergedDirections().then(({ merged }) => {
-          if (!cancelled) setDirections(merged);
+          if (!cancelled) {
+            setDirections(buildAdminQualificationList(merged).filter((item) => item.id > 0));
+          }
         });
     request
       .catch((error) => toast.error(err(error)))
@@ -306,6 +330,9 @@ export default function MaterialWizard() {
           savedModuleNumber: state.moduleNumber,
           savedModuleTitle: state.moduleTitle.trim(),
         });
+        if (!isMandatorySource(state.source) && state.directionId) {
+          await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
+        }
         toast.success("Modul yangilandi");
         return true;
       }
@@ -313,6 +340,7 @@ export default function MaterialWizard() {
         ? await createItModule(state.directionId, {
             title: state.moduleTitle.trim(),
             order_index: state.moduleNumber,
+            status: "PUBLISHED",
           })
         : isMandatorySource(state.source)
           ? await createMandatoryModule(
@@ -320,6 +348,7 @@ export default function MaterialWizard() {
               {
                 module_number: state.moduleNumber,
                 title: state.moduleTitle.trim(),
+                status: "PUBLISHED",
               },
               { idempotencyKey: moduleIdempotencyKey.current }
             )
@@ -332,11 +361,26 @@ export default function MaterialWizard() {
               { idempotencyKey: moduleIdempotencyKey.current }
             );
       if (!created?.id) throw new ApiError(500, "Modul ID qaytmadi");
+      if (!isItSource(state.source) && !isMandatorySource(state.source)) {
+        await setModuleStatus(created.id, "PUBLISHED", {
+          module_number: state.moduleNumber,
+          title: state.moduleTitle.trim(),
+        }).catch(() => undefined);
+      } else if (isItSource(state.source)) {
+        await updateItModule(created.id, {
+          title: state.moduleTitle.trim(),
+          order_index: state.moduleNumber,
+          status: "PUBLISHED",
+        }).catch(() => undefined);
+      }
       patch({
         moduleId: created.id,
         savedModuleNumber: state.moduleNumber,
         savedModuleTitle: state.moduleTitle.trim(),
       });
+      if (!isMandatorySource(state.source)) {
+        await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
+      }
       toast.success("✓ Modul yaratildi");
       return true;
     } catch (error) {
@@ -428,6 +472,9 @@ export default function MaterialWizard() {
           await persistItLessonKind(existingLessonId);
         }
         toast.success("Dars yangilandi");
+        if (!isMandatorySource(state.source) && state.directionId) {
+          await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
+        }
         return true;
       }
       const moduleId = state.moduleId!;
@@ -499,6 +546,9 @@ export default function MaterialWizard() {
         }
       }
       await persistItLessonKind(created.id);
+      if (!isMandatorySource(state.source) && state.directionId) {
+        await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
+      }
       toast.success(
         assignedNumber !== state.lessonNumber
           ? `✓ Dars yaratildi (#${assignedNumber} — ${state.lessonNumber} band edi)`
@@ -573,6 +623,9 @@ export default function MaterialWizard() {
       }
     }
     setIsUploading(false);
+    if (ok && !isMandatorySource(state.source) && state.directionId) {
+      await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
+    }
     return ok;
   };
 
@@ -689,25 +742,7 @@ export default function MaterialWizard() {
           void publishMandatorySnapshot([detailed], "upsert", { notify: true });
         }
       } else if (state.directionId) {
-        const detailed = isItSource(state.source)
-          ? await getItDirection(state.directionId)
-              .then(mapItDirection)
-              .catch(() => null)
-          : await getQualificationDirection(state.directionId).catch(() => null);
-        if (detailed) {
-          let snapshot = detailed;
-          const itId = detailed.itId ?? (isItSource(state.source) ? detailed.id : undefined);
-          if (itId && !isItSource(snapshot.source)) {
-            const it = await getItDirection(itId)
-              .then(mapItDirection)
-              .catch(() => null);
-            if (it?.modules?.length) {
-              snapshot = { ...detailed, itId, modules: mergeModules(detailed.modules ?? [], it.modules) };
-            }
-          }
-          const { publishQualificationSnapshot } = await import("@/lib/qualification/published-snapshot");
-          await publishQualificationSnapshot([snapshot], { notify: true, immediate: true });
-        }
+        await pushQualificationSnapshotForDirection(state.directionId, state.source);
       }
       patch({ status: "PUBLISHED" });
       clearWizardDraft();
@@ -780,7 +815,7 @@ export default function MaterialWizard() {
   }
 
   return (
-    <div className="rounded-2xl border border-[#E8EDF5] bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-[#E8EDF5] bg-white p-4 shadow-sm sm:p-5">
       <button type="button" onClick={leave} className="mb-4 text-sm text-[#0756F5]">
         ← Malaka oshirish
       </button>

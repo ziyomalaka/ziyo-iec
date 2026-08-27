@@ -82,6 +82,7 @@ export {
   enrollInCourse,
   getLearningCourse,
   getLearningLesson,
+  getMyLearningCourses,
 } from "@/lib/api/learning";
 export {
   applyNotificationMutation,

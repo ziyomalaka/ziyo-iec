@@ -8,8 +8,14 @@ export default function WizardStepper({ step }: { step: number }) {
   return (
     <div>
       <p className="mb-3 text-sm font-medium text-[#64748B] md:hidden">
-        {step} / {WIZARD_STEPS.length} — {WIZARD_STEPS[step - 1]?.label}
+        Bosqich {step} / {WIZARD_STEPS.length} — {WIZARD_STEPS[step - 1]?.label}
       </p>
+      <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-[#E8EDF5] md:hidden">
+        <div
+          className="h-full rounded-full bg-[#0756F5] transition-all"
+          style={{ width: `${(step / WIZARD_STEPS.length) * 100}%` }}
+        />
+      </div>
       <ol className="hidden gap-2 md:flex md:flex-wrap">
         {WIZARD_STEPS.map((item) => {
           const done = item.id < step;

@@ -41,7 +41,11 @@ export async function GET() {
 export async function PUT(request: Request) {
   const body = await request.json().catch(() => null);
   const items = asItems(body);
+  const updatedAt =
+    body && typeof body === "object" && Number((body as { updatedAt?: unknown }).updatedAt) > 0
+      ? Number((body as { updatedAt: number }).updatedAt)
+      : Date.now();
   await mkdir(path.dirname(FILE), { recursive: true });
-  await writeFile(FILE, JSON.stringify({ items, updatedAt: Date.now() }), "utf8");
+  await writeFile(FILE, JSON.stringify({ items, updatedAt }), "utf8");
   return NextResponse.json({ ok: true, count: items.length });
 }

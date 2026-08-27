@@ -81,5 +81,6 @@ export function mapCourseDetail(course: CourseDetailResponse): CourseCatalogItem
       })),
     })),
     lessonsCount: modules.reduce((sum, module) => sum + (module.lessons?.length ?? 0), 0),
+    modulesCount: modules.length,
   };
 }

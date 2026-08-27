@@ -16,7 +16,7 @@ import { isItSource, mapItDirection } from "@/lib/qualification/it-bridge";
 
 export type DirectionWritePayload = {
   title: string;
-  category_id: number;
+  category_id?: number;
   description?: string;
   duration_hours?: number;
   language?: string;

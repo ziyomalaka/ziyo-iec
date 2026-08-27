@@ -103,7 +103,40 @@ export default function ResultsView() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-[#E8EDF5] bg-white shadow-sm">
+          <div className="space-y-3 md:hidden">
+            {items.map((r) => (
+              <article key={r.id} className="rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="min-w-0 break-words text-sm font-semibold text-[#0C2340]">
+                    {r.lessonTitle || `Dars #${r.lessonId}`}
+                  </h3>
+                  <DashboardBadge variant={r.passed ? "success" : "danger"}>
+                    {r.passed ? "O'tdi" : "O'tmadi"}
+                  </DashboardBadge>
+                </div>
+                <p className="mt-1 break-words text-xs text-[#64748B]">{r.courseTitle || "—"}</p>
+                <p className="mt-1 text-xs text-[#64748B]">
+                  {r.moduleTitle || "—"} · {r.testTitle || `Test #${r.testId}`}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span>
+                    {r.percentage != null || r.score != null ? `${r.percentage ?? r.score}%` : "—"}
+                    {r.attempt != null ? ` · ${r.attempt}-urinish` : ""}
+                  </span>
+                  <span className="text-xs text-[#94A3B8]">{formatDate(r.date)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(r.id)}
+                  className="mt-3 min-h-11 w-full rounded-lg border border-[#E8EDF5] text-sm font-medium text-[#2563EB]"
+                >
+                  Ko&apos;rish
+                </button>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-xl border border-[#E8EDF5] bg-white shadow-sm md:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-sm">
                 <thead className="bg-[#F7F9FC] text-left text-[#64748B]">

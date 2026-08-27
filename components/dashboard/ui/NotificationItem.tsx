@@ -87,7 +87,7 @@ export default function NotificationItem({
         if (unread && !replyOpen) onMarkRead?.(notification.id);
       }}
       className={cn(
-        "flex gap-4 rounded-xl border bg-white p-4 text-left transition-colors",
+        "flex flex-col gap-3 rounded-xl border bg-white p-4 text-left transition-colors sm:flex-row sm:gap-4",
         unread
           ? "border-[#2563EB]/25 bg-[#F8FAFF]"
           : "border-[#E8EDF5] bg-white opacity-90",
@@ -100,11 +100,11 @@ export default function NotificationItem({
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <h4 className={cn("font-semibold text-[#0C2340]", unread && "text-[#0A3D91]")}>
+          <h4 className={cn("min-w-0 break-words font-semibold text-[#0C2340]", unread && "text-[#0A3D91]")}>
             {notification.title}
           </h4>
         </div>
-        <p className="mt-1 text-sm text-[#64748B] whitespace-pre-wrap">{notification.text}</p>
+        <p className="mt-1 break-words text-sm text-[#64748B] whitespace-pre-wrap">{notification.text}</p>
         {replyTo === "sender" || notification.senderName ? (
           <p className={cn("mt-1", replyTo === "sender" ? "text-sm font-medium text-[#0C2340]" : "text-xs text-[#94A3B8]")}>
             Kimdan: {notification.senderName || (notification.senderId ? `Mijoz #${notification.senderId}` : "Mijoz")}
@@ -163,13 +163,13 @@ export default function NotificationItem({
               setReplyTitle(`Re: ${notification.title}`);
               setReplyOpen(true);
             }}
-            className="rounded-lg border border-[#0756F5] px-3 py-1.5 text-xs font-medium text-[#0756F5] hover:bg-[#EEF4FF]"
+            className="min-h-11 rounded-lg border border-[#0756F5] px-3 py-1.5 text-xs font-medium text-[#0756F5] hover:bg-[#EEF4FF]"
           >
             Javob berish
           </button>
         </div>
       ) : null}
-      <div className="flex shrink-0 flex-col items-end gap-2">
+      <div className="flex shrink-0 flex-row flex-wrap items-center justify-between gap-2 sm:flex-col sm:items-end">
         <span
           className={cn(
             "rounded-full px-2 py-0.5 text-[11px] font-medium",

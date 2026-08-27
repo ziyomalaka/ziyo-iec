@@ -160,12 +160,24 @@ export default function PdfViewer({ src, title, className }: PdfViewerProps) {
 
   return (
     <ProtectedShell className={cn("mt-3", className)}>
+      {src && !src.startsWith("blob:") && !src.startsWith("data:") ? (
+        <div className="mb-3 flex justify-end">
+          <a
+            href={src}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center rounded-lg border border-[#E8EDF5] px-3 text-sm font-medium text-[#2563EB]"
+          >
+            Yangi oynada ochish
+          </a>
+        </div>
+      ) : null}
       {loading ? <p className="mb-3 text-sm text-[#64748B]">Yuklanmoqda...</p> : null}
       {error ? <p className="mb-3 text-sm text-[#64748B]">Fayl ochilmadi.</p> : null}
       <div
         ref={containerRef}
         className={cn(
-          "max-h-[min(70vh,720px)] overflow-auto rounded-lg border border-[#E8EDF5] bg-[#F8FAFC] p-3",
+          "w-full max-h-[min(70vh,720px)] overflow-auto rounded-lg border border-[#E8EDF5] bg-[#F8FAFC] p-3",
           error ? "hidden" : null
         )}
       />

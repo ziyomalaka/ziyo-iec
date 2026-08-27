@@ -19,7 +19,7 @@ export function mapApplication(data: unknown): ClientApplicationResponse {
     client_email: typeof row.client_email === "string" ? row.client_email : undefined,
     title: String(row.title ?? ""),
     type: typeof row.type === "string" ? row.type : undefined,
-    status: String(row.status ?? ""),
+    status: String(row.status ?? "").trim().toLowerCase(),
     status_label: typeof row.status_label === "string" ? row.status_label : undefined,
     comment: typeof row.comment === "string" ? row.comment : undefined,
     reject_reason: typeof row.reject_reason === "string" ? row.reject_reason : undefined,

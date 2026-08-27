@@ -13,6 +13,8 @@ import {
   applicationDecisionNote,
   applyToCourse,
   canReapplyApplication,
+  courseOpenHref,
+  isApprovedApplicationStatus,
   isMandatoryBlockCourse,
   MANDATORY_BLOCK_LEARNING_HREF,
 } from "@/lib/dashboard/course-application";
@@ -42,7 +44,9 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
   const [localApp, setLocalApp] = useState<ClientApplicationResponse | null>(null);
   const isMandatoryBlock = isMandatoryBlockCourse(course);
   const current = application ?? localApp;
+  const approved = isApprovedApplicationStatus(current?.status);
   const canApply = !isMandatoryBlock && canReapplyApplication(current);
+  const openHref = courseOpenHref(course, current);
   const label = current ? applicationDecisionLabel(current) : "";
   const note = applicationDecisionNote(current);
 
@@ -88,7 +92,7 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="line-clamp-3 min-h-[70px] text-[18px] leading-[1.3] font-bold text-[#101a37]">
+        <h3 className="line-clamp-3 break-words text-[18px] leading-[1.3] font-bold text-[#101a37]">
           {course.title}
         </h3>
         <div className="mt-3 flex items-center gap-2.5 text-[13px] text-[#445574]">
@@ -108,11 +112,11 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
               Nazoratchi: {note}
             </p>
           ) : null}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {isMandatoryBlock ? (
               <Link
                 href={MANDATORY_BLOCK_LEARNING_HREF}
-                className="flex h-[38px] items-center justify-center rounded-[7px] bg-[#0756F5] px-3 text-[12px] font-semibold text-white"
+                className="flex min-h-11 items-center justify-center rounded-[7px] bg-[#0756F5] px-3 text-[12px] font-semibold text-white"
               >
                 Ochish
               </Link>
@@ -121,24 +125,31 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
                 type="button"
                 disabled={saving}
                 onClick={() => void handleApply()}
-                className="flex h-[38px] items-center justify-center rounded-[7px] bg-[#0756F5] px-3 text-[12px] font-semibold text-white disabled:opacity-60"
+                className="flex min-h-11 items-center justify-center rounded-[7px] bg-[#0756F5] px-3 text-[12px] font-semibold text-white disabled:opacity-60"
               >
                 {saving ? "..." : current ? "Qayta ariza" : "Ariza"}
               </button>
-            ) : (
+            ) : approved ? (
+              <Link
+                href={openHref}
+                className="flex min-h-11 items-center justify-center rounded-[7px] bg-[#0756F5] px-3 text-[12px] font-semibold text-white"
+              >
+                Ochish
+              </Link>
+            ) : current ? (
               <span
                 title={note || label}
                 className={cn(
-                  "flex h-[38px] max-w-[140px] items-center justify-center rounded-[7px] px-2.5 text-center text-[11px] leading-tight font-semibold",
-                  statusButtonClass(current?.status)
+                  "flex min-h-11 max-w-full items-center justify-center rounded-[7px] px-2.5 text-center text-[11px] leading-tight font-semibold",
+                  statusButtonClass(current.status)
                 )}
               >
                 {label}
               </span>
-            )}
+            ) : null}
             <Link
               href={`/dashboard/courses/${course.id}`}
-              className="flex h-[38px] w-[76px] shrink-0 items-center justify-center rounded-[7px] border border-[#d9e3f0] bg-white text-[12px] font-semibold text-[#0057ff]"
+              className="flex min-h-11 min-w-[76px] shrink-0 items-center justify-center rounded-[7px] border border-[#d9e3f0] bg-white px-3 text-[12px] font-semibold text-[#0057ff]"
             >
               Batafsil
             </Link>

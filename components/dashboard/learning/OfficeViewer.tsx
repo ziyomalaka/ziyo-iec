@@ -175,7 +175,7 @@ export default function OfficeViewer({ src, title, fileName, className }: Office
     return (
       <ProtectedShell className={cn("mt-3", className)}>
         <div
-          className="max-h-[min(70vh,720px)] overflow-auto rounded-lg border border-[#E8EDF5] bg-white p-3 text-sm text-[#0C2340] [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#E8EDF5] [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-[#E8EDF5] [&_th]:bg-[#F8FAFC] [&_th]:px-2 [&_th]:py-1"
+          className="max-h-[min(70vh,720px)] overflow-auto rounded-lg border border-[#E8EDF5] bg-white p-3 text-sm text-[#0C2340] [&_table]:w-full [&_table]:min-w-[480px] [&_table]:border-collapse [&_td]:border [&_td]:border-[#E8EDF5] [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-[#E8EDF5] [&_th]:bg-[#F8FAFC] [&_th]:px-2 [&_th]:py-1"
           dangerouslySetInnerHTML={{ __html: excelHtml }}
         />
       </ProtectedShell>

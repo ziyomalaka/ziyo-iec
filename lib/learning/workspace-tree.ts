@@ -13,7 +13,7 @@ import {
   sortLearningModules,
 } from "@/lib/learning/lesson-progress";
 import { formatLessonCode } from "@/lib/qualification/constants";
-import { isVisibleToStudent } from "@/lib/publish-status";
+import { isLessonListedForStudent, isModuleListedForStudent } from "@/lib/publish-status";
 
 function moduleLessons(module: LearningModule): LearningLessonSummary[] {
   return module.lessons ?? module.items ?? [];
@@ -30,7 +30,7 @@ function catalogLessonAllowList(catalog?: CourseDetailResponse | null) {
   let count = 0;
   for (const module of modules) {
     for (const lesson of module.lessons ?? []) {
-      if (!lesson.id || !isVisibleToStudent(lesson.status)) continue;
+      if (!lesson.id || !isLessonListedForStudent(lesson.status)) continue;
       ids.add(lesson.id);
       if (lesson.title) titles.add(lessonKey(lesson.title));
       count += 1;
@@ -46,18 +46,20 @@ export function filterLearningToCatalog(
 ): LearningCourseResponse {
   if (!catalog) return course;
   const allow = catalogLessonAllowList(catalog);
-  if (!allow.count) return { ...course, modules: [] };
+  if (!allow.count) {
+    return catalog ? { ...course, modules: [] } : course;
+  }
   const modules = (course.modules ?? [])
     .map((module) => ({
       ...module,
       lessons: moduleLessons(module).filter(
         (lesson) =>
           Boolean(lesson.id) &&
-          isVisibleToStudent(lesson.status) &&
+          isLessonListedForStudent(lesson.status) &&
           (allow.ids.has(lesson.id) || allow.titles.has(lessonKey(lesson.title)))
       ),
     }))
-    .filter((module) => isVisibleToStudent(module.status) && moduleLessons(module).length > 0);
+    .filter((module) => isModuleListedForStudent(module.status));
   return { ...course, modules };
 }
 
@@ -75,6 +77,16 @@ function catalogLessonToSummary(
     order_index: lessonOrder,
     lesson_code: formatLessonCode(moduleOrder, lessonOrder),
     duration_label: lesson.duration_minutes != null ? `${lesson.duration_minutes} daqiqa` : undefined,
+    materials: (lesson.materials ?? []).map((item, index) => ({
+      id: item.id ?? index + 1,
+      type: item.material_type,
+      material_type: item.material_type,
+      title: item.title,
+      url: item.url,
+      file_url: item.file_url,
+      file: item.file,
+      content_text: item.content_text,
+    })),
   };
 }
 
@@ -82,7 +94,7 @@ export function ensureLearningTree(course: LearningCourseResponse): LearningCour
   const modules = sortLearningModules(course.modules ?? []).map((module, moduleIndex) => {
     const moduleOrder = module.order_index && module.order_index > 0 ? module.order_index : moduleIndex + 1;
     const lessons = sortLearningLessons(
-      moduleLessons(module).filter((item) => item.id && isVisibleToStudent(item.status))
+      moduleLessons(module).filter((item) => item.id && isLessonListedForStudent(item.status))
     );
     return {
       ...module,
@@ -95,7 +107,7 @@ export function ensureLearningTree(course: LearningCourseResponse): LearningCour
           formatLessonCode(moduleOrder, lesson.order_index ?? lessonIndex + 1),
       })),
     };
-  }).filter((module) => isVisibleToStudent(module.status) && module.lessons.length > 0);
+  }).filter((module) => isModuleListedForStudent(module.status));
   return { ...course, modules };
 }
 
@@ -112,23 +124,32 @@ export function mergeLearningWithCatalog(
   const byId = new Map(catalogModules.map((item) => [item.id, item]));
   const byTitle = new Map(catalogModules.map((item) => [item.title.trim().toLowerCase(), item]));
 
-  const sourceModules = learningModules.length
-    ? learningModules
-    : catalogModules.map((item) => ({
-        id: item.id,
-        title: item.title,
-        order_index: item.order_index,
-        lessons: [] as LearningLessonSummary[],
-      }));
+  const sourceModules = hasCatalog
+    ? catalogModules.map((item) => {
+        const fromLearning = learningModules.find(
+          (row) =>
+            row.id === item.id ||
+            row.title.trim().toLowerCase() === item.title.trim().toLowerCase()
+        );
+        const fromLearningLessons = fromLearning ? moduleLessons(fromLearning) : [];
+        return {
+          id: item.id,
+          title: item.title,
+          order_index: item.order_index ?? fromLearning?.order_index,
+          status: item.status,
+          lessons: fromLearningLessons.length ? fromLearningLessons : ([] as LearningLessonSummary[]),
+        };
+      })
+    : learningModules;
 
   const modules = sortLearningModules(
     sourceModules.map((module, moduleIndex) => {
       const moduleOrder = module.order_index && module.order_index > 0 ? module.order_index : moduleIndex + 1;
       const existing = sortLearningLessons(
-        moduleLessons(module).filter((item) => item.id && isVisibleToStudent(item.status))
+        moduleLessons(module).filter((item) => item.id && isLessonListedForStudent(item.status))
       );
       const catalogModule = byId.get(module.id) ?? byTitle.get(module.title.trim().toLowerCase());
-      const catalogLessons = (catalogModule?.lessons ?? []).filter((item) => isVisibleToStudent(item.status));
+      const catalogLessons = (catalogModule?.lessons ?? []).filter((item) => isLessonListedForStudent(item.status));
       const allowedIds = new Set(catalogLessons.map((item) => item.id));
       const allowedTitles = new Set(catalogLessons.map((item) => item.title.trim().toLowerCase()));
       const visibleExisting = hasCatalog

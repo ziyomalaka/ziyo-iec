@@ -70,7 +70,12 @@ export default function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebar
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button type="button" className="absolute inset-0 bg-[#0C2340]/50" onClick={onMobileClose} aria-label="Yopish" />
-          <aside className="relative h-full w-[247px]">
+          <aside
+            className="relative h-full w-[min(247px,85vw)] pb-[env(safe-area-inset-bottom)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Admin menyu"
+          >
             <SidebarBody onNavigate={onMobileClose} />
           </aside>
         </div>

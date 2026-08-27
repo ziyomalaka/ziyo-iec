@@ -90,7 +90,7 @@ export default function ApplicationsView() {
     <div>
       <PageHeader
         title="Arizalarim"
-        description="Kursga ariza yuboring. Katalogdan yuborilganda course_id majburiy."
+        description="Katalogdagi yo'nalishga ariza yuboring. Nazoratchi tasdiqlagach yo'nalish ochiladi."
         action={
           <button
             type="button"
@@ -112,7 +112,38 @@ export default function ApplicationsView() {
       {loading ? (
         <LoadingState />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#E8EDF5] bg-white shadow-sm">
+        <>
+        <div className="space-y-3 md:hidden">
+          {items.length === 0 ? (
+            <p className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-8 text-center text-sm text-[#64748B]">
+              Hali ariza yo&apos;q
+            </p>
+          ) : (
+            items.map((item) => (
+              <article key={item.id} className="rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="min-w-0 break-words text-sm font-semibold text-[#0C2340]">{item.title}</h3>
+                  <DashboardBadge variant={applicationBadge(item.status)}>
+                    {item.status_label || uiLabel(item.status, applicationStatusLabel)}
+                  </DashboardBadge>
+                </div>
+                <p className="mt-1 text-xs text-[#64748B]">
+                  №{item.id} · {item.type ?? "Kursga ariza"}
+                </p>
+                <p className="mt-1 text-xs text-[#94A3B8]">{formatApplicationEvent(item)}</p>
+                <button
+                  type="button"
+                  onClick={() => setSelected(item)}
+                  className="mt-3 min-h-11 w-full rounded-lg border border-[#E8EDF5] text-sm font-medium text-[#2563EB]"
+                >
+                  Ko&apos;rish
+                </button>
+              </article>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-hidden rounded-xl border border-[#E8EDF5] bg-white shadow-sm md:block">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-[#F7F9FC] text-left text-[#64748B]">
@@ -156,6 +187,7 @@ export default function ApplicationsView() {
             </table>
           </div>
         </div>
+        </>
       )}
 
       <DashboardModal

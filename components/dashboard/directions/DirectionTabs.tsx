@@ -25,7 +25,7 @@ export default function DirectionTabs({ active, counts, onChange }: DirectionTab
             type="button"
             onClick={() => onChange(tab.id)}
             className={cn(
-              "flex shrink-0 items-center gap-2 border-b-2 pb-3 text-[14px] font-medium",
+              "flex min-h-11 shrink-0 items-center gap-2 border-b-2 pb-3 text-[13px] font-medium sm:text-[14px]",
               isActive ? "border-[#0756F5] text-[#0756F5]" : "border-transparent text-[#101A37]"
             )}
           >

@@ -24,6 +24,7 @@ export type LearningLessonSummary = {
   duration_label?: string;
   order_index?: number;
   lesson_code?: string;
+  materials?: LearningMaterial[];
 };
 
 export type LearningModule = {

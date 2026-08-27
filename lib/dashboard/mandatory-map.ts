@@ -10,7 +10,7 @@ import {
   type MandatoryStoredProgress,
 } from "@/lib/learning/lesson-progress";
 import { formatLessonCode } from "@/lib/qualification/constants";
-import { filterPublishedContentTrees, isVisibleToStudent, isRemovedLessonRecord } from "@/lib/publish-status";
+import { filterPublishedContentTrees, isVisibleToStudent, isRemovedLessonRecord, isRemovedModuleRecord } from "@/lib/publish-status";
 
 function languageLabel(value?: string) {
   const raw = value?.trim().toLowerCase() ?? "";
@@ -56,6 +56,7 @@ export function flattenMandatoryLessons(blog: QualificationDirection) {
   );
 
   for (const module of modules) {
+    if (isRemovedModuleRecord(module as unknown as Record<string, unknown>)) continue;
     if (!isVisibleToStudent(module.status)) continue;
 
     const lessons = [...(module.lessons ?? [])]
@@ -82,6 +83,10 @@ function mandatoryBaseCourse(blog: QualificationDirection): LearningCourseRespon
   }
 
   const modules = [...(blog.modules ?? [])]
+    .filter((module) => {
+      if (isRemovedModuleRecord(module as unknown as Record<string, unknown>)) return false;
+      return isVisibleToStudent(module.status);
+    })
     .sort((a, b) => (a.module_number ?? 0) - (b.module_number ?? 0))
     .map((module, moduleIndex) => {
       const moduleOrder = module.module_number ?? moduleIndex + 1;
@@ -168,9 +173,13 @@ export function mapMandatoryLessonDetail(blog: QualificationDirection, lessonId:
 export function mapMandatoryBlogToDirection(blog: QualificationDirection): MyDirection {
   const href = mandatoryLearningHref(blog.id);
   const publishedLessons = flattenMandatoryLessons(blog);
+  const visibleModules = (blog.modules ?? []).filter((module) => {
+    if (isRemovedModuleRecord(module as unknown as Record<string, unknown>)) return false;
+    return isVisibleToStudent(module.status);
+  });
   const modules = publishedLessons.length
     ? new Set(publishedLessons.map((row) => row.module.id)).size
-    : blog.module_count ?? blog.modules?.length ?? 0;
+    : visibleModules.length;
   const totalHours = blog.duration_hours ?? 0;
   return {
     id: `mandatory-blog-${blog.id}`,
@@ -180,6 +189,7 @@ export function mapMandatoryBlogToDirection(blog: QualificationDirection): MyDir
     totalHours,
     completedHours: 0,
     modules,
+    moduleTitles: visibleModules.map((module) => module.title).filter(Boolean),
     language: languageLabel(blog.language),
     startDate: new Date().toISOString().slice(0, 10),
     progress: 0,

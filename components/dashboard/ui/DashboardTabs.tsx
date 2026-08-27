@@ -13,15 +13,15 @@ type DashboardTabsProps = {
 
 export default function DashboardTabs({ tabs, active, onChange, action, className }: DashboardTabsProps) {
   return (
-    <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-[#E8EDF5] pb-4", className)}>
-      <div className="flex flex-wrap gap-2">
+    <div className={cn("flex flex-col gap-3 border-b border-[#E8EDF5] pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between", className)}>
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
             className={cn(
-              "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+              "min-h-11 shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
               active === tab.id
                 ? "bg-[#2563EB] text-white"
                 : "text-[#64748B] hover:bg-[#F7F9FC] hover:text-[#0C2340]"

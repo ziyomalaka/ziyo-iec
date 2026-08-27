@@ -90,7 +90,12 @@ export default function DashboardSidebar({ mobileOpen, onMobileClose }: Dashboar
             onClick={onMobileClose}
             aria-label="Menyuni yopish"
           />
-          <aside className="fixed inset-y-0 left-0 z-50 w-[247px] lg:hidden">
+          <aside
+            className="fixed inset-y-0 left-0 z-50 w-[min(247px,85vw)] pb-[env(safe-area-inset-bottom)] lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+          >
             <SidebarBody onNavigate={onMobileClose} />
           </aside>
         </>

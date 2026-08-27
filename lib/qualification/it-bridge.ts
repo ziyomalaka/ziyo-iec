@@ -12,6 +12,7 @@ import type {
 import { formatLessonCode } from "@/lib/qualification/constants";
 import { mapStoredLessonKind } from "@/lib/learning/lesson-kind";
 import { isRemovedLessonRecord } from "@/lib/publish-status";
+import { normalizeDirectionTitle } from "@/lib/qualification/oliy-directions";
 
 export function directionKey(direction: Pick<QualificationDirection, "id" | "source" | "itId">) {
   return `${direction.source ?? "qualification"}-${direction.id}-${direction.itId ?? 0}`;
@@ -36,10 +37,6 @@ export function wizardSource(direction: QualificationDirection, qualModule?: Qua
   if (isItSource(qualModule?.source) || isItSource(direction.source)) return "it";
   if (isMandatorySource(qualModule?.source) || isMandatorySource(direction.source)) return "mandatory";
   return "qualification";
-}
-
-function normTitle(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function itLessonKind(lesson: ItLesson): QualificationLesson["lesson_type"] {
@@ -162,7 +159,7 @@ function mergeLessons(primary: QualificationLesson[], extra: QualificationLesson
   const result: QualificationLesson[] = [];
   const used = new Set<number>();
   for (const lesson of primary) {
-    const match = extra.find((row) => !used.has(row.id) && normTitle(row.title) === normTitle(lesson.title));
+    const match = extra.find((row) => !used.has(row.id) && normalizeDirectionTitle(row.title) === normalizeDirectionTitle(lesson.title));
     if (match) {
       used.add(match.id);
       const materials = [...(lesson.materials ?? [])];
@@ -192,7 +189,7 @@ export function mergeModules(primary: QualificationModule[], extra: Qualificatio
   const result: QualificationModule[] = [];
   const used = new Set<number>();
   for (const item of primary) {
-    const match = extra.find((row) => !used.has(row.id) && normTitle(row.title) === normTitle(item.title));
+    const match = extra.find((row) => !used.has(row.id) && normalizeDirectionTitle(row.title) === normalizeDirectionTitle(item.title));
     if (match) {
       used.add(match.id);
       result.push({
@@ -245,7 +242,7 @@ export function mergeDirectionLists(qualification: QualificationDirection[], it:
   const result: QualificationDirection[] = [];
   const usedIt = new Set<number>();
   for (const item of qualification) {
-    const match = it.find((row) => !usedIt.has(row.id) && normTitle(row.title) === normTitle(item.title));
+    const match = it.find((row) => !usedIt.has(row.id) && normalizeDirectionTitle(row.title) === normalizeDirectionTitle(item.title));
     if (match) {
       usedIt.add(match.id);
       result.push({

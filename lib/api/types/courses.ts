@@ -29,6 +29,7 @@ export type CourseLessonSummary = {
   lesson_type?: string;
   status?: string;
   materials?: Array<{
+    id?: number;
     title?: string;
     material_type?: string;
     url?: string;

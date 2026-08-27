@@ -9,6 +9,8 @@ import { CONTACT_EMAIL } from "@/lib/contact";
 import Container from "@/components/ui/Container";
 import Button from "@/components/ui/Button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useEscapeKey } from "@/lib/hooks/useEscapeKey";
+import { useLockBodyScroll } from "@/lib/hooks/useLockBodyScroll";
 import { cn } from "@/lib/cn";
 
 const topLinks = [
@@ -41,6 +43,8 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const closeMobile = () => setMobileOpen(false);
+  useLockBodyScroll(mobileOpen);
+  useEscapeKey(mobileOpen, closeMobile);
 
   return (
     <header className="sticky top-0 z-50 w-full">
@@ -114,7 +118,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-slate-700 transition-colors hover:border-primary/30 hover:bg-surface-blue lg:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-border text-slate-700 transition-colors hover:border-primary/30 hover:bg-surface-blue lg:hidden"
               aria-label={
                 locale === "ru"
                   ? mobileOpen
@@ -132,10 +136,32 @@ export default function Header() {
         </Container>
       </div>
 
-      {mobileOpen && (
-        <div className="border-b border-border bg-white lg:hidden">
-          <Container className="py-4">
-            <nav className="flex flex-col gap-1">
+      {mobileOpen ? (
+        <div className="lg:hidden">
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-slate-900/40"
+            onClick={closeMobile}
+            aria-label={locale === "ru" ? "Закрыть меню" : "Menyuni yopish"}
+          />
+          <nav
+            className="fixed inset-y-0 right-0 z-50 flex w-[min(20rem,85vw)] flex-col overflow-y-auto bg-white px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={locale === "ru" ? "Меню" : "Menyu"}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm font-semibold text-primary-dark">{t("brandName")}</span>
+              <button
+                type="button"
+                onClick={closeMobile}
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-border text-slate-700"
+                aria-label={locale === "ru" ? "Закрыть меню" : "Menyuni yopish"}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.key}
@@ -143,7 +169,7 @@ export default function Header() {
                   prefetch
                   onClick={closeMobile}
                   className={cn(
-                    "rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                    "min-h-11 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
                     activeNav === link.key
                       ? "bg-primary/10 text-primary"
                       : "text-slate-700 hover:bg-surface-blue hover:text-primary"
@@ -152,16 +178,16 @@ export default function Header() {
                   {t(`nav.${link.key}`)}
                 </Link>
               ))}
-            </nav>
+            </div>
 
-            <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 md:hidden">
+            <div className="mt-4 flex flex-col gap-1 border-t border-border pt-4">
               {topLinks.map((link) => (
                 <Link
                   key={link.key}
                   href={link.href}
                   prefetch
                   onClick={closeMobile}
-                  className="px-4 py-2 text-sm text-slate-600 hover:text-primary"
+                  className="min-h-11 px-4 py-2 text-sm text-slate-600 hover:text-primary"
                 >
                   {t(`topLinks.${link.key}`)}
                 </Link>
@@ -169,13 +195,13 @@ export default function Header() {
             </div>
 
             <div className="mt-4 sm:hidden">
-              <Button href="/kirish" variant="outline-sm" className="w-full" onClick={closeMobile}>
+              <Button href="/kirish" variant="outline-sm" className="w-full min-h-11" onClick={closeMobile}>
                 {t("buttons.login")}
               </Button>
             </div>
-          </Container>
+          </nav>
         </div>
-      )}
+      ) : null}
     </header>
   );
 }

@@ -77,7 +77,15 @@ export default function DirectionFormModal({
     setFieldErrors({});
     setLoadingCategories(true);
     getItCategories()
-      .then((items) => setCategories(sortCategories(items)))
+      .then((items) => {
+        const sorted = sortCategories(items);
+        setCategories(sorted);
+        if (!(editing?.category_id && editing.category_id > 0)) {
+          const oliy =
+            sorted.find((item) => classifyEducationLevel(item.title, item.slug) === "oliy") ?? sorted[0];
+          if (oliy) setCategoryId(String(oliy.id));
+        }
+      })
       .catch((error) => toast.error(error instanceof ApiError ? error.message : "Bo'limlar yuklanmadi"))
       .finally(() => setLoadingCategories(false));
   }, [open, editing]);
@@ -110,10 +118,10 @@ export default function DirectionFormModal({
           language,
           status,
         },
-        editing
+        editing && editing.id > 0 ? editing : null
       );
       const selected = categories.find((item) => item.id === parsed.data.category_id);
-      toast.success(editing ? "Yo'nalish yangilandi" : "Yo'nalish yaratildi");
+      toast.success(editing && editing.id > 0 ? "Yo'nalish yangilandi" : "Yo'nalish yaratildi");
       await onSaved({
         ...saved,
         category_id: saved.category_id ?? parsed.data.category_id,

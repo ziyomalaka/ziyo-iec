@@ -47,9 +47,9 @@ export default function FileUploader({
     <div>
       <p className="mb-1 text-sm text-[#0C2340]">{label}</p>
       {shownName ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E8EDF5] px-3 py-3">
-          <div>
-            <p className="text-sm font-medium text-[#0C2340]">{shownName}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-[#E8EDF5] px-3 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="break-all text-sm font-medium text-[#0C2340]">{shownName}</p>
             <p className="text-xs text-[#64748B]">
               {shownSize ? formatBytes(shownSize) : ""}
               {value ? " · Tayyor" : " · Qayta tanlang"}
@@ -60,7 +60,7 @@ export default function FileUploader({
               type="button"
               disabled={disabled}
               onClick={() => inputRef.current?.click()}
-              className="rounded-lg border border-[#E8EDF5] px-3 py-1.5 text-xs"
+              className="min-h-11 rounded-lg border border-[#E8EDF5] px-3 py-1.5 text-xs"
             >
               Almashtirish
             </button>
@@ -71,7 +71,7 @@ export default function FileUploader({
                 onChange(null);
                 if (inputRef.current) inputRef.current.value = "";
               }}
-              className="rounded-lg border border-[#E8EDF5] px-3 py-1.5 text-xs text-red-600"
+              className="min-h-11 rounded-lg border border-[#E8EDF5] px-3 py-1.5 text-xs text-red-600"
             >
               {"O'chirish"}
             </button>
@@ -82,9 +82,9 @@ export default function FileUploader({
           type="button"
           disabled={disabled}
           onClick={() => inputRef.current?.click()}
-          className="w-full rounded-lg border border-dashed border-[#E8EDF5] px-3 py-6 text-sm text-[#64748B] hover:bg-[#F7F9FC] disabled:opacity-50"
+          className="flex min-h-[5.5rem] w-full flex-col items-center justify-center rounded-lg border border-dashed border-[#E8EDF5] px-3 py-6 text-sm text-[#64748B] hover:bg-[#F7F9FC] disabled:opacity-50"
         >
-          Faylni tanlang
+          <span className="font-semibold text-[#0C2340]">Fayl tanlash</span>
           <span className="mt-1 block text-xs">Har qanday format. Maksimal {formatBytes(maxSize)}.</span>
         </button>
       )}

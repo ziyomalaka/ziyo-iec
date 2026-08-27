@@ -5,7 +5,8 @@
 import { apiRequest, type ApiRequestOptions } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { apiUpload, type UploadOptions } from "@/lib/api/upload";
-import { asList, parsePositiveInt, parseSignedInt, pickEntityId, unwrapApiPayload } from "@/lib/api/unwrap";
+import { asList, asPaged, parsePositiveInt, parseSignedInt, pickEntityId, unwrapApiPayload } from "@/lib/api/unwrap";
+import { toQuery } from "@/lib/admin/query";
 import type {
   CreateQualificationDirectionPayload,
   CreateQualificationLessonPayload,
@@ -191,8 +192,32 @@ function mapDirection(data: unknown): QualificationDirection {
 }
 
 export async function getQualificationDirections(silentAuth = false) {
-  const data = await apiRequest<unknown>(`${Q}/qualification-directions`, silentGet(silentAuth));
-  return asList<unknown>(data, ["items", "directions"]).map(mapDirection).filter((item) => item.id);
+  const perPage = 200;
+  const loadPage = async (page: number) => {
+    const data = await apiRequest<unknown>(
+      `${Q}/qualification-directions${toQuery({ page, per_page: perPage })}`,
+      silentGet(silentAuth)
+    );
+    const paged = asPaged<unknown>(data);
+    const rows = paged.items.length ? paged.items : asList<unknown>(data, ["items", "directions"]);
+    return {
+      items: rows.map(mapDirection).filter((item) => item.id > 0),
+      total_pages: paged.total_pages || 1,
+      total: paged.total || 0,
+    };
+  };
+
+  const first = await loadPage(1);
+  const pages = Math.min(15, Math.max(1, first.total_pages || Math.ceil((first.total || first.items.length) / perPage) || 1));
+  const rest =
+    pages > 1
+      ? await Promise.all(Array.from({ length: pages - 1 }, (_, index) => loadPage(index + 2)))
+      : [];
+  const byId = new Map<number, (typeof first.items)[number]>();
+  for (const item of [...first.items, ...rest.flatMap((page) => page.items)]) {
+    byId.set(item.id, item);
+  }
+  return Array.from(byId.values());
 }
 
 export async function getQualificationModules(directionId: number, silentAuth = false) {
@@ -329,6 +354,7 @@ export async function createQualificationModule(
       module_number: payload.module_number,
       title: payload.title,
       sort_order: payload.module_number,
+      ...(payload.status ? { status: payload.status } : {}),
     }),
   });
   const mapped = mapModule(created);

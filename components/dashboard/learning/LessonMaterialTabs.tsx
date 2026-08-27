@@ -69,7 +69,7 @@ export default function LessonMaterialTabs({
             key={item.id}
             value={item.id}
             className={cn(
-              "rounded-lg px-4 py-2 text-sm font-medium text-[#64748B] data-[state=active]:bg-[#EEF4FF] data-[state=active]:text-[#2563EB]"
+              "min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-[#64748B] data-[state=active]:bg-[#EEF4FF] data-[state=active]:text-[#2563EB]"
             )}
           >
             {item.label}

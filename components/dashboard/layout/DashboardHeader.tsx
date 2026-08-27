@@ -11,6 +11,7 @@ import { mapAuthUserToDashboard, getShortName } from "@/lib/dashboard/utils";
 import LogoutConfirmModal from "@/components/dashboard/layout/LogoutConfirmModal";
 import { useDashboardSearch } from "@/components/dashboard/layout/DashboardSearchContext";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
+import { useEscapeKey } from "@/lib/hooks/useEscapeKey";
 import { cn } from "@/lib/cn";
 
 type DashboardHeaderProps = {
@@ -46,6 +47,11 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEscapeKey(menuOpen || notifOpen, () => {
+    setMenuOpen(false);
+    setNotifOpen(false);
+  });
+
   const handleLogout = async () => {
     setLogoutSaving(true);
     try {
@@ -59,12 +65,12 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-[#e8edf5] bg-white">
-      <div className="flex h-[96px] w-full items-center justify-between gap-4 px-6">
-        <div className="flex min-w-0 items-center gap-6">
+      <div className="flex min-h-16 w-full items-center justify-between gap-2 px-3 py-2 sm:min-h-20 sm:gap-4 sm:px-6 lg:h-[96px] lg:py-0">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
           <button
             type="button"
             onClick={onMenuClick}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5] lg:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5] sm:h-12 sm:w-12 lg:hidden"
             aria-label="Menyu"
           >
             <Menu className="h-5 w-5" strokeWidth={1.75} />
@@ -76,15 +82,17 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
           ) : null}
           <h1
             className={cn(
-              "truncate font-bold",
-              isMyDirectionPage ? "text-[27px] text-[#101A3B]" : "text-[28px] text-[#0b1938]"
+              "line-clamp-2 min-w-0 break-words font-bold sm:truncate",
+              isMyDirectionPage
+                ? "text-lg text-[#101A3B] sm:text-xl lg:text-[27px]"
+                : "text-lg text-[#0b1938] sm:text-xl lg:text-[28px]"
             )}
           >
             {pageTitle}
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {!isMyDirectionPage ? (
             <div className="relative hidden h-[45px] w-[250px] md:block">
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#52627d]" strokeWidth={1.75} />
@@ -102,8 +110,9 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
             <button
               type="button"
               onClick={() => setNotifOpen((open) => !open)}
-              className="relative flex h-12 w-12 items-center justify-center rounded-[9px] border border-[#dce5f2] text-[#536287]"
+              className="relative flex h-11 w-11 items-center justify-center rounded-[9px] border border-[#dce5f2] text-[#536287] sm:h-12 sm:w-12"
               aria-label="Bildirishnomalar"
+              aria-expanded={notifOpen}
             >
               <Bell className="h-5 w-5" strokeWidth={1.75} />
               {unreadCount > 0 && (
@@ -114,7 +123,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
             </button>
 
             {notifOpen && (
-              <div className="absolute top-full right-0 z-50 mt-2 w-[360px] overflow-hidden rounded-[9px] border border-[#DFE7F2] bg-white shadow-[0_8px_24px_rgba(15,35,70,0.12)]">
+              <div className="absolute top-full right-0 z-50 mt-2 w-[min(22.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-[9px] border border-[#DFE7F2] bg-white shadow-[0_8px_24px_rgba(15,35,70,0.12)]">
                 <div className="flex items-center justify-between border-b border-[#E8EDF5] px-4 py-3">
                   <p className="text-[14px] font-semibold text-[#101a37]">Bildirishnomalar</p>
                   <div className="flex items-center gap-3">
@@ -160,7 +169,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                         }}
                       >
                         <div className="flex w-full items-start justify-between gap-2">
-                          <p className="text-[13px] font-semibold text-[#101a37]">{n.title}</p>
+                          <p className="min-w-0 break-words text-[13px] font-semibold text-[#101a37]">{n.title}</p>
                           {!n.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#0756F5]" />}
                         </div>
                         <p className="line-clamp-2 text-[12px] text-[#64748B]">{n.text}</p>
@@ -173,8 +182,14 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
           </div>
 
           <div ref={menuRef} className="relative">
-            <button type="button" onClick={() => setMenuOpen(!menuOpen)} className="flex items-center gap-2">
-              <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[#0756F5] text-[14px] font-bold text-white">
+            <button
+              type="button"
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="flex min-h-11 items-center gap-2"
+              aria-label="Profil menyusi"
+              aria-expanded={menuOpen}
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0756F5] text-[14px] font-bold text-white sm:h-[46px] sm:w-[46px]">
                 {user.avatarInitials}
               </div>
               <span className="hidden text-[14px] font-semibold text-[#101c3d] sm:inline">{getShortName(user)}</span>

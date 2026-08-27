@@ -52,7 +52,7 @@ export default function DirectionCard({ direction }: DirectionCardProps) {
           alt={direction.title}
           fill
           className="object-cover"
-          sizes="190px"
+          sizes="(max-width: 768px) 100vw, 190px"
         />
         <span
           className={cn(
@@ -65,7 +65,7 @@ export default function DirectionCard({ direction }: DirectionCardProps) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <h3 className="text-[17px] leading-[1.35] font-bold text-[#101A37]">{direction.title}</h3>
+        <h3 className="break-words pr-10 text-[17px] leading-[1.35] font-bold text-[#101A37]">{direction.title}</h3>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#41547B]">
           <span className="inline-flex items-center gap-1.5">
             <Clock3 className="h-3.5 w-3.5 text-[#0756F5]" strokeWidth={1.75} />
@@ -86,6 +86,18 @@ export default function DirectionCard({ direction }: DirectionCardProps) {
           <CalendarDays className="h-3.5 w-3.5 text-[#0756F5]" strokeWidth={1.75} />
           Boshlanishi: {formatDotDate(direction.startDate)}
         </p>
+        {direction.moduleTitles?.length ? (
+          <ul className="mt-3 space-y-1 text-[12px] leading-snug text-[#41547B]">
+            {direction.moduleTitles.slice(0, 4).map((title) => (
+              <li key={title} className="truncate">
+                • {title}
+              </li>
+            ))}
+            {direction.moduleTitles.length > 4 ? (
+              <li className="text-[#64748B]">yana {direction.moduleTitles.length - 4} ta modul</li>
+            ) : null}
+          </ul>
+        ) : null}
       </div>
 
       <div className="flex w-full shrink-0 flex-col justify-center md:w-[230px] md:pr-6">
@@ -113,7 +125,7 @@ export default function DirectionCard({ direction }: DirectionCardProps) {
             <Link
               href={continueHref}
               className={cn(
-                "flex h-[34px] flex-1 items-center justify-center rounded-lg text-[12px] font-semibold text-white",
+                "flex min-h-11 flex-1 items-center justify-center rounded-lg text-[12px] font-semibold text-white",
                 actionClass
               )}
             >
@@ -121,7 +133,7 @@ export default function DirectionCard({ direction }: DirectionCardProps) {
             </Link>
             <Link
               href={detailHref}
-              className="flex h-[34px] flex-1 items-center justify-center rounded-lg border border-[#DCE5F0] bg-white text-[12px] font-semibold text-[#101A37]"
+              className="flex min-h-11 flex-1 items-center justify-center rounded-lg border border-[#DCE5F0] bg-white text-[12px] font-semibold text-[#101A37]"
             >
               Kursga o&apos;tish
             </Link>
@@ -133,7 +145,7 @@ export default function DirectionCard({ direction }: DirectionCardProps) {
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-[#41547B] hover:bg-[#F7FAFE]"
+          className="flex h-11 w-11 items-center justify-center rounded-md text-[#41547B] hover:bg-[#F7FAFE]"
           aria-label="Menyu"
         >
           <MoreVertical className="h-4 w-4" strokeWidth={1.75} />

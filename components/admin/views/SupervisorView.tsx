@@ -40,6 +40,7 @@ import {
   uiLabel,
 } from "@/lib/admin/labels";
 import { formatApplicationEvent } from "@/lib/dashboard/utils";
+import { applicationSupervisorCommentDraft } from "@/lib/dashboard/course-application";
 import NotificationItem from "@/components/dashboard/ui/NotificationItem";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
 import { cn } from "@/lib/cn";
@@ -207,7 +208,44 @@ function ApplicationsTab() {
       {loading ? (
         <LoadingState />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#E8EDF5] bg-white">
+        <>
+        <div className="space-y-3 md:hidden">
+          {items.length === 0 ? (
+            <p className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-8 text-center text-sm text-[#64748B]">
+              Arizalar yo&apos;q
+            </p>
+          ) : (
+            items.map((item) => (
+              <article key={item.id} className="rounded-xl border border-[#E8EDF5] bg-white p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="break-words font-semibold text-[#0C2340]">{item.client_name ?? "—"}</p>
+                    <p className="break-all text-xs text-[#64748B]">{item.client_email}</p>
+                  </div>
+                  <DashboardBadge variant={applicationBadge(item.status)}>
+                    {item.status_label || uiLabel(item.status, applicationStatusLabel)}
+                  </DashboardBadge>
+                </div>
+                <p className="mt-2 break-words text-sm text-[#0C2340]">{item.title}</p>
+                <p className="mt-1 text-xs text-[#64748B]">
+                  {item.type ?? "—"} · {formatApplicationEvent(item)}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelected(item);
+                    setDecision("approved");
+                    setComment(applicationSupervisorCommentDraft(item));
+                  }}
+                  className="mt-3 min-h-11 w-full rounded-lg bg-[#0756F5] text-sm font-medium text-white"
+                >
+                  Hal qilish
+                </button>
+              </article>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-hidden rounded-xl border border-[#E8EDF5] bg-white md:block">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px] text-sm">
               <thead className="bg-[#F7F9FC] text-left text-[#64748B]">
@@ -248,7 +286,7 @@ function ApplicationsTab() {
                           onClick={() => {
                             setSelected(item);
                             setDecision("approved");
-                            setComment(item.comment ?? "");
+                            setComment(applicationSupervisorCommentDraft(item));
                           }}
                           className="text-[#0756F5] hover:underline"
                         >
@@ -262,6 +300,7 @@ function ApplicationsTab() {
             </table>
           </div>
         </div>
+        </>
       )}
       <AdminPagination page={page} totalPages={totalPages} onPage={setPage} />
 
@@ -416,12 +455,12 @@ function ClientsTab() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Qidirish"
-          className="rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm"
+          className="min-h-11 w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm sm:w-auto"
         />
         <select
           value={status}
@@ -429,7 +468,7 @@ function ClientsTab() {
             setStatus(e.target.value as AccountStatus | "");
             setPage(1);
           }}
-          className="rounded-lg border border-[#E8EDF5] bg-white px-3 py-2 text-sm"
+          className="min-h-11 rounded-lg border border-[#E8EDF5] bg-white px-3 py-2 text-sm"
         >
           <option value="">Hammasi</option>
           <option value="active">Faol</option>
@@ -442,7 +481,7 @@ function ClientsTab() {
             setPage(1);
             setQuery(q);
           }}
-          className="rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white"
+          className="min-h-11 rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white"
         >
           Qidirish
         </button>
@@ -450,7 +489,60 @@ function ClientsTab() {
       {loading ? (
         <LoadingState />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#E8EDF5] bg-white">
+        <>
+        <div className="space-y-3 md:hidden">
+          {items.length === 0 ? (
+            <p className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-8 text-center text-sm text-[#64748B]">
+              Mijozlar yo&apos;q
+            </p>
+          ) : (
+            items.map((item) => (
+              <article key={item.id} className="rounded-xl border border-[#E8EDF5] bg-white p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="break-words font-semibold text-[#0C2340]">
+                      {item.full_name || [item.first_name, item.last_name].filter(Boolean).join(" ")}
+                    </p>
+                    <p className="break-all text-xs text-[#64748B]">{item.email ?? "—"}</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">ID: {item.public_id ?? item.id}</p>
+                  </div>
+                  <DashboardBadge variant={accountBadge(item.account_status)}>
+                    {item.status_label || uiLabel(item.account_status, accountStatusLabel)}
+                  </DashboardBadge>
+                </div>
+                <div className="mt-3">
+                  <PasswordValue value={item.password} />
+                </div>
+                <select
+                  value={item.account_status ?? "active"}
+                  onChange={(e) => void onStatus(item.id, e.target.value as AccountStatus)}
+                  className="mt-3 min-h-11 w-full rounded-md border border-[#E8EDF5] px-2 py-1"
+                >
+                  <option value="active">Faol</option>
+                  <option value="inactive">Faol emas</option>
+                  <option value="blocked">Bloklangan</option>
+                </select>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void openDetail(item.id)}
+                    className="min-h-11 rounded-lg border border-[#E8EDF5] text-sm font-medium text-[#0756F5]"
+                  >
+                    Ko&apos;rish
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifyClient(item)}
+                    className="min-h-11 rounded-lg border border-[#0756F5] text-sm font-medium text-[#0756F5]"
+                  >
+                    Bildirishnoma
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-hidden rounded-xl border border-[#E8EDF5] bg-white md:block">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px] text-sm">
               <thead className="bg-[#F7F9FC] text-left text-[#64748B]">
@@ -517,6 +609,7 @@ function ClientsTab() {
             </table>
           </div>
         </div>
+        </>
       )}
       <AdminPagination page={page} totalPages={totalPages} onPage={setPage} />
 
@@ -549,7 +642,7 @@ function ClientsTab() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Ixtiyoriy parol"
-                  className="min-w-[200px] flex-1 rounded-lg border border-[#E8EDF5] bg-white px-3 py-2"
+                  className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-[#E8EDF5] bg-white px-3 py-2"
                 />
                 <button
                   type="button"

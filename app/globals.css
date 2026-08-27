@@ -36,12 +36,28 @@
 html {
   height: 100%;
   width: 100%;
+  overflow-x: clip;
 }
 
 body {
   @apply bg-background text-foreground font-sans antialiased;
   min-height: 100%;
   width: 100%;
+  overflow-x: clip;
+  overflow-wrap: anywhere;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+img,
+video,
+iframe {
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 video::-webkit-media-controls-download-button,
@@ -76,7 +92,7 @@ video::-webkit-media-controls-enclosure {
 }
 
 @utility container-app {
-  @apply w-full px-4 sm:px-6 lg:px-10 xl:px-14 2xl:px-16;
+  @apply mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-14 2xl:px-16;
 }
 
 @utility section-padding {
@@ -100,15 +116,15 @@ video::-webkit-media-controls-enclosure {
 }
 
 @utility heading-page {
-  @apply text-[2rem] font-extrabold leading-[1.15] tracking-tight text-primary-dark sm:text-5xl lg:text-[3.25rem];
+  @apply text-2xl font-extrabold leading-[1.15] tracking-tight text-primary-dark sm:text-[2rem] md:text-5xl lg:text-[3.25rem];
 }
 
 @utility heading-section {
-  @apply text-2xl font-bold tracking-tight text-primary-dark sm:text-[1.75rem];
+  @apply text-xl font-bold tracking-tight text-primary-dark sm:text-2xl lg:text-[1.75rem];
 }
 
 @utility text-body {
-  @apply text-base leading-relaxed text-muted;
+  @apply text-sm leading-relaxed text-muted sm:text-base lg:text-lg;
 }
 
 @utility text-body-sm {
@@ -144,7 +160,15 @@ video::-webkit-media-controls-enclosure {
 }
 
 @utility btn-outline-sm {
-  @apply btn rounded-xl border-2 border-primary/30 bg-white px-4 py-2 text-primary hover:border-primary hover:bg-surface-blue active:scale-[0.98];
+  @apply btn min-h-11 rounded-xl border-2 border-primary/30 bg-white px-4 py-2 text-primary hover:border-primary hover:bg-surface-blue active:scale-[0.98];
+}
+
+@utility tap-target {
+  @apply inline-flex min-h-11 min-w-11 items-center justify-center;
+}
+
+@utility panel-gutter {
+  @apply px-3 pb-6 pt-4 sm:px-5 lg:px-6 xl:px-8 2xl:mx-auto 2xl:max-w-[1600px] 2xl:px-10;
 }
 
 @utility btn-white {
@@ -152,7 +176,7 @@ video::-webkit-media-controls-enclosure {
 }
 
 @utility input-field {
-  @apply w-full rounded-xl border border-border px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20;
+  @apply min-h-11 w-full rounded-xl border border-border px-4 py-2.5 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 sm:text-sm;
 }
 
 @utility label-field {

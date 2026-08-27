@@ -6,12 +6,13 @@ import { BookMarked, PlayCircle } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { ApiError } from "@/lib/api/errors";
 import { getMyApplications } from "@/lib/api/applications";
-import { getCatalogCourse } from "@/lib/dashboard/qualification-catalog";
+import { getCatalogCourse, overlayCatalogWithSnapshot } from "@/lib/dashboard/qualification-catalog";
 import {
   completeLearningLesson,
   enrollInCourse,
   getLearningCourse,
   getLearningLesson,
+  invalidateLearningCache,
   isAlreadyEnrolledError,
   isLearnForbiddenError,
 } from "@/lib/api/learning";
@@ -24,6 +25,7 @@ import type { QualificationDirection } from "@/lib/api/types/qualification";
 import type { LearningCourseResponse, LearningLessonDetail, LearningLessonSummary, LearningModule } from "@/lib/api/types/learning";
 import {
   MANDATORY_BLOCK_TITLE,
+  isApprovedApplicationStatus,
   isMandatoryBlockPath,
   parseDashboardCourseId,
   parseMandatoryBlogId,
@@ -56,6 +58,7 @@ import {
   mergeLearningWithCatalog,
 } from "@/lib/learning/workspace-tree";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
+import { readQualificationSnapshot } from "@/lib/qualification/published-snapshot";
 
 function err(error: unknown) {
   return error instanceof ApiError ? error.message : "So'rov bajarilmadi";
@@ -102,7 +105,7 @@ function LearningHome() {
       ]);
       if (cancelled) return;
 
-      const approved = apps.find((item) => item.status === "approved" && item.course_id);
+      const approved = apps.find((item) => isApprovedApplicationStatus(item.status) && item.course_id);
       if (approved?.course_id) {
         setTarget({ type: "course", id: approved.course_id });
         return;
@@ -403,11 +406,14 @@ function AccessBanner({
 }
 
 async function loadLearningCourseWithKinds(courseId: number) {
-  const [data, catalog] = await Promise.all([
-    getLearningCourse(courseId),
+  invalidateLearningCache(courseId);
+  const [data, catalog, snapshot] = await Promise.all([
+    getLearningCourse(courseId, true),
     getCatalogCourse(String(courseId)).catch(() => null),
+    readQualificationSnapshot({ forceNetwork: true }).catch(() => []),
   ]);
-  return mergeLearningWithCatalog(data, catalog);
+  const overlaid = overlayCatalogWithSnapshot(catalog, snapshot, courseId, data.title);
+  return mergeLearningWithCatalog(data, overlaid);
 }
 
 function LearningPlayer({

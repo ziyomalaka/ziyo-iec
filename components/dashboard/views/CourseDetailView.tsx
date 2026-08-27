@@ -11,7 +11,10 @@ import { cn } from "@/lib/cn";
 import { getMyApplications } from "@/lib/api/applications";
 import type { ClientApplicationResponse } from "@/lib/api/types/applications";
 import {
+  applicationDecisionNote,
   applyToCourse,
+  canReapplyApplication,
+  courseOpenHref,
   findCourseApplication,
   isMandatoryBlockCourse,
   MANDATORY_BLOCK_LEARNING_HREF,
@@ -61,11 +64,18 @@ export default function CourseDetailView({ course }: CourseDetailViewProps) {
 
   useLiveRefresh(() => void refreshStatus());
 
+  const status = application?.status ?? "";
+  const statusLabel = application
+    ? application.status_label || uiLabel(status, applicationStatusLabel)
+    : "";
+  const supervisorNote = applicationDecisionNote(application);
+  const canReapply = canReapplyApplication(application);
+  const canOpen = isMandatoryBlock || enrolled || status === "approved";
+
   const handleApply = async () => {
     if (isMandatoryBlock) return;
     if (saving) return;
-    const current = application?.status;
-    if (current && current !== "rejected" && current !== "archived") return;
+    if (!canReapply) return;
     setSaving(true);
     try {
       const created = await applyToCourse(course);
@@ -83,16 +93,9 @@ export default function CourseDetailView({ course }: CourseDetailViewProps) {
       router.push(MANDATORY_BLOCK_LEARNING_HREF);
       return;
     }
-    if (!courseId) return;
-    router.push(`/dashboard/learning/${courseId}`);
+    if (!canOpen) return;
+    router.push(courseOpenHref(course, application));
   };
-
-  const status = application?.status ?? "";
-  const statusLabel = application
-    ? application.status_label || uiLabel(status, applicationStatusLabel)
-    : "";
-  const supervisorNote = application?.reject_reason || application?.comment;
-  const canReapply = !application || status === "rejected" || status === "archived";
 
   return (
     <div className="space-y-6">
@@ -240,13 +243,13 @@ export default function CourseDetailView({ course }: CourseDetailViewProps) {
             ) : null}
           </div>
           <div className="mt-6 space-y-3">
-            {courseId ? (
+            {canOpen ? (
               <button
                 type="button"
                 onClick={handleEnroll}
                 className="w-full rounded-xl bg-[#2563EB] py-3 text-sm font-semibold text-white hover:bg-[#3B82F6]"
               >
-                {isMandatoryBlock ? "Ochish" : enrolled || status === "approved" ? "O'qishni davom ettirish" : "O'quv jarayoni"}
+                {isMandatoryBlock ? "Ochish" : "O'qishni davom ettirish"}
               </button>
             ) : null}
 

@@ -21,7 +21,6 @@ export default function LessonNavCard({
   progressStatus: LessonProgressStatus;
   selected?: boolean;
   disabled?: boolean;
-  /** GET /learning/courses → lesson.has_tests */
   hasTests?: boolean;
   onClick: () => void;
 }) {
@@ -36,7 +35,7 @@ export default function LessonNavCard({
       disabled={disabled || locked}
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left shadow-[0_10px_28px_rgba(15,23,42,0.08)] transition-shadow",
+        "flex w-full min-h-11 items-start gap-2 rounded-2xl px-3 py-3 text-left shadow-[0_10px_28px_rgba(15,23,42,0.08)] transition-shadow sm:items-center sm:gap-3",
         locked ? "cursor-not-allowed bg-[#F8FAFC] opacity-70" : "bg-white",
         (selected || current) && !locked && "ring-2 ring-[#2563EB]",
         completed && !selected && "ring-1 ring-[#E2E8F0]"
@@ -44,7 +43,7 @@ export default function LessonNavCard({
     >
       <span
         className={cn(
-          "shrink-0 rounded-md px-3 py-2 text-sm font-bold text-white",
+          "shrink-0 rounded-md px-2 py-1.5 text-xs font-bold text-white sm:px-3 sm:py-2 sm:text-sm",
           locked && "bg-[#93C5FD]",
           !locked && kind === "PRACTICAL" && "bg-[#F59E0B]",
           !locked && kind === "THEORY" && "bg-[#2563EB]",
@@ -55,11 +54,13 @@ export default function LessonNavCard({
       </span>
       <span className="min-w-0 flex-1">
         {code ? (
-          <span className={cn("text-sm font-medium", locked ? "text-[#94A3B8]" : "text-[#2563EB]")}>{code}</span>
+          <span className={cn("block text-sm font-medium", locked ? "text-[#94A3B8]" : "text-[#2563EB]")}>
+            {code}
+          </span>
         ) : null}
         <span
           className={cn(
-            "mt-0.5 block text-sm font-bold uppercase leading-snug tracking-wide",
+            "mt-0.5 block text-sm font-bold leading-snug tracking-wide break-words",
             locked ? "text-[#94A3B8]" : "text-[#334155]"
           )}
         >
@@ -79,11 +80,11 @@ export default function LessonNavCard({
         </span>
       </span>
       {locked ? (
-        <Lock className="h-4 w-4 shrink-0 text-[#94A3B8]" />
+        <Lock className="mt-1 h-4 w-4 shrink-0 text-[#94A3B8] sm:mt-0" />
       ) : completed ? (
-        <Check className="h-5 w-5 shrink-0 text-[#0AA64F]" strokeWidth={2.5} />
+        <Check className="mt-1 h-5 w-5 shrink-0 text-[#0AA64F] sm:mt-0" strokeWidth={2.5} />
       ) : (
-        <ChevronRight className="h-5 w-5 shrink-0 text-[#2563EB]" />
+        <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-[#2563EB] sm:mt-0" />
       )}
     </button>
   );

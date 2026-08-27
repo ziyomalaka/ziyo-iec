@@ -2,7 +2,7 @@ import ForgotPasswordFormCard from "@/components/auth/ForgotPasswordFormCard";
 
 export default function ForgotPasswordPage() {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
+    <div className="flex min-h-dvh flex-col">
       <ForgotPasswordFormCard />
     </div>
   );

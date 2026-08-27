@@ -60,7 +60,7 @@ export default function DashboardHomeView() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-[#0C2340]">Xush kelibsiz{firstName ? `, ${firstName}` : ""}!</h2>
+        <h2 className="break-words text-xl font-bold text-[#0C2340] sm:text-2xl">Xush kelibsiz{firstName ? `, ${firstName}` : ""}!</h2>
         <p className="mt-1 text-sm text-[#64748B]">
           Ta'lim jarayoningiz va malaka oshirish holatingizni kuzatib boring.
         </p>

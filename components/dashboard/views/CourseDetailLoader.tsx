@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { GraduationCap } from "lucide-react";
 import { getCatalogCourse } from "@/lib/dashboard/qualification-catalog";
+import {
+  getEducationCourseById,
+  isLocalEducationCourseId,
+  overlayEducationCourseWithPublished,
+} from "@/lib/dashboard/education-catalog";
+import { readQualificationSnapshot, matchPublishedDirectionByTitle } from "@/lib/qualification/published-snapshot";
 import { ApiError } from "@/lib/api/errors";
 import { mapCourseDetail } from "@/lib/dashboard/mappers/courses";
 import type { CourseCatalogItem } from "@/lib/dashboard/types";
@@ -24,10 +30,50 @@ export default function CourseDetailLoader({ id }: { id: string }) {
       }
 
       try {
+        if (isLocalEducationCourseId(id)) {
+          const local = getEducationCourseById(id);
+          const snapshot = await readQualificationSnapshot({ forceNetwork: true }).catch(() => []);
+          const overlaid = local ? overlayEducationCourseWithPublished(local, snapshot) : null;
+          const match = overlaid ? matchPublishedDirectionByTitle(snapshot, overlaid.title) : null;
+          const numeric = match?.itId ?? match?.id;
+          if (numeric && numeric > 0) {
+            try {
+              const data = await getCatalogCourse(String(numeric));
+              const mapped = mapCourseDetail(data);
+              if (overlaid) {
+                setCourse({
+                  ...overlaid,
+                  description: mapped.description || overlaid.description,
+                  syllabus: mapped.syllabus.length ? mapped.syllabus : overlaid.syllabus,
+                  modulesCount: mapped.syllabus.length || overlaid.modulesCount,
+                  lessonsCount: mapped.lessonsCount || overlaid.lessonsCount,
+                  hours: mapped.hours || overlaid.hours,
+                });
+              } else {
+                setCourse(mapped);
+              }
+              setError(null);
+              return;
+            } catch {
+              /* snapshot overlay below */
+            }
+          }
+          if (overlaid) {
+            setCourse(overlaid);
+            setError(null);
+            return;
+          }
+        }
         const data = await getCatalogCourse(id);
         setCourse(mapCourseDetail(data));
         setError(null);
       } catch (err) {
+        const local = getEducationCourseById(id);
+        if (local) {
+          setCourse(local);
+          setError(null);
+          return;
+        }
         setCourse(null);
         setError(err instanceof ApiError ? err.message : "Kurs topilmadi.");
       } finally {

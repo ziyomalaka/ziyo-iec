@@ -198,7 +198,7 @@ export function lessonDetailFromTree(
     is_locked: status === "locked",
     is_completed: status === "completed",
     is_current: status === "current",
-    materials: [],
+    materials: listed.materials ?? [],
     prev_lesson_id: prev?.id ?? null,
     next_lesson_id: next?.id ?? null,
   };

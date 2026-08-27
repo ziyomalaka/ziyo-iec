@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import QualificationTree from "@/components/admin/qualification/QualificationTree";
 import DirectionFormModal from "@/components/admin/qualification/DirectionFormModal";
 import DashboardModal from "@/components/dashboard/ui/DashboardModal";
@@ -24,17 +24,19 @@ import type {
   QualificationModule,
   QualificationPublishStatus,
 } from "@/lib/api/types/qualification";
-import { directionKey, isItSource, mapItModule, mergeModules } from "@/lib/qualification/it-bridge";
-import { loadMergedDirections } from "@/lib/qualification/load-directions";
 import { forceDeleteDirection, forceDeleteLesson, forceDeleteModule } from "@/lib/qualification/force-delete";
+import { saveAdminDirection } from "@/lib/qualification/direction-save";
+import { directionKey, isItSource, mapItModule, mergeModules, wizardDirectionId, wizardSource } from "@/lib/qualification/it-bridge";
+import { nextModuleNumber, qualificationWizardPath } from "@/lib/qualification/wizard-state";
+import { loadMergedDirections, buildAdminQualificationList } from "@/lib/qualification/load-directions";
 import { publishQualificationSnapshot, removeQualificationSnapshot } from "@/lib/qualification/published-snapshot";
 import { dropRemovedLessonsFromTree } from "@/lib/publish-status";
-import { nextModuleNumber } from "@/lib/qualification/wizard-state";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 
 const fieldClass = "mt-1 w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm";
 
 export default function QualificationPage() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<QualificationDirection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,13 +57,13 @@ export default function QualificationPage() {
   itemsRef.current = items;
 
   useEffect(() => {
-    const ready = items.filter((item) => item.modules !== undefined);
+    const ready = items.filter((item) => item.id > 0 && (item.modules?.length ?? 0) > 0);
     if (!ready.length) return;
-    publishQualificationSnapshot(ready);
+    publishQualificationSnapshot(ready, { immediate: true, notify: true });
   }, [items]);
 
   const loadDirection = useCallback(async (directionId: number, force = false, silent = false) => {
-    if (!directionId) return;
+    if (!(directionId > 0)) return;
     const current =
       itemsRef.current.find((item) => item.id === directionId) ??
       itemsRef.current.find((item) => item.itId === directionId);
@@ -82,9 +84,9 @@ export default function QualificationPage() {
       if (!isItSource(current.source)) {
         try {
           const detail = await getQualificationDirection(current.id, false, { fetchMaterials: false });
-          title = detail.title || title;
+          title = title || detail.title;
           categoryId = detail.category_id ?? categoryId;
-          categoryName = detail.category_name || categoryName;
+          categoryName = categoryName || detail.category_name || categoryName;
           // DRAFT modullar ham backenddan keladi — filtrlash yo'q.
           qualModules = (detail.modules ?? []).map((item) => ({ ...item, source: "qualification" as const }));
         } catch {
@@ -115,7 +117,11 @@ export default function QualificationPage() {
       setItems((prev) =>
         prev.map((item) => (directionKey(item) === key ? nextItem : item))
       );
-      const published = publishQualificationSnapshot([nextItem], { notify: silent, immediate: silent });
+      const published = publishQualificationSnapshot([nextItem], {
+        notify: true,
+        immediate: true,
+        replaceEmpty: true,
+      });
       if (silent) await published;
     } catch (error) {
       setItems((prev) =>
@@ -135,17 +141,18 @@ export default function QualificationPage() {
     try {
       const { merged } = await loadMergedDirections();
       const prev = itemsRef.current;
-      if (silent && merged.length === 0 && prev.length > 0) return;
-      // Faqat list — silent refreshda barcha detail/modules qayta chaqirilmasin (loop).
-      const next = merged.map((item) => {
+      const list = buildAdminQualificationList(merged);
+      if (silent && list.length === 0 && prev.length > 0) return;
+      const next = list.map((item) => {
         const old = prev.find((entry) => directionKey(entry) === directionKey(item));
         if ((item.modules?.length ?? 0) > 0) return item;
         if (old?.modules !== undefined) return { ...item, modules: old.modules };
         return item;
       });
       setItems(next);
-      if (openFirst && next[0]?.id) {
-        await loadDirection(next[0].id);
+      if (openFirst) {
+        const first = next.find((item) => item.id > 0);
+        if (first) await loadDirection(first.id);
       }
     } catch (error) {
       if (!silent) toast.error(error instanceof ApiError ? error.message : "Yo'nalishlar yuklanmadi");
@@ -320,13 +327,54 @@ export default function QualificationPage() {
     }
   };
 
+  const addModule = async (direction: QualificationDirection) => {
+    let target = direction;
+    if (!(direction.id > 0)) {
+      setSaving(true);
+      try {
+        const sibling = itemsRef.current.find((item) => item.id > 0);
+        target = await saveAdminDirection({
+          title: direction.title,
+          description: direction.description,
+          category_id: sibling?.category_id,
+          language: "uz",
+          status: "PUBLISHED",
+        });
+        await loadList(true);
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Yo'nalish yaratilmadi");
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
+    router.push(
+      qualificationWizardPath({
+        step: 2,
+        source: wizardSource(target),
+        directionId: wizardDirectionId(target),
+        directionTitle: target.title,
+        moduleNumber: nextModuleNumber(target.modules),
+      })
+    );
+  };
+
   const deleteModule = async (direction: QualificationDirection, qualModule: QualificationModule) => {
     if (!window.confirm("O'chirilsinmi?")) return;
     setSaving(true);
     try {
       const itId = direction.itId ?? (isItSource(direction.source) || isItSource(qualModule.source) ? direction.id : undefined);
       await forceDeleteModule(qualModule.id, qualModule.lessons ?? [], itId);
+      const nextModules = (direction.modules ?? []).filter(
+        (entry) =>
+          !(entry.id === qualModule.id && (entry.source ?? "qualification") === (qualModule.source ?? "qualification"))
+      );
       removeModuleFromTree(direction, qualModule.id, qualModule.source);
+      await publishQualificationSnapshot([{ ...direction, modules: nextModules }], {
+        notify: true,
+        immediate: true,
+        replaceEmpty: true,
+      });
       toast.success("Modul o'chirildi");
       await loadDirection(direction.id, true, true);
     } catch (error) {
@@ -430,6 +478,7 @@ export default function QualificationPage() {
           onLoadLesson={(direction, qualModule, lesson) => void loadLessonMaterials(direction, qualModule, lesson)}
           onEditDirection={(direction) => setDirectionForm(direction)}
           onDeleteDirection={(direction) => void deleteDirection(direction)}
+          onAddModule={(direction) => void addModule(direction)}
           onEditModule={(direction, qualModule) => setModuleForm({ direction, editing: qualModule })}
           onDeleteModule={(direction, qualModule) => void deleteModule(direction, qualModule)}
           onDeleteLesson={(direction, qualModule, lesson) => setPendingLesson({ direction, module: qualModule, lesson })}

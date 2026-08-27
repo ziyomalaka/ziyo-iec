@@ -211,9 +211,9 @@ export default function LearningWorkspace({
     <div className="space-y-4">
       {banner}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
-        <aside>
-          <h2 className="font-bold text-[#0C2340]">{tree.title || "Kurs tarkibi"}</h2>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+        <aside className="min-w-0">
+          <h2 className="break-words font-bold text-[#0C2340]">{tree.title || "Kurs tarkibi"}</h2>
           <p className="mt-1 text-xs text-[#64748B]">
             Jarayon: {tree.progress_percent ?? 0}%
             {tree.has_tests ? " · Testlar mavjud" : ""}
@@ -231,9 +231,11 @@ export default function LearningWorkspace({
                         prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
                       )
                     }
-                    className="flex w-full items-center justify-between gap-3 text-left"
+                    className="flex min-h-11 w-full items-center justify-between gap-3 text-left"
                   >
-                    <span className="text-sm font-semibold uppercase tracking-wide text-[#0C2340]">{module.title}</span>
+                    <span className="min-w-0 break-words text-sm font-semibold uppercase tracking-wide text-[#0C2340]">
+                      {module.title}
+                    </span>
                     <ChevronDown
                       className={`h-4 w-4 shrink-0 text-[#2563EB] transition-transform ${expanded ? "rotate-180" : ""}`}
                     />
@@ -294,7 +296,7 @@ export default function LearningWorkspace({
                     />
                   </div>
                   {!videoDone && videoRequired ? (
-                    <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
+                    <div className="flex flex-col items-stretch justify-between gap-3 border-t border-white/10 px-4 py-3 sm:flex-row sm:items-center">
                       <p className="text-sm text-white/80">Videoni ko&apos;rib chiqing</p>
                       <button
                         type="button"
@@ -304,7 +306,7 @@ export default function LearningWorkspace({
                             materialId: videoRequired.materialId,
                           })
                         }
-                        className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-[#0C2340]"
+                        className="min-h-11 w-full rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-[#0C2340] sm:w-auto"
                       >
                         Videoni tugatdim
                       </button>
@@ -313,7 +315,7 @@ export default function LearningWorkspace({
                 </div>
               ) : null}
 
-              <div className="rounded-xl border border-[#E8EDF5] bg-white p-6 shadow-sm">
+              <div className="rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-sm sm:p-6">
                 {lesson.status_label ? (
                   <DashboardBadge
                     variant={
@@ -329,7 +331,7 @@ export default function LearningWorkspace({
                 ) : (
                   <DashboardBadge>Hozirgi dars</DashboardBadge>
                 )}
-                <h1 className="mt-2 text-xl font-bold text-[#0C2340]">{lesson.title}</h1>
+                <h1 className="mt-2 break-words text-xl font-bold text-[#0C2340]">{lesson.title}</h1>
                 {activeKind ? (
                   <span
                     className={
@@ -394,22 +396,22 @@ export default function LearningWorkspace({
                   }}
                 />
 
-                <div className="mt-6 flex flex-wrap justify-between gap-2 border-t border-[#E8EDF5] pt-4">
+                <div className="mt-6 flex flex-col gap-2 border-t border-[#E8EDF5] pt-4 sm:flex-row sm:flex-wrap sm:justify-between">
                   <button
                     type="button"
                     disabled={!prevId}
                     onClick={() => prevId && onOpenLesson(prevId)}
-                    className="rounded-lg border border-[#E8EDF5] px-4 py-2 text-sm font-medium disabled:opacity-40"
+                    className="min-h-11 w-full rounded-lg border border-[#E8EDF5] px-4 py-2 text-sm font-medium disabled:opacity-40 sm:w-auto"
                   >
                     Oldingi dars
                   </button>
-                  <div className="flex gap-2">
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                     {canManualComplete && onComplete ? (
                       <button
                         type="button"
                         disabled={completing}
                         onClick={() => onComplete()}
-                        className="rounded-lg border border-[#2563EB] px-4 py-2 text-sm font-medium text-[#2563EB] disabled:opacity-60"
+                        className="min-h-11 w-full rounded-lg border border-[#2563EB] px-4 py-2 text-sm font-medium text-[#2563EB] disabled:opacity-60 sm:w-auto"
                       >
                         {completing ? "Saqlanmoqda..." : "Darsni tugatish"}
                       </button>
@@ -418,7 +420,7 @@ export default function LearningWorkspace({
                       type="button"
                       disabled={!nextId || (nextStatus === "locked" && !lessonReadyForNext)}
                       onClick={() => nextId && onOpenLesson(nextId)}
-                      className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+                      className="min-h-11 w-full rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white disabled:opacity-40 sm:w-auto"
                     >
                       Keyingi dars
                     </button>

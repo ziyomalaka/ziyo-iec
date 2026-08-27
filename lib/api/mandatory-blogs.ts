@@ -28,7 +28,12 @@ import {
 } from "@/lib/api/mandatory-snapshot";
 import { formatLessonCode } from "@/lib/qualification/constants";
 import { qualLessonRequest } from "@/lib/api/qualification";
-import { filterPublishedContentTree, filterPublishedContentTrees, isRemovedLessonRecord } from "@/lib/publish-status";
+import {
+  filterPublishedContentTree,
+  filterPublishedContentTrees,
+  isRemovedLessonRecord,
+  isRemovedModuleRecord,
+} from "@/lib/publish-status";
 import type {
   CreateQualificationDirectionPayload,
   CreateQualificationLessonPayload,
@@ -171,12 +176,12 @@ function isActiveLesson(lesson: QualificationLesson) {
 
 function mapModule(data: unknown, directionId?: number): QualificationModule {
   const row = asRecord(unwrapApiPayload(data));
-  const moduleNumber = parsePositiveInt(row.module_number) ?? parsePositiveInt(row.sort_order) ?? undefined;
+  const moduleNumber = parseSignedInt(row.module_number) ?? parseSignedInt(row.sort_order) ?? undefined;
   const id = parsePositiveInt(row.id) ?? parsePositiveInt(row.module_id) ?? 0;
   return {
     id,
     direction_id: parsePositiveInt(row.direction_id) ?? directionId,
-    module_number: moduleNumber,
+    module_number: moduleNumber ?? undefined,
     title: String(row.title ?? row.name ?? ""),
     status: typeof row.status === "string" ? row.status : undefined,
     status_label: typeof row.status_label === "string" ? row.status_label : undefined,
@@ -188,9 +193,8 @@ function mapModule(data: unknown, directionId?: number): QualificationModule {
 }
 
 function isActiveModule(module: QualificationModule) {
-  const status = (module.status ?? "").toUpperCase();
-  if (!status) return true;
-  return status !== "ARCHIVED" && status !== "INACTIVE" && status !== "DELETED";
+  if (!module.id) return false;
+  return !isRemovedModuleRecord(module as unknown as Record<string, unknown>);
 }
 
 function parseModuleRows(data: unknown, blogId: number): QualificationModule[] {
@@ -247,7 +251,7 @@ async function fetchMandatoryBlogById(id: number, silentAuth = false) {
     ...blog,
     id: blog.id || id,
     source: "mandatory" as const,
-    modules: (blog.modules ?? []).map((item) => ({
+    modules: blog.modules?.map((item) => ({
       ...item,
       direction_id: item.direction_id ?? id,
       source: "mandatory" as const,
@@ -310,34 +314,44 @@ type HydrateOptions = {
 
 async function snapshotModules(blogId: number) {
   const local = readMandatorySnapshotLocal().find((item) => item.id === blogId);
-  if (local?.modules?.length) {
-    return local.modules.map((item) => ({
-      ...item,
-      direction_id: item.direction_id ?? blogId,
-      source: "mandatory" as const,
-    }));
+  if (local && Array.isArray(local.modules)) {
+    return local.modules
+      .filter((item) => item.id && isActiveModule(item))
+      .map((item) => ({
+        ...item,
+        direction_id: item.direction_id ?? blogId,
+        source: "mandatory" as const,
+      }));
   }
   const cached = (await readMandatorySnapshot()).find((item) => item.id === blogId);
-  return (cached?.modules ?? [])
-    .filter((item) => item.id)
-    .map((item) => ({
-      ...item,
-      direction_id: item.direction_id ?? blogId,
-      source: "mandatory" as const,
-    }));
+  if (cached && Array.isArray(cached.modules)) {
+    return cached.modules
+      .filter((item) => item.id && isActiveModule(item))
+      .map((item) => ({
+        ...item,
+        direction_id: item.direction_id ?? blogId,
+        source: "mandatory" as const,
+      }));
+  }
+  return [];
 }
 
 async function hydrateBlog(blog: QualificationDirection, options: HydrateOptions): Promise<QualificationDirection> {
   const { allowNetwork, loadLessons: shouldLoadLessons, fetchMaterials, silentAuth, blogId } = options;
-  // List/detail allaqachon modules qaytarsa — alohida GET .../modules shart emas.
-  let modules = blog.modules?.filter((item) => item.id) ?? [];
+  // GET .../modules asosiy manba. Bo'sh massiv ham haqiqiy javob — snapshot tiklamaydi.
+  let modules = (blog.modules ?? []).filter((item) => item.id && isActiveModule(item));
   const hadModules = Array.isArray(blog.modules);
-  if (allowNetwork && !modules.length) {
-    const remote = await getMandatoryBlogModules(blogId, silentAuth).catch(() => []);
-    if (remote.length) modules = remote;
-  }
-  if (!hadModules && !modules.length) {
-    modules = await snapshotModules(blogId);
+  if (allowNetwork) {
+    try {
+      // GET .../modules haqiqiy ro'yxat: nested/stale/snapshot tiklanishini oldini oladi.
+      modules = (await getMandatoryBlogModules(blogId, silentAuth)).filter((item) => isActiveModule(item));
+    } catch {
+      if (!hadModules && !modules.length) {
+        modules = (await snapshotModules(blogId)).filter((item) => isActiveModule(item));
+      }
+    }
+  } else if (!hadModules && !modules.length) {
+    modules = (await snapshotModules(blogId)).filter((item) => isActiveModule(item));
   }
 
   const withLessons = await Promise.all(
@@ -401,20 +415,22 @@ export async function getMandatoryBlogModules(id: number, silentAuth = false) {
 
   try {
     const data = await apiRequest<unknown>(`${B}/${id}/modules`, silentGet(silentAuth));
-    const mapped = mappedFrom(data);
-    if (mapped.length) return mapped;
+    // Bo'sh ro'yxat ham API javobi — localStorage snapshotini qayta tiklamaymiz.
+    return mappedFrom(data);
   } catch (error) {
     if (!isMissing(error)) throw error;
   }
 
   try {
-    const nested = (await fetchMandatoryBlogById(id, silentAuth)).modules?.filter((item) => item.id) ?? [];
-    if (nested.length) return nested;
+    const nested = (await fetchMandatoryBlogById(id, silentAuth)).modules;
+    if (Array.isArray(nested)) return nested.filter((item) => item.id && isActiveModule(item));
   } catch {
     // GET {id} ichida modules bo'lmasa
   }
 
-  return snapshotModules(id);
+  // Faqat student (tarmoq yopiq) — aks holda o'chirilgan modul qaytib keladi.
+  if (silentAuth) return snapshotModules(id);
+  return [];
 }
 
 export async function getMandatoryBlog(id: number, silentAuth = false, options?: { fetchMaterials?: boolean }) {
@@ -447,6 +463,10 @@ export async function getMandatoryBlog(id: number, silentAuth = false, options?:
     return detailed;
   } catch (error) {
     if (!isMissing(error)) throw error;
+    if (error instanceof ApiError && (error.status === 404 || error.status === 410) && !silentAuth) {
+      await removeMandatorySnapshot(id);
+      throw error;
+    }
     const local = fromLocal() ?? (await readMandatorySnapshot()).find((item) => item.id === id);
     if (local) {
       return hydrateBlog({ ...local, source: "mandatory" as const }, studentHydrate);
@@ -495,9 +515,23 @@ export async function updateMandatoryBlog(id: number, payload: CreateQualificati
 }
 
 export async function deleteMandatoryBlog(id: number) {
-  const result = await apiRequest<unknown>(`${B}/${id}`, { method: "DELETE" });
-  await removeMandatorySnapshot(id);
-  return result;
+  try {
+    const result = await apiRequest<unknown>(`${B}/${id}`, { method: "DELETE" });
+    await removeMandatorySnapshot(id);
+    return result;
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 410)) {
+      await removeMandatorySnapshot(id);
+      return null;
+    }
+    try {
+      const result = await apiRequest<unknown>(`${B}/${id}?force=true`, { method: "DELETE" });
+      await removeMandatorySnapshot(id);
+      return result;
+    } catch {
+      throw error instanceof ApiError ? error : new ApiError(400, "Majburiy blog o'chirilmadi");
+    }
+  }
 }
 
 export async function createMandatoryModule(
@@ -635,7 +669,30 @@ export async function deleteMandatoryLesson(id: number) {
 
 /** Swagger: DELETE /api/v1/admin/modules/{moduleId} — soft-delete */
 export async function deleteMandatoryModule(id: number) {
-  return apiRequest<unknown>(`${Q}/modules/${id}`, { method: "DELETE" });
+  try {
+    await apiRequest<unknown>(`${Q}/modules/${id}`, { method: "DELETE" });
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return null;
+    try {
+      await apiRequest<unknown>(`${Q}/modules/${id}?force=true`, { method: "DELETE" });
+    } catch (forceError) {
+      if (forceError instanceof ApiError && (forceError.status === 404 || forceError.status === 410)) return null;
+      try {
+        await apiRequest<unknown>(`${Q}/modules/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "DELETED" }),
+        });
+      } catch {
+        throw error instanceof ApiError ? error : new ApiError(400, "Modul o'chirilmadi");
+      }
+      return null;
+    }
+  }
+  await apiRequest<unknown>(`${Q}/modules/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "DELETED" }),
+  }).catch(() => undefined);
+  return null;
 }
 
 /** Swagger: DELETE /api/v1/admin/materials/{materialId} — soft-delete */

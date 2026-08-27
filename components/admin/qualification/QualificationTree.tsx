@@ -127,6 +127,7 @@ export default function QualificationTree({
   onDeleteLesson,
   onChangeLessonStatus,
   onChangeModuleStatus,
+  onAddModule,
 }: {
   directions: QualificationDirection[];
   query: string;
@@ -139,6 +140,7 @@ export default function QualificationTree({
   ) => void | Promise<void>;
   onEditDirection: (direction: QualificationDirection) => void;
   onDeleteDirection: (direction: QualificationDirection) => void;
+  onAddModule?: (direction: QualificationDirection) => void;
   onEditModule: (direction: QualificationDirection, qualModule: QualificationModule) => void;
   onDeleteModule: (direction: QualificationDirection, qualModule: QualificationModule) => void;
   onDeleteLesson: (
@@ -196,6 +198,7 @@ export default function QualificationTree({
           onLoadLesson={onLoadLesson}
           onEditDirection={onEditDirection}
           onDeleteDirection={onDeleteDirection}
+          onAddModule={onAddModule}
           onEditModule={onEditModule}
           onDeleteModule={onDeleteModule}
           onDeleteLesson={onDeleteLesson}
@@ -215,6 +218,7 @@ function DirectionNode({
   onLoadLesson,
   onEditDirection,
   onDeleteDirection,
+  onAddModule,
   onEditModule,
   onDeleteModule,
   onDeleteLesson,
@@ -232,6 +236,7 @@ function DirectionNode({
   ) => void | Promise<void>;
   onEditDirection: (direction: QualificationDirection) => void;
   onDeleteDirection: (direction: QualificationDirection) => void;
+  onAddModule?: (direction: QualificationDirection) => void;
   onEditModule: (direction: QualificationDirection, qualModule: QualificationModule) => void;
   onDeleteModule: (direction: QualificationDirection, qualModule: QualificationModule) => void;
   onDeleteLesson: (
@@ -249,26 +254,26 @@ function DirectionNode({
   const blogId = direction.id;
 
   useEffect(() => {
-    if (open && !loaded && !loading && blogId) onLoadDirection(blogId);
+    if (open && !loaded && !loading && blogId > 0) onLoadDirection(blogId);
   }, [open, loaded, loading, blogId, onLoadDirection]);
 
   const toggle = () => {
     const next = !open;
     setToggled(next);
-    if (next && !loaded && blogId) onLoadDirection(blogId);
+    if (next && !loaded && blogId > 0) onLoadDirection(blogId);
   };
 
   return (
     <div className="rounded-xl border border-[#E8EDF5] bg-white">
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
         <button
           type="button"
           onClick={toggle}
-          className="flex min-w-0 flex-1 items-center gap-2 px-1 py-1 text-left"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 px-1 py-1 text-left"
           aria-expanded={open}
         >
           <ChevronDown className={cn("h-4 w-4 shrink-0 text-[#64748B] transition-transform", !open && "-rotate-90")} />
-          <span className="font-semibold text-[#0C2340]">{direction.title}</span>
+          <span className="break-words font-semibold text-[#0C2340]">{direction.title}</span>
           {direction.category_name || direction.category_id ? (
             <span className="truncate text-xs font-normal text-[#64748B]">
               {displayEducationCategoryName(direction.category_name) || direction.category_name}
@@ -278,34 +283,47 @@ function DirectionNode({
         <button
           type="button"
           onClick={() => onEditDirection(direction)}
-          className="inline-flex shrink-0 items-center rounded-lg border border-[#E8EDF5] px-2 py-1.5 text-[#0756F5]"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#E8EDF5] text-[#0756F5]"
           aria-label="Tahrirlash"
           title="Tahrirlash"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
-        <button
-          type="button"
-          onClick={() => onDeleteDirection(direction)}
-          className="inline-flex shrink-0 items-center rounded-lg border border-[#E8EDF5] px-2 py-1.5 text-red-600"
-          aria-label="O'chirish"
-          title="O'chirish"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-        <Link
-          href={qualificationWizardPath({
-            step: 2,
-            source: wizardSource(direction),
-            directionId: wizardDirectionId(direction),
-            directionTitle: direction.title,
-            moduleNumber: nextModuleNumber(direction.modules),
-          })}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#0756F5] px-3 py-1.5 text-xs font-medium text-white"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {"Modul qo'shish"}
-        </Link>
+        {direction.id > 0 ? (
+          <button
+            type="button"
+            onClick={() => onDeleteDirection(direction)}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#E8EDF5] text-red-600"
+            aria-label="O'chirish"
+            title="O'chirish"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        {onAddModule ? (
+          <button
+            type="button"
+            onClick={() => onAddModule(direction)}
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg bg-[#0756F5] px-3 py-1.5 text-xs font-medium text-white"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {"Modul qo'shish"}
+          </button>
+        ) : direction.id > 0 ? (
+          <Link
+            href={qualificationWizardPath({
+              step: 2,
+              source: wizardSource(direction),
+              directionId: wizardDirectionId(direction),
+              directionTitle: direction.title,
+              moduleNumber: nextModuleNumber(direction.modules),
+            })}
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg bg-[#0756F5] px-3 py-1.5 text-xs font-medium text-white"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {"Modul qo'shish"}
+          </Link>
+        ) : null}
       </div>
       {open ? (
         <div className="space-y-1 border-t border-[#E8EDF5] px-4 py-2">
@@ -366,7 +384,7 @@ function ModuleNode({
   const number = qualModule.module_number ?? "";
   return (
     <div className="rounded-lg">
-      <div className="flex items-center gap-2 px-1 py-1">
+      <div className="flex flex-wrap items-center gap-2 px-1 py-1">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -374,7 +392,7 @@ function ModuleNode({
           aria-expanded={open}
         >
           <ChevronDown className={cn("h-4 w-4 shrink-0 text-[#64748B] transition-transform", !open && "-rotate-90")} />
-          <span className="text-sm font-medium text-[#0C2340]">
+          <span className="break-words text-sm font-medium text-[#0C2340]">
             {number ? `${number}-Modul — ` : ""}
             {qualModule.title}
           </span>
@@ -399,7 +417,7 @@ function ModuleNode({
             moduleTitle: qualModule.title,
             lessonNumber: nextLessonNumber(qualModule.lessons),
           })}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#E8EDF5] px-2 py-1.5 text-xs font-medium text-[#0756F5]"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[#E8EDF5] px-2 py-1.5 text-xs font-medium text-[#0756F5]"
         >
           <Plus className="h-3.5 w-3.5" />
           {"Dars qo'shish"}
@@ -407,7 +425,7 @@ function ModuleNode({
         <button
           type="button"
           onClick={() => onEditModule(direction, qualModule)}
-          className="inline-flex shrink-0 items-center rounded-lg border border-[#E8EDF5] px-2 py-1.5 text-[#0756F5]"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#E8EDF5] text-[#0756F5]"
           aria-label="Tahrirlash"
           title="Tahrirlash"
         >
@@ -416,7 +434,7 @@ function ModuleNode({
         <button
           type="button"
           onClick={() => onDeleteModule(direction, qualModule)}
-          className="inline-flex shrink-0 items-center rounded-lg border border-[#E8EDF5] px-2 py-1.5 text-red-600"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#E8EDF5] text-red-600"
           aria-label="O'chirish"
           title="O'chirish"
         >
@@ -489,7 +507,7 @@ function LessonRow({
 
   return (
     <li>
-      <div className="flex items-start justify-between gap-3 rounded-lg px-2 py-1.5">
+      <div className="flex flex-col items-start justify-between gap-3 rounded-lg px-2 py-1.5 sm:flex-row">
         <button type="button" onClick={() => setOpen((value) => !value)} className="min-w-0 flex-1 text-left">
           <div className="flex items-start gap-2">
             <ChevronDown className={cn("mt-0.5 h-4 w-4 shrink-0 text-[#64748B] transition-transform", !open && "-rotate-90")} />
@@ -525,7 +543,7 @@ function LessonRow({
               lessonTitle: lesson.title,
               lessonCode: lesson.lesson_code || code,
             })}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#E8EDF5] px-2 py-1 text-xs font-medium text-[#0756F5]"
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-[#E8EDF5] px-2 py-1 text-xs font-medium text-[#0756F5]"
           >
             <Plus className="h-3 w-3" />
             {"Material qo'shish"}
@@ -533,7 +551,7 @@ function LessonRow({
           <button
             type="button"
             onClick={() => onDeleteLesson(direction, qualModule, lesson)}
-            className="inline-flex items-center rounded-lg border border-[#E8EDF5] px-2 py-1 text-red-600"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[#E8EDF5] text-red-600"
             aria-label="O'chirish"
             title="O'chirish"
           >

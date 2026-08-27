@@ -166,7 +166,7 @@ export default function LessonVideoPlayer({ src, className, fill, onEnded }: Les
               }}
             />
             <div className="mt-2 flex items-center gap-3 text-white">
-              <button type="button" onClick={togglePlay} className="rounded p-1 hover:bg-white/10" aria-label={playing ? "Pauza" : "Play"}>
+              <button type="button" onClick={togglePlay} className="flex h-11 w-11 items-center justify-center rounded hover:bg-white/10" aria-label={playing ? "Pauza" : "Play"}>
                 {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
               </button>
               <button
@@ -177,7 +177,7 @@ export default function LessonVideoPlayer({ src, className, fill, onEnded }: Les
                   video.muted = !video.muted;
                   setMuted(video.muted);
                 }}
-                className="rounded p-1 hover:bg-white/10"
+                className="flex h-11 w-11 items-center justify-center rounded hover:bg-white/10"
                 aria-label={muted ? "Ovoz" : "Ovozsiz"}
               >
                 {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
@@ -187,7 +187,7 @@ export default function LessonVideoPlayer({ src, className, fill, onEnded }: Les
               </span>
               <button
                 type="button"
-                className="ml-auto rounded p-1 hover:bg-white/10"
+                className="ml-auto flex h-11 w-11 items-center justify-center rounded hover:bg-white/10"
                 aria-label="To'liq ekran"
                 onClick={() => {
                   const box = boxRef.current;

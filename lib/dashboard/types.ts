@@ -9,6 +9,7 @@ export type MyDirection = {
   totalHours: number;
   completedHours: number;
   modules: number;
+  moduleTitles?: string[];
   language: string;
   startDate: string;
   progress: number;

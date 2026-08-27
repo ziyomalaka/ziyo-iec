@@ -8,6 +8,7 @@ import { canAccessSupervisor, roleLabel } from "@/lib/auth/roles";
 import { signOut } from "@/lib/auth/sign-out";
 import LogoutConfirmModal from "@/components/dashboard/layout/LogoutConfirmModal";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
+import { useEscapeKey } from "@/lib/hooks/useEscapeKey";
 
 const titles: Record<string, string> = {
   "/admin/software/qualification/material/create": "Material qo'shish",
@@ -46,6 +47,11 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEscapeKey(menuOpen || notifOpen, () => {
+    setMenuOpen(false);
+    setNotifOpen(false);
+  });
+
   const handleLogout = async () => {
     setSaving(true);
     try {
@@ -59,17 +65,19 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-[#e8edf5] bg-white">
-      <div className="flex h-[80px] items-center justify-between gap-4 px-6">
-        <div className="flex min-w-0 items-center gap-4">
+      <div className="flex min-h-16 items-center justify-between gap-2 px-3 py-2 sm:min-h-20 sm:gap-4 sm:px-6 lg:h-[80px] lg:py-0">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={onMenuClick}
-            className="flex h-11 w-11 items-center justify-center rounded-[9px] border border-[#dce5f2] text-[#0756F5] lg:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] text-[#0756F5] lg:hidden"
             aria-label="Menyu"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="truncate text-[24px] font-bold text-[#0b1938]">{title}</h1>
+          <h1 className="line-clamp-2 min-w-0 break-words text-lg font-bold text-[#0b1938] sm:truncate sm:text-xl lg:text-[24px]">
+            {title}
+          </h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -95,7 +103,7 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                 ) : null}
               </button>
               {notifOpen ? (
-                <div className="absolute top-full right-0 z-50 mt-2 w-[360px] overflow-hidden rounded-[9px] border border-[#DFE7F2] bg-white shadow-[0_8px_24px_rgba(15,35,70,0.12)]">
+                <div className="absolute top-full right-0 z-50 mt-2 w-[min(22.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-[9px] border border-[#DFE7F2] bg-white shadow-[0_8px_24px_rgba(15,35,70,0.12)]">
                   <div className="flex items-center justify-between border-b border-[#E8EDF5] px-4 py-3">
                     <p className="text-[14px] font-semibold text-[#101a37]">Mijoz javoblari</p>
                     <div className="flex items-center gap-3">
@@ -153,9 +161,11 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
-              className="flex items-center gap-2 rounded-xl border border-[#E8EDF5] px-3 py-2 text-sm"
+              className="flex min-h-11 max-w-[46vw] items-center gap-2 rounded-xl border border-[#E8EDF5] px-2 py-2 text-sm sm:max-w-none sm:px-3"
+              aria-expanded={menuOpen}
+              aria-label="Profil menyusi"
             >
-              <span className="max-w-[160px] truncate font-medium text-[#0C2340]">{name}</span>
+              <span className="truncate font-medium text-[#0C2340]">{name}</span>
               <span className="hidden text-xs text-[#64748B] sm:inline">{roleLabel(user?.role)}</span>
               <ChevronDown className="h-4 w-4 text-[#64748B]" />
             </button>

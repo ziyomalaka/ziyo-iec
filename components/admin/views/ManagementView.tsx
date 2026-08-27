@@ -156,13 +156,57 @@ function EmployeesTab({ meId }: { meId?: number }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           Xodim qo'shish
         </button>
       </div>
-      <div className="overflow-hidden rounded-xl border border-[#E8EDF5] bg-white">
+      <div className="space-y-3 md:hidden">
+        {items.length === 0 ? (
+          <p className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-8 text-center text-sm text-[#64748B]">
+            Xodimlar yo&apos;q
+          </p>
+        ) : (
+          items.map((item) => {
+            const own = item.id === meId;
+            return (
+              <article key={item.id} className="rounded-xl border border-[#E8EDF5] bg-white p-4">
+                <p className="break-words font-semibold text-[#0C2340]">
+                  {item.full_name || [item.first_name, item.last_name].filter(Boolean).join(" ") || "—"}
+                </p>
+                <p className="mt-1 break-all text-xs text-[#64748B]">
+                  {item.nickname ?? "—"} · {item.public_id ?? item.id}
+                </p>
+                <select
+                  value={item.role}
+                  disabled={own}
+                  onChange={(e) => void onRole(item.id, e.target.value as StaffRole)}
+                  className="mt-3 min-h-11 w-full rounded-md border border-[#E8EDF5] px-2 py-1 disabled:opacity-50"
+                >
+                  {(item.role === "it" ? (["it", ...STAFF_ROLES] as StaffRole[]) : STAFF_ROLES).map((value) => (
+                    <option key={value} value={value}>
+                      {item.role === value && item.role_label ? item.role_label : staffRoleLabel[value]}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-[#94A3B8]">
+                  {item.last_login_at ? formatDateTime(item.last_login_at) : "—"}
+                </p>
+                <button
+                  type="button"
+                  disabled={own}
+                  onClick={() => void onDelete(item.id)}
+                  className="mt-3 min-h-11 w-full rounded-lg border border-red-200 text-sm text-red-600 disabled:opacity-40"
+                >
+                  O&apos;chirish
+                </button>
+              </article>
+            );
+          })
+        )}
+      </div>
+      <div className="hidden overflow-hidden rounded-xl border border-[#E8EDF5] bg-white md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead className="bg-[#F7F9FC] text-left text-[#64748B]">
@@ -356,7 +400,34 @@ function ClientsTab() {
       {loading ? (
         <LoadingState />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#E8EDF5] bg-white">
+        <>
+        <div className="space-y-3 md:hidden">
+          {items.length === 0 ? (
+            <p className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-8 text-center text-sm text-[#64748B]">
+              Mijozlar yo&apos;q
+            </p>
+          ) : (
+            items.map((item) => (
+              <article key={item.id} className="rounded-xl border border-[#E8EDF5] bg-white p-4">
+                <p className="break-words font-semibold text-[#0C2340]">
+                  {item.full_name || [item.first_name, item.last_name].filter(Boolean).join(" ")}
+                </p>
+                <p className="mt-1 break-all text-xs text-[#64748B]">{item.email ?? "—"}</p>
+                <p className="mt-1 text-xs text-[#94A3B8]">
+                  {item.phone_number ?? "—"} · {item.public_id ?? item.id}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void openDetail(item.id)}
+                  className="mt-3 min-h-11 w-full rounded-lg border border-[#E8EDF5] text-sm font-medium text-[#0756F5]"
+                >
+                  Ko&apos;rish
+                </button>
+              </article>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-hidden rounded-xl border border-[#E8EDF5] bg-white md:block">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-[#F7F9FC] text-left text-[#64748B]">
@@ -394,6 +465,7 @@ function ClientsTab() {
             </table>
           </div>
         </div>
+        </>
       )}
       <AdminPagination page={page} totalPages={totalPages} onPage={setPage} />
       <DashboardModal open={!!detail} onClose={() => setDetail(null)} title="Mijoz" size="md">

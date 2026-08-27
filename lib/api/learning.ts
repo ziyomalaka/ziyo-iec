@@ -2,9 +2,9 @@ import { pickFileUrl } from "@/lib/api/media";
 import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { isLearnForbiddenError, withLearningAccessRetry } from "@/lib/api/learning-access";
-import { parsePositiveInt, unwrapApiPayload } from "@/lib/api/unwrap";
+import { parsePositiveInt, unwrapApiPayload, asList } from "@/lib/api/unwrap";
 import { lessonKindFromDescription, mapStoredLessonKind, stripLessonKindMarker } from "@/lib/learning/lesson-kind";
-import { isHiddenFromStudent, isRemovedLessonRecord, isVisibleToStudent } from "@/lib/publish-status";
+import { isLessonListedForStudent, isModuleListedForStudent, isRemovedLessonRecord, isVisibleToStudent } from "@/lib/publish-status";
 import type {
   LearningAssignment,
   LearningCourseResponse,
@@ -107,7 +107,7 @@ function asLessonList(value: unknown): LearningLessonSummary[] {
     const row = asRecord(item);
     const id = parsePositiveInt(row.id);
     if (!id) continue;
-    if (!isVisibleToStudent(optionalString(row.status))) continue;
+    if (!isLessonListedForStudent(optionalString(row.status))) continue;
     if (isRemovedLessonRecord(row)) continue;
     const order =
       Number(row.order_index) ||
@@ -186,7 +186,7 @@ export function normalizeLearningCourse(data: unknown): LearningCourseResponse {
   const modules = rawModules
     .map((item) => {
       const row = asRecord(item);
-      if (!isVisibleToStudent(optionalString(row.status))) return null;
+      if (!isModuleListedForStudent(optionalString(row.status))) return null;
       const order =
         Number(row.order_index) ||
         Number(row.order) ||
@@ -201,7 +201,6 @@ export function normalizeLearningCourse(data: unknown): LearningCourseResponse {
       } satisfies LearningModule;
     })
     .filter((item): item is LearningModule => Boolean(item && item.id))
-    .filter((item) => (item.lessons ?? []).length > 0)
     .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
 
   const progress = Number(course.progress_percent);
@@ -380,6 +379,18 @@ export async function enrollInCourse(id: number) {
   return apiRequest<unknown>(`/learning/courses/${id}/enroll`, { method: "POST" });
 }
 
+/** GET /learning/courses — yozilgan kurslar (yo'q bo'lsa bo'sh). */
+export async function getMyLearningCourses(silentAuth = true): Promise<LearningCourseResponse[]> {
+  try {
+    const data = await apiRequest<unknown>("/learning/courses", silentAuth ? { skipAuthRedirect: true } : {});
+    return asList<unknown>(data, ["items", "courses"])
+      .map((row) => normalizeLearningCourse(row))
+      .filter((item) => item.id > 0);
+  } catch {
+    return [];
+  }
+}
+
 export async function getLearningCourse(id: number, silentAuth = false) {
   if (!silentAuth) {
     const cached = readCache(courseCache, id);
@@ -424,7 +435,7 @@ export async function getLearningLesson(id: number, silentAuth = false) {
   });
 
   const normalized = normalizeLearningLesson(data);
-  if (isHiddenFromStudent(normalized.status)) {
+  if (!isLessonListedForStudent(normalized.status)) {
     throw new ApiError(404, "Dars topilmadi");
   }
   console.log("STUDENT CURRENT LESSON:", {

@@ -11,7 +11,7 @@ export default async function UpgradeCta() {
   return (
     <Section padding="sm">
       <Container>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-dark to-primary px-8 py-10 lg:flex lg:items-center lg:justify-between lg:px-14 lg:py-12">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-dark to-primary px-4 py-8 sm:px-8 sm:py-10 lg:flex lg:items-center lg:justify-between lg:px-14 lg:py-12">
           <div className="relative z-10 flex items-center gap-4">
             <div className="hidden sm:flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
               <BookOpen className="h-7 w-7 text-white" />

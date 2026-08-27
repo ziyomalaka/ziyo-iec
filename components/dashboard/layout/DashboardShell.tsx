@@ -7,6 +7,8 @@ import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
 import { DashboardSearchProvider } from "./DashboardSearchContext";
 import { NotificationsProvider } from "./NotificationsContext";
+import { useEscapeKey } from "@/lib/hooks/useEscapeKey";
+import { useLockBodyScroll } from "@/lib/hooks/useLockBodyScroll";
 import { cn } from "@/lib/cn";
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -16,15 +18,25 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const isMyDirection =
     pathname === "/dashboard/my-courses" || pathname.startsWith("/dashboard/my-direction");
 
+  useLockBodyScroll(mobileOpen);
+  useEscapeKey(mobileOpen, () => setMobileOpen(false));
+
   return (
     <DashboardAuthGuard>
       <DashboardSearchProvider>
         <NotificationsProvider>
           <div className="min-h-screen w-full bg-white font-sans">
             <DashboardSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-            <div className="min-h-screen lg:ml-[247px] lg:w-[calc(100%-247px)]">
+            <div className="min-h-screen min-w-0 lg:ml-[247px] lg:w-[calc(100%-247px)]">
               <DashboardHeader pathname={pathname} onMenuClick={() => setMobileOpen(true)} />
-              <main className={cn("w-full", isCoursesCatalog || isMyDirection ? "p-0" : "px-[2%] pt-[1%] pb-[2%]")}>{children}</main>
+              <main
+                className={cn(
+                  "w-full min-w-0",
+                  isCoursesCatalog || isMyDirection ? "p-0" : "panel-gutter"
+                )}
+              >
+                {children}
+              </main>
             </div>
           </div>
         </NotificationsProvider>

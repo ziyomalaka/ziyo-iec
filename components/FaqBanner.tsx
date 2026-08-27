@@ -11,7 +11,7 @@ export default async function FaqBanner() {
   return (
     <Section padding="sm">
       <Container>
-        <div className="relative overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-r from-[#e8f2ff] via-surface-blue to-[#dce9ff] px-8 py-12 lg:px-16 lg:py-14">
+        <div className="relative overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-r from-[#e8f2ff] via-surface-blue to-[#dce9ff] px-4 py-8 sm:px-8 sm:py-12 lg:px-16 lg:py-14">
           <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-8 right-20 h-32 w-32 rounded-full bg-accent/10 blur-2xl" />
 

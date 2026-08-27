@@ -11,7 +11,6 @@ import PageHeader from "@/components/dashboard/ui/PageHeader";
 import { ApiError } from "@/lib/api/errors";
 import {
   createMandatoryBlog,
-  deleteMandatoryBlog,
   getMandatoryBlog,
   getMandatoryBlogs,
   getMandatoryLessonMaterials,
@@ -27,7 +26,7 @@ import type {
   QualificationPublishStatus,
 } from "@/lib/api/types/qualification";
 import { directionKey } from "@/lib/qualification/it-bridge";
-import { forceDeleteLesson, forceDeleteModule } from "@/lib/qualification/force-delete";
+import { forceDeleteLesson, forceDeleteModule, forceDeleteDirection } from "@/lib/qualification/force-delete";
 import { qualificationWizardPath } from "@/lib/qualification/wizard-state";
 import type { DirectionWritePayload } from "@/lib/qualification/direction-save";
 import { publishMandatorySnapshot, removeMandatorySnapshot } from "@/lib/api/mandatory-snapshot";
@@ -73,7 +72,7 @@ export default function MandatoryBlockPage() {
       const detail = dropRemovedLessonsFromTree(await getMandatoryBlog(blogId, false, { fetchMaterials: true }));
       setItems((prev) => {
         const next = prev.map((item) => (item.id === blogId ? { ...item, ...detail, source: "mandatory" as const } : item));
-        void publishMandatorySnapshot(next, "upsert", { notify: silent, immediate: silent });
+        void publishMandatorySnapshot(next, "replace", { notify: silent, immediate: true });
         return next;
       });
     } catch (error) {
@@ -99,9 +98,10 @@ export default function MandatoryBlockPage() {
       const next = blogs.map((item) => {
         const old = prev.find((entry) => entry.id === item.id);
         if (!old) return item;
-        const incomingHasLessons = (item.modules ?? []).some((module) => (module.lessons?.length ?? 0) > 0);
-        if (incomingHasLessons) return item;
-        if (old.modules?.length) return { ...item, modules: old.modules };
+        // List metadata; daraxt admin state'da. Bo'sh list.modules o'chirilgan modullarni qayta tiklamasin.
+        if (old.modules) {
+          return { ...item, modules: old.modules, module_count: old.modules.length };
+        }
         return item;
       });
       setItems(next);
@@ -159,8 +159,12 @@ export default function MandatoryBlockPage() {
     if (!window.confirm("Majburiy blog o'chirilsinmi?")) return;
     setSaving(true);
     try {
-      await deleteMandatoryBlog(direction.id);
-      setItems((prev) => prev.filter((item) => item.id !== direction.id));
+      await forceDeleteDirection(direction);
+      setItems((prev) => {
+        const next = prev.filter((item) => item.id !== direction.id);
+        void publishMandatorySnapshot(next, "replace", { notify: true, immediate: true });
+        return next;
+      });
       void removeMandatorySnapshot(direction.id);
       toast.success("Majburiy blog o'chirildi");
     } catch (error) {
@@ -175,6 +179,15 @@ export default function MandatoryBlockPage() {
     setSaving(true);
     try {
       await forceDeleteModule(qualModule.id, qualModule.lessons ?? [], undefined, "mandatory");
+      setItems((prev) => {
+        const next = prev.map((item) => {
+          if (item.id !== direction.id) return item;
+          const modules = (item.modules ?? []).filter((entry) => entry.id !== qualModule.id);
+          return { ...item, modules, module_count: modules.length };
+        });
+        void publishMandatorySnapshot(next, "replace", { notify: true, immediate: true });
+        return next;
+      });
       toast.success("Modul o'chirildi");
       await loadDirection(direction.id, true, true);
     } catch (error) {

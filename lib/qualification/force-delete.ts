@@ -23,6 +23,7 @@ import {
   deleteMandatoryBlog,
   deleteMandatoryLesson,
   deleteMandatoryModule,
+  getMandatoryBlogModules,
   getMandatoryModuleLessons,
 } from "@/lib/api/mandatory-blogs";
 import type { QualificationDirection, QualificationLesson } from "@/lib/api/types/qualification";
@@ -239,12 +240,27 @@ export async function forceDeleteItDirection(direction: ItDirection) {
 
 export async function forceDeleteDirection(direction: QualificationDirection) {
   if (isMandatorySource(direction.source)) {
-    if (await goneOrOk(() => deleteMandatoryBlog(direction.id))) return;
-    await deletePaths([
-      `/api/v1/admin/mandatory-blogs/${direction.id}?force=true`,
-      `/api/v1/admin/mandatory-blogs/${direction.id}?force=1`,
-    ]);
-    return;
+    const nested =
+      direction.modules?.length
+        ? direction.modules
+        : await getMandatoryBlogModules(direction.id).catch(() => []);
+    for (const mod of nested) {
+      await goneOrOk(() => forceDeleteModule(mod.id, mod.lessons ?? [], undefined, "mandatory"));
+    }
+    try {
+      await deleteMandatoryBlog(direction.id);
+      return;
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return;
+      if (
+        await goneOrOk(() =>
+          apiRequest(`/api/v1/admin/mandatory-blogs/${direction.id}?force=true`, { method: "DELETE" })
+        )
+      ) {
+        return;
+      }
+      throw error instanceof ApiError ? error : new ApiError(400, "Majburiy blog o'chirilmadi");
+    }
   }
   const itId = direction.itId ?? (isItSource(direction.source) ? direction.id : undefined);
   if (itId) {

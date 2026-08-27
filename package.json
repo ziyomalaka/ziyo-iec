@@ -10,6 +10,7 @@
     "qa:inventory": "node scripts/qa-static-inventory.mjs",
     "test:e2e": "playwright test",
     "test:e2e:public": "playwright test e2e/public-smoke.spec.ts",
+    "test:e2e:rwd": "playwright test e2e/rwd.spec.ts",
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
