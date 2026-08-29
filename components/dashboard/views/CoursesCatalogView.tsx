@@ -6,6 +6,8 @@ import { useDashboardSearch } from "@/components/dashboard/layout/DashboardSearc
 import CatalogCourseCard from "@/components/dashboard/courses/CatalogCourseCard";
 import InstitutionTabs from "@/components/dashboard/courses/InstitutionTabs";
 import EmptyState from "@/components/dashboard/ui/EmptyState";
+import SearchInput from "@/components/dashboard/ui/SearchInput";
+import { dashboardLabels } from "@/lib/dashboard/labels";
 import { getMyApplications } from "@/lib/api/applications";
 import type { ClientApplicationResponse } from "@/lib/api/types/applications";
 import { findCourseApplication } from "@/lib/dashboard/course-application";
@@ -30,7 +32,7 @@ function matchesSearch(course: CourseCatalogItem, query: string) {
 }
 
 export default function CoursesCatalogView() {
-  const { search } = useDashboardSearch();
+  const { search, setSearch } = useDashboardSearch();
   const [level, setLevel] = useState<InstitutionType | "all">("all");
   const [applications, setApplications] = useState<ClientApplicationResponse[]>([]);
   const [published, setPublished] = useState<QualificationDirection[]>([]);
@@ -75,6 +77,13 @@ export default function CoursesCatalogView() {
       <InstitutionTabs active={level} counts={counts} onChange={setLevel} />
 
       <div className="px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mb-4 lg:hidden">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder={dashboardLabels.searchCourses}
+          />
+        </div>
         {!hasVisible ? (
           <EmptyState
             icon={GraduationCap}

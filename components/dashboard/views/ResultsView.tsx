@@ -11,6 +11,7 @@ import {
   fetchMyTestResults,
   type StoredTestResultRow,
 } from "@/lib/api/learning-progress";
+import { MAX_LESSON_TEST_ATTEMPTS } from "@/lib/learning/required-materials";
 
 export default function ResultsView() {
   const [items, setItems] = useState<StoredTestResultRow[]>([]);
@@ -104,36 +105,51 @@ export default function ResultsView() {
           </div>
 
           <div className="space-y-3 md:hidden">
-            {items.map((r) => (
-              <article key={r.id} className="rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="min-w-0 break-words text-sm font-semibold text-[#0C2340]">
-                    {r.lessonTitle || `Dars #${r.lessonId}`}
-                  </h3>
-                  <DashboardBadge variant={r.passed ? "success" : "danger"}>
-                    {r.passed ? "O'tdi" : "O'tmadi"}
-                  </DashboardBadge>
-                </div>
-                <p className="mt-1 break-words text-xs text-[#64748B]">{r.courseTitle || "—"}</p>
-                <p className="mt-1 text-xs text-[#64748B]">
-                  {r.moduleTitle || "—"} · {r.testTitle || `Test #${r.testId}`}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span>
-                    {r.percentage != null || r.score != null ? `${r.percentage ?? r.score}%` : "—"}
-                    {r.attempt != null ? ` · ${r.attempt}-urinish` : ""}
-                  </span>
-                  <span className="text-xs text-[#94A3B8]">{formatDate(r.date)}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(r.id)}
-                  className="mt-3 min-h-11 w-full rounded-lg border border-[#E8EDF5] text-sm font-medium text-[#2563EB]"
-                >
-                  Ko&apos;rish
-                </button>
-              </article>
-            ))}
+            {items.map((r) => {
+              const lessonDone = r.passed || (r.attempt ?? 0) >= MAX_LESSON_TEST_ATTEMPTS;
+              return (
+                <article key={r.id} className="rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="min-w-0 break-words text-sm font-semibold text-[#0C2340]">
+                      {r.lessonTitle || `Dars #${r.lessonId}`}
+                    </h3>
+                    <DashboardBadge variant={r.passed ? "success" : "danger"}>
+                      {r.passed ? "O'tdi" : "O'tmadi"}
+                    </DashboardBadge>
+                  </div>
+                  <p className="mt-1 break-words text-xs text-[#64748B]">{r.testTitle || `${r.lessonTitle || "Dars"} testi`}</p>
+                  <dl className="mt-3 space-y-1 text-sm text-[#334155]">
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-[#64748B]">Natija</dt>
+                      <dd className="font-semibold">{r.percentage != null || r.score != null ? `${r.percentage ?? r.score}%` : "—"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-[#64748B]">Urinish</dt>
+                      <dd>{r.attempt != null ? `${r.attempt} / ${MAX_LESSON_TEST_ATTEMPTS}` : "—"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-[#64748B]">Holat</dt>
+                      <dd>{r.passed ? "O'tdi" : "O'tmadi"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-[#64748B]">Dars jarayoni</dt>
+                      <dd>{lessonDone ? "Yakunlangan" : "Davom etmoqda"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-[#64748B]">Sana</dt>
+                      <dd>{formatDate(r.date)}</dd>
+                    </div>
+                  </dl>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(r.id)}
+                    className="mt-3 min-h-11 w-full rounded-lg border border-[#E8EDF5] text-sm font-medium text-[#2563EB]"
+                  >
+                    Ko&apos;rish
+                  </button>
+                </article>
+              );
+            })}
           </div>
 
           <div className="hidden overflow-hidden rounded-xl border border-[#E8EDF5] bg-white shadow-sm md:block">

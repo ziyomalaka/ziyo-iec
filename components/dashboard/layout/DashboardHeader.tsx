@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
-import { Bell, BookOpen, ChevronDown, Menu, Search, Settings, User } from "lucide-react";
+import { Bell, BookOpen, ChevronDown, Menu, Search, User } from "lucide-react";
+import BrandLogo from "@/components/ui/BrandLogo";
 import { getAuthUser } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/sign-out";
 import { dashboardLabels } from "@/lib/dashboard/labels";
@@ -64,17 +65,21 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
   };
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-[#e8edf5] bg-white">
-      <div className="flex min-h-16 w-full items-center justify-between gap-2 px-3 py-2 sm:min-h-20 sm:gap-4 sm:px-6 lg:h-[96px] lg:py-0">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+    <header className="sticky top-0 z-30 w-full border-b border-[#e8edf5] bg-white pt-[env(safe-area-inset-top)]">
+      <div className="flex h-14 w-full items-center justify-between gap-2 px-3 sm:h-16 sm:gap-4 sm:px-6 lg:h-[96px]">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-6">
           <button
             type="button"
             onClick={onMenuClick}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5] sm:h-12 sm:w-12 lg:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5] lg:hidden"
             aria-label="Menyu"
           >
             <Menu className="h-5 w-5" strokeWidth={1.75} />
           </button>
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-2 lg:hidden" aria-label="ZiyoMalaka">
+            <BrandLogo size="xs" className="h-8 w-8" />
+            <span className="truncate text-[15px] font-bold text-[#0C2340]">ZiyoMalaka</span>
+          </Link>
           {isMyDirectionPage ? (
             <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5] lg:flex">
               <BookOpen className="h-5 w-5" strokeWidth={1.75} />
@@ -82,10 +87,8 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
           ) : null}
           <h1
             className={cn(
-              "line-clamp-2 min-w-0 break-words font-bold sm:truncate",
-              isMyDirectionPage
-                ? "text-lg text-[#101A3B] sm:text-xl lg:text-[27px]"
-                : "text-lg text-[#0b1938] sm:text-xl lg:text-[28px]"
+              "hidden min-w-0 truncate font-bold lg:block",
+              isMyDirectionPage ? "text-[27px] text-[#101A3B]" : "text-[28px] text-[#0b1938]"
             )}
           >
             {pageTitle}
@@ -200,17 +203,10 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
               <div className="absolute top-full right-0 z-50 mt-2 w-48 overflow-hidden rounded-[9px] border border-[#DFE7F2] bg-white py-1 shadow-[0_1px_3px_rgba(20,40,80,.06)]">
                 <Link
                   href="/dashboard/profile"
-                  className="flex items-center gap-2 px-4 py-2.5 text-[13px] text-[#35466c] hover:bg-[#F7FAFE]"
+                  className="flex min-h-11 items-center gap-2 px-4 py-2.5 text-[13px] text-[#35466c] hover:bg-[#F7FAFE]"
                   onClick={() => setMenuOpen(false)}
                 >
                   <User className="h-4 w-4" strokeWidth={1.75} /> {dashboardLabels.profile}
-                </Link>
-                <Link
-                  href="/dashboard/profile"
-                  className="flex items-center gap-2 px-4 py-2.5 text-[13px] text-[#35466c] hover:bg-[#F7FAFE]"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <Settings className="h-4 w-4" strokeWidth={1.75} /> {dashboardLabels.settings}
                 </Link>
                 <button
                   type="button"
@@ -218,9 +214,9 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                     setMenuOpen(false);
                     setLogoutOpen(true);
                   }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] text-[#EF3340] hover:bg-red-50"
+                  className="flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] text-[#EF3340] hover:bg-red-50"
                 >
-                  Hisobdan chiqish
+                  {dashboardLabels.logout}
                 </button>
               </div>
             )}

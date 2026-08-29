@@ -9,6 +9,20 @@ import { formatLessonCode } from "@/lib/qualification/constants";
 
 export type LessonProgressStatus = "locked" | "current" | "in_progress" | "completed" | "available";
 
+/** UI holatlari — backend enum emas, mavjud statuslarning map'i. */
+export type LessonUiState = "completed" | "current" | "available" | "locked";
+
+const PROGRESS_STATUS_KEYS = new Set([
+  "locked",
+  "completed",
+  "current",
+  "available",
+  "in_progress",
+  "inprogress",
+  "unlocked",
+  "open",
+]);
+
 function moduleLessons(module: LearningModule): LearningLessonSummary[] {
   return module.lessons ?? module.items ?? [];
 }
@@ -24,6 +38,11 @@ function normStatus(value?: string) {
     .replace(/-/g, "_");
 }
 
+/** Nashr holati (PUBLISHED/DRAFT) progress emas. */
+function isProgressStatusKey(raw: string) {
+  return PROGRESS_STATUS_KEYS.has(raw);
+}
+
 /** Backend yoki mapper bergan statusni UI holatiga aylantiradi. */
 export function resolveLessonProgressStatus(
   lesson: Pick<
@@ -32,15 +51,24 @@ export function resolveLessonProgressStatus(
   >
 ): LessonProgressStatus {
   const raw = normStatus(lesson.status);
-  if (raw === "in_progress" || raw === "inprogress") return "in_progress";
-  // Faqat aniq yopiq bo'lsa locked — undefined/false ni yopiq deb hisoblamaymiz
-  if (lesson.is_locked === true || lesson.locked === true || raw === "locked") return "locked";
-  if (lesson.is_completed || lesson.completed || raw === "completed") return "completed";
-  if (lesson.is_current || raw === "current") return "current";
-  if (raw === "available" || raw === "open" || raw === "unlocked") return "available";
-  // Status yo'q, lekin aniq yopilmagan → ochiq (ketma-ket unlock oldin qo'llangan bo'lishi mumkin)
+  const progressRaw = isProgressStatusKey(raw) ? raw : "";
+  if (progressRaw === "in_progress" || progressRaw === "inprogress") return "in_progress";
+  if (lesson.is_locked === true || lesson.locked === true || progressRaw === "locked") return "locked";
+  if (lesson.is_completed || lesson.completed || progressRaw === "completed") return "completed";
+  if (lesson.is_current || progressRaw === "current") return "current";
+  if (progressRaw === "available" || progressRaw === "open" || progressRaw === "unlocked") {
+    return "available";
+  }
   if (lesson.is_locked === false || lesson.locked === false) return "available";
-  if (!raw) return "available";
+  if (!progressRaw) return "available";
+  return "available";
+}
+
+/** in_progress → current. Yangi enum emas. */
+export function toLessonUiState(status: LessonProgressStatus): LessonUiState {
+  if (status === "completed") return "completed";
+  if (status === "locked") return "locked";
+  if (status === "current" || status === "in_progress") return "current";
   return "available";
 }
 
@@ -49,11 +77,28 @@ export function canOpenLesson(status: LessonProgressStatus) {
 }
 
 export function lessonStatusLabel(status: LessonProgressStatus) {
-  if (status === "completed") return "Tugatildi";
-  if (status === "current") return "Hozirgi dars";
-  if (status === "in_progress") return "Jarayonda";
-  if (status === "locked") return "Yopiq";
+  const ui = toLessonUiState(status);
+  if (ui === "completed") return "Tugatildi";
+  if (ui === "current") return "Hozirgi dars";
+  if (ui === "locked") return "Yopiq";
   return "";
+}
+
+export function displayLessonLabel(
+  module: LearningModule,
+  lesson: LearningLessonSummary,
+  lessonIndex: number,
+  moduleIndex: number
+) {
+  const raw = sidebarLessonCode(module, lesson, lessonIndex, moduleIndex);
+  const num = raw.replace(/^dars\./i, "").trim();
+  if (num) return `Dars ${num}`;
+  return `Dars ${moduleIndex + 1}.${lessonIndex + 1}`;
+}
+
+export function displayModuleLabel(module: LearningModule, moduleIndex: number) {
+  const n = module.order_index && module.order_index > 0 ? module.order_index : moduleIndex + 1;
+  return `${n}-MODUL`;
 }
 
 export function sortLearningModules(modules: LearningModule[]) {
@@ -106,15 +151,18 @@ export function applySequentialUnlock(
         const lessonNo =
           lesson.order_index && lesson.order_index > 0 ? lesson.order_index : lessonIndex + 1;
         const finished = completed.has(lesson.id) || resolveLessonProgressStatus(lesson) === "completed";
-        const inProgress = inProgressId === lesson.id;
-        const isCurrent = !finished && !inProgress && !currentAssigned;
-        if (isCurrent) currentAssigned = true;
+        const inProgress = inProgressId === lesson.id && !finished;
+        const backendLocked =
+          !finished && (lesson.is_locked === true || lesson.locked === true);
 
         let status: LearningLessonStatus;
         if (finished) status = "completed";
+        else if (backendLocked) status = "locked";
         else if (inProgress) status = "in_progress";
-        else if (isCurrent) status = "current";
-        else status = "available";
+        else if (!currentAssigned) status = "current";
+        else status = "locked";
+
+        if (status === "current" || status === "in_progress") currentAssigned = true;
 
         return {
           ...lesson,
@@ -123,10 +171,10 @@ export function applySequentialUnlock(
           status,
           status_label: lessonStatusLabel(status),
           is_completed: finished,
-          is_current: status === "current",
-          is_locked: false,
+          is_current: status === "current" || status === "in_progress",
+          is_locked: status === "locked",
           completed: finished,
-          locked: false,
+          locked: status === "locked",
         };
       }
     );
@@ -143,14 +191,21 @@ export function applySequentialUnlock(
 
 export function hasBackendLessonStatuses(modules: LearningModule[]) {
   return flattenLearningLessons(modules).some((lesson) => {
-    const raw = String(lesson.status ?? "").trim();
-    if (raw) return true;
+    const raw = normStatus(lesson.status);
+    if (isProgressStatusKey(raw)) return true;
     if (lesson.is_completed || lesson.completed) return true;
     if (lesson.is_current) return true;
-    // Faqat aniq locked=true — backend status bor deb hisoblanadi
     if (lesson.is_locked === true || lesson.locked === true) return true;
     return false;
   });
+}
+
+/** Ketma-ket qulf: progress yo'q yoki backend faqat completed berib, qolganlarni ochiq qoldirgan. */
+export function shouldApplySequentialUnlock(modules: LearningModule[]) {
+  if (!hasBackendLessonStatuses(modules)) return true;
+  const lessons = flattenLearningLessons(modules);
+  const anyLocked = lessons.some((item) => resolveLessonProgressStatus(item) === "locked");
+  return !anyLocked;
 }
 
 export function firstAccessibleLessonId(course: LearningCourseResponse) {
@@ -235,4 +290,42 @@ export function writeMandatoryProgress(blogId: number, progress: MandatoryStored
   } catch {
     /* quota */
   }
+}
+
+const COURSE_PROGRESS_PREFIX = "zm_course_progress_";
+
+export function readCourseLessonProgress(courseId: number): MandatoryStoredProgress {
+  if (typeof window === "undefined") return { completedIds: [], inProgressId: null };
+  try {
+    const raw = localStorage.getItem(`${COURSE_PROGRESS_PREFIX}${courseId}`);
+    if (!raw) return { completedIds: [], inProgressId: null };
+    const parsed = JSON.parse(raw) as MandatoryStoredProgress;
+    return {
+      completedIds: Array.isArray(parsed.completedIds)
+        ? parsed.completedIds.filter((id) => Number.isFinite(id))
+        : [],
+      inProgressId: parsed.inProgressId ?? null,
+    };
+  } catch {
+    return { completedIds: [], inProgressId: null };
+  }
+}
+
+export function writeCourseLessonProgress(courseId: number, progress: MandatoryStoredProgress) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(`${COURSE_PROGRESS_PREFIX}${courseId}`, JSON.stringify(progress));
+  } catch {
+    /* quota */
+  }
+}
+
+export function markCourseLessonCompleted(courseId: number, lessonId: number) {
+  const prev = readCourseLessonProgress(courseId);
+  const completedIds = prev.completedIds.includes(lessonId)
+    ? prev.completedIds
+    : [...prev.completedIds, lessonId];
+  const next = { completedIds, inProgressId: null as number | null };
+  writeCourseLessonProgress(courseId, next);
+  return next;
 }

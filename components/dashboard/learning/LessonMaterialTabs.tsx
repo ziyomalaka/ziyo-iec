@@ -63,13 +63,16 @@ export default function LessonMaterialTabs({
       onValueChange={(value) => setTab(value as LessonMaterialTab)}
       className="mt-6"
     >
-      <Tabs.List className="flex flex-wrap gap-2 border-b border-[#E8EDF5] pb-3">
+      <p className="mb-2 text-xs font-medium text-[#64748B] sm:hidden">
+        {Math.max(1, tabs.findIndex((item) => item.id === (tabs.some((t) => t.id === tab) ? tab : firstWithContent)) + 1)} / {tabs.length}
+      </p>
+      <Tabs.List className="-mx-1 flex flex-nowrap gap-2 overflow-x-auto border-b border-[#E8EDF5] px-1 pb-3 sm:flex-wrap">
         {tabs.map((item) => (
           <Tabs.Trigger
             key={item.id}
             value={item.id}
             className={cn(
-              "min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-[#64748B] data-[state=active]:bg-[#EEF4FF] data-[state=active]:text-[#2563EB]"
+              "min-h-11 shrink-0 rounded-lg px-4 py-2 text-sm font-medium text-[#64748B] data-[state=active]:bg-[#EEF4FF] data-[state=active]:text-[#2563EB]"
             )}
           >
             {item.label}

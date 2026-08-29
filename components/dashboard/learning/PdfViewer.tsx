@@ -89,11 +89,14 @@ export default function PdfViewer({ src, title, className }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [pageCount, setPageCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(false);
+    setPageCount(0);
 
     void (async () => {
       // Ref birinchi paint dan keyin tayyor bo'lsin
@@ -112,6 +115,7 @@ export default function PdfViewer({ src, title, className }: PdfViewerProps) {
 
         const pdfjs = await loadPdfjs();
         const pdf = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+        if (!cancelled) setPageCount(pdf.numPages);
         if (cancelled) {
           await pdf.destroy?.();
           return;
@@ -156,24 +160,40 @@ export default function PdfViewer({ src, title, className }: PdfViewerProps) {
       cancelled = true;
       containerRef.current?.replaceChildren();
     };
-  }, [src, title]);
+  }, [src, title, retry]);
 
   return (
     <ProtectedShell className={cn("mt-3", className)}>
-      {src && !src.startsWith("blob:") && !src.startsWith("data:") ? (
-        <div className="mb-3 flex justify-end">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        {pageCount ? <p className="text-xs font-medium text-[#64748B]">1 / {pageCount}</p> : <span />}
+        {src && !src.startsWith("blob:") && !src.startsWith("data:") ? (
           <a
             href={src}
             target="_blank"
             rel="noreferrer"
             className="inline-flex min-h-11 items-center rounded-lg border border-[#E8EDF5] px-3 text-sm font-medium text-[#2563EB]"
           >
-            Yangi oynada ochish
+            To&apos;liq ekran
           </a>
+        ) : null}
+      </div>
+      {loading ? <p className="mb-3 text-sm text-[#64748B]">Yuklanmoqda...</p> : null}
+      {error ? (
+        <div className="mb-3 space-y-2">
+          <p className="text-sm text-[#64748B]">Materialni ochishda xatolik yuz berdi.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setError(false);
+              setLoading(true);
+              setRetry((n) => n + 1);
+            }}
+            className="min-h-11 rounded-lg border border-[#E8EDF5] px-4 text-sm font-medium text-[#2563EB]"
+          >
+            Qayta urinish
+          </button>
         </div>
       ) : null}
-      {loading ? <p className="mb-3 text-sm text-[#64748B]">Yuklanmoqda...</p> : null}
-      {error ? <p className="mb-3 text-sm text-[#64748B]">Fayl ochilmadi.</p> : null}
       <div
         ref={containerRef}
         className={cn(

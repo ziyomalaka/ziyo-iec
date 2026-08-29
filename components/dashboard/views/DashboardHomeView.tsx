@@ -13,7 +13,10 @@ import { mapCourseCard } from "@/lib/dashboard/mappers/courses";
 import type { CourseCatalogItem } from "@/lib/dashboard/types";
 import type { ClientApplicationResponse } from "@/lib/api/types/applications";
 import { applicationBadge, applicationStatusLabel, uiLabel } from "@/lib/admin/labels";
-import { isMandatoryBlockCourse } from "@/lib/dashboard/course-application";
+import {
+  isApprovedApplicationStatus,
+  isMandatoryBlockCourse,
+} from "@/lib/dashboard/course-application";
 import StatCard from "@/components/dashboard/ui/StatCard";
 import CourseCard from "@/components/dashboard/ui/CourseCard";
 import NotificationItem from "@/components/dashboard/ui/NotificationItem";
@@ -54,6 +57,13 @@ export default function DashboardHomeView() {
   const firstName = dash?.profile.firstName || sessionUser.firstName || "";
   const stats = dash?.stats;
   const activities = dash?.activities.slice(0, 4) ?? [];
+  const continueApp = applications.find(
+    (item) => isApprovedApplicationStatus(item.status) && item.course_id
+  );
+  const continueHref = continueApp?.course_id
+    ? `/dashboard/learning/${continueApp.course_id}`
+    : "/dashboard/learning";
+  const progressValue = stats?.averageScore ?? 0;
 
   if (loading) return <LoadingState />;
 
@@ -64,6 +74,27 @@ export default function DashboardHomeView() {
         <p className="mt-1 text-sm text-[#64748B]">
           Ta'lim jarayoningiz va malaka oshirish holatingizni kuzatib boring.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-sm">
+        <p className="text-xs font-medium text-[#64748B]">Umumiy progress</p>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E8EDF5]">
+            <div className="h-full rounded-full bg-[#0756F5]" style={{ width: `${Math.min(100, progressValue)}%` }} />
+          </div>
+          <span className="shrink-0 text-sm font-bold text-[#0C2340]">{progressValue}%</span>
+        </div>
+        {continueApp ? (
+          <p className="mt-3 break-words text-sm font-semibold text-[#0C2340]">{continueApp.title}</p>
+        ) : (
+          <p className="mt-3 text-sm text-[#64748B]">Tasdiqlangan yo&apos;nalish ochilgach, shu yerdan davom etasiz.</p>
+        )}
+        <Link
+          href={continueHref}
+          className="mt-4 flex min-h-11 w-full items-center justify-center rounded-lg bg-[#0756F5] text-sm font-semibold text-white"
+        >
+          Darsni davom ettirish
+        </Link>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

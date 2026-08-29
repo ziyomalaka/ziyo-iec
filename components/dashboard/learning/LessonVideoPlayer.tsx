@@ -35,6 +35,7 @@ export default function LessonVideoPlayer({ src, className, fill, onEnded }: Les
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [playSrc, setPlaySrc] = useState("");
+  const [retry, setRetry] = useState(0);
   const blobTried = useRef(false);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function LessonVideoPlayer({ src, className, fill, onEnded }: Les
       cancelled = true;
       if (created) URL.revokeObjectURL(created);
     };
-  }, [src]);
+  }, [src, retry]);
 
   const onVideoError = () => {
     const resolved = resolveMediaUrl(src);
@@ -117,8 +118,21 @@ export default function LessonVideoPlayer({ src, className, fill, onEnded }: Les
 
   if (failed) {
     return (
-      <div className={cn("flex flex-col items-center justify-center gap-2 bg-black px-4 text-center text-sm text-white", fill ? "h-full" : "aspect-video", className)}>
-        <p>Video ochilmadi.</p>
+      <div className={cn("flex flex-col items-center justify-center gap-3 bg-black px-4 text-center text-sm text-white", fill ? "h-full" : "aspect-video", className)}>
+        <p>Videoni yuklashda muammo yuz berdi.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            setLoading(true);
+            setPlaySrc("");
+            blobTried.current = false;
+            setRetry((n) => n + 1);
+          }}
+          className="min-h-11 rounded-lg bg-white px-4 font-medium text-black"
+        >
+          Qayta urinish
+        </button>
       </div>
     );
   }

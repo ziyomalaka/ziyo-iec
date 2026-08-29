@@ -24,6 +24,8 @@ import { recordSubmitForResults, readLessonTestAttempt, saveLessonTestAttempt } 
 import { ApiError } from "@/lib/api/errors";
 import { getAuthToken } from "@/lib/auth/session";
 import { MAX_LESSON_TEST_ATTEMPTS } from "@/lib/learning/required-materials";
+import { useLearningChrome } from "@/components/dashboard/learning/LearningChromeContext";
+import { Link } from "@/i18n/navigation";
 
 // ─── Holat tiplari ────────────────────────────────────────────────────────────
 type Phase =
@@ -45,6 +47,8 @@ type LessonTestProps = {
   courseTitle?: string;
   moduleTitle?: string;
   lessonTitle?: string;
+  compactCard?: boolean;
+  onResolved?: (hasTest: boolean) => void;
   /**
    * Test o'tildi YOKI 2 urinish tugadi — darsni yakunlash / progress.
    */
@@ -75,6 +79,8 @@ export default function LessonTest({
   courseTitle,
   moduleTitle,
   lessonTitle,
+  compactCard,
+  onResolved,
   onFinished,
   onContinue,
 }: LessonTestProps) {
@@ -90,6 +96,8 @@ export default function LessonTest({
   const [checking, setChecking] = useState(true);
   const [attemptLimit, setAttemptLimit] = useState(MAX_LESSON_TEST_ATTEMPTS);
   const [submitHint, setSubmitHint] = useState<string | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const { setHideBottomNav } = useLearningChrome();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedCalledRef = useRef(false);
@@ -101,6 +109,8 @@ export default function LessonTest({
   phaseRef.current = phase;
   const onFinishedRef = useRef(onFinished);
   onFinishedRef.current = onFinished;
+  const onResolvedRef = useRef(onResolved);
+  onResolvedRef.current = onResolved;
   const metaRef = useRef({ courseTitle, moduleTitle, lessonTitle });
   metaRef.current = { courseTitle, moduleTitle, lessonTitle };
 
@@ -149,6 +159,7 @@ export default function LessonTest({
         setPhase({ type: "result", result: saved.result, test: snapshot });
       }
       setChecking(false);
+      onResolvedRef.current?.(true);
       if (saved.result.passed || exhausted) {
         finishedCalledRef.current = true;
         onFinishedRef.current?.();
@@ -161,6 +172,7 @@ export default function LessonTest({
       setKnownTestId(materialTestId);
       setPhase({ type: "idle" });
       setChecking(false);
+      onResolvedRef.current?.(true);
       return;
     }
 
@@ -173,28 +185,36 @@ export default function LessonTest({
           setKnownTestId(first.id);
           setKnownTestTitle(first.title ?? null);
           setPhase({ type: "idle" });
+          onResolvedRef.current?.(true);
         } else {
           setKnownTestId(null);
           setKnownTestTitle(null);
           setPhase({ type: "no-test" });
+          onResolvedRef.current?.(false);
         }
       } catch (err) {
         if (cancelled) return;
         setKnownTestId(null);
         setKnownTestTitle(null);
         const status = err instanceof ApiError ? err.status : undefined;
-        if (status === 403) {
-          console.log("STUDENT LESSON TESTS 403 DIAG:", {
-            lessonId,
-            hasAuthorization,
-            note: "Swagger: ariza tasdiqlanmagan / dars yopiq — yoki role policy",
+        if (status === 404) {
+          setPhase({ type: "no-test" });
+          onResolvedRef.current?.(false);
+        } else {
+          if (status === 403) {
+            console.log("STUDENT LESSON TESTS 403 DIAG:", {
+              lessonId,
+              hasAuthorization,
+              note: "Swagger: ariza tasdiqlanmagan / dars yopiq — yoki role policy",
+            });
+          }
+          onResolvedRef.current?.(true);
+          setPhase({
+            type: "error",
+            message: lessonTestErrorMessage(err),
+            status,
           });
         }
-        setPhase({
-          type: "error",
-          message: lessonTestErrorMessage(err),
-          status,
-        });
       } finally {
         if (!cancelled) setChecking(false);
       }
@@ -510,14 +530,13 @@ export default function LessonTest({
       autoCloseRef.current = null;
     }
     setModalOpen(false);
+    setLeaveOpen(false);
     if (
       (phase.type === "result" &&
         (phase.result.passed || isAttemptsExhausted(phase.result, attemptLimit))) ||
       phase.type === "attempts-exhausted"
     ) {
       ensureFinished();
-      if (phase.type === "result" && !phase.result.passed) onContinue?.();
-      if (phase.type === "attempts-exhausted") onContinue?.();
     }
   };
 
@@ -548,6 +567,11 @@ export default function LessonTest({
       phase.type === "attempts-exhausted" ||
       phase.type === "restudy");
 
+  useEffect(() => {
+    setHideBottomNav(isModalOpen);
+    return () => setHideBottomNav(false);
+  }, [isModalOpen, setHideBottomNav]);
+
   const modalTest =
     phase.type === "active" ||
     phase.type === "submitting" ||
@@ -564,23 +588,23 @@ export default function LessonTest({
       ? phase.result
       : null;
 
+  if (!checking && phase.type === "no-test") return null;
+
+  const cardClass = compactCard
+    ? "flex w-full min-h-11 flex-col items-stretch gap-3 rounded-2xl border border-[#E8EDF5] bg-white px-4 py-3 text-left"
+    : "mt-4 rounded-xl border border-[#E8EDF5] bg-[#F7F9FC] p-5";
+
   return (
     <>
-      <section className="mt-8 border-t border-[#E8EDF5] pt-6">
-        <h2 className="text-base font-bold text-[#0C2340]">Dars testi</h2>
+      <section className={compactCard ? "" : "mt-8 border-t border-[#E8EDF5] pt-6"}>
+        {compactCard ? null : <h2 className="text-base font-bold text-[#0C2340]">Dars testi</h2>}
 
         {checking && (
-          <div className="mt-4 flex items-center gap-3 text-sm text-[#64748B]">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-            Test tekshirilmoqda...
-          </div>
-        )}
-
-        {!checking && phase.type === "no-test" && (
-          <div className="mt-4 rounded-xl border border-[#E8EDF5] bg-[#F7F9FC] p-5">
-            <p className="text-sm text-[#64748B]">
-              Bu darsda test yo'q. Admin test qo‘shgandan keyin bu yerda «Testni boshlash» chiqadi.
-            </p>
+          <div className={cn(cardClass, "text-sm text-[#64748B]")}>
+            <div className="flex items-center gap-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+              Savollar yuklanmoqda...
+            </div>
           </div>
         )}
 
@@ -651,35 +675,28 @@ export default function LessonTest({
         )}
 
         {!checking && phase.type === "idle" && (
-          <div className="mt-4 rounded-xl border border-[#E8EDF5] bg-[#F7F9FC] p-5">
-            {knownTestTitle ? (
-              <p className="text-sm font-semibold text-[#0C2340]">{knownTestTitle}</p>
-            ) : null}
+          <div className={cardClass}>
+            <p className="text-sm font-semibold text-[#0C2340]">{knownTestTitle || `${lessonTitle || "Dars"} testi`}</p>
             {!materialsUnlocked ? (
               <>
-                <p className="mt-1 text-sm text-[#64748B]">
-                  Testni boshlash uchun dars materiallarini yakunlang.
-                </p>
+                <p className="text-sm text-[#64748B]">🔒 Test · Dars materiallarini yakunlang.</p>
                 <button
                   type="button"
                   disabled
-                  className="mt-3 inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-slate-300 px-5 py-2.5 text-sm font-semibold text-white"
+                  className="inline-flex min-h-11 cursor-not-allowed items-center justify-center rounded-xl bg-slate-300 px-5 text-sm font-semibold text-white"
                 >
-                  Test 🔒
+                  Testni boshlash
                 </button>
               </>
             ) : (
               <>
-                <p className="mt-1 text-sm text-[#64748B]">
-                  Dars materiallarini ko&apos;rib chiqqaningizdan so&apos;ng dars testini topshing.
-                  Maksimal urinish: {attemptLimit}.
-                </p>
+                <p className="text-sm text-[#64748B]">O&apos;tish bali backenddan olinadi. Maksimal urinish: {attemptLimit}.</p>
                 <button
                   type="button"
                   onClick={() => void startTest()}
-                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#2563EB] px-5 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
                 >
-                  Testni boshlash →
+                  Testni boshlash
                 </button>
               </>
             )}
@@ -735,6 +752,13 @@ export default function LessonTest({
               seconds={seconds}
               attemptLimit={attemptLimit}
               submitHint={submitHint}
+              leaveOpen={leaveOpen}
+              onLeaveAsk={() => setLeaveOpen(true)}
+              onLeaveStay={() => setLeaveOpen(false)}
+              onLeaveExit={() => {
+                setLeaveOpen(false);
+                setModalOpen(false);
+              }}
               onAnswer={(qId, aId) => {
                 setAnswers((prev) => ({ ...prev, [qId]: aId }));
                 setSubmitHint(null);
@@ -761,6 +785,7 @@ export default function LessonTest({
 // ─── To'liq ekran modal ───────────────────────────────────────────────────────
 function TestModal({
   phase, test, result, current, answers, marked, seconds, attemptLimit, submitHint,
+  leaveOpen, onLeaveAsk, onLeaveStay, onLeaveExit,
   onAnswer, onMark, onNext, onPrev, onJump, onSubmit, onRetry, onClose, onContinue,
 }: {
   phase: Phase;
@@ -772,6 +797,10 @@ function TestModal({
   seconds: number;
   attemptLimit: number;
   submitHint?: string | null;
+  leaveOpen?: boolean;
+  onLeaveAsk?: () => void;
+  onLeaveStay?: () => void;
+  onLeaveExit?: () => void;
   onAnswer: (qId: number, aId: number) => void;
   onMark: (qId: number) => void;
   onNext: () => void;
@@ -796,12 +825,22 @@ function TestModal({
   const secs = seconds % 60;
   const OPTS = ["A", "B", "C", "D", "E"];
   const isLowTime = seconds > 0 && seconds <= 60;
+  const [unansweredOpen, setUnansweredOpen] = useState(false);
   useLockBodyScroll(true);
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col bg-[#F7F9FC] pb-[env(safe-area-inset-bottom)]">
       <header className="flex items-start justify-between gap-3 border-b border-[#E8EDF5] bg-white px-3 py-3 shadow-sm sm:items-center sm:gap-4 sm:px-6">
         <div className="min-w-0">
+          {!isReview ? (
+            <button
+              type="button"
+              onClick={onLeaveAsk}
+              className="mb-1 inline-flex min-h-11 items-center text-sm font-medium text-[#2563EB]"
+            >
+              ← Test
+            </button>
+          ) : null}
           <p className="truncate text-sm font-semibold text-[#0C2340]">
             {test.title || "Dars testi"}
           </p>
@@ -960,20 +999,25 @@ function TestModal({
                 </button>
                 {current < questions.length - 1 ? (
                   <button type="button" onClick={onNext}
-                    className="min-h-11 w-full rounded-xl border border-[#E8EDF5] bg-white px-4 py-2 text-sm font-medium hover:bg-[#F1F5F9] sm:w-auto">
-                    Keyingi →
+                    className="min-h-11 w-full rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-[#1D4ED8] sm:w-auto">
+                    Keyingi
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={onSubmit}
-                  disabled={!allAnswered || isSubmitting}
-                  className="min-h-11 w-full rounded-xl bg-[#2563EB] px-6 py-2 text-sm font-bold text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-slate-300 sm:ml-auto sm:w-auto"
-                >
-                  {allAnswered
-                    ? "Testni yakunlash"
-                    : `Yakunlash (${missingCount} ta belgilanmagan)`}
-                </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!allAnswered) {
+                        setUnansweredOpen(true);
+                        return;
+                      }
+                      onSubmit();
+                    }}
+                    disabled={isSubmitting}
+                    className="min-h-11 w-full rounded-xl bg-[#2563EB] px-6 py-2 text-sm font-bold text-white hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-slate-300 sm:ml-auto sm:w-auto"
+                  >
+                    {isSubmitting ? "Test yuborilmoqda..." : "Testni yakunlash"}
+                  </button>
+                )}
               </div>
             </>
           ) : null}
@@ -1001,6 +1045,60 @@ function TestModal({
           </aside>
         )}
       </div>
+
+      {unansweredOpen ? (
+        <div className="absolute inset-0 z-10 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5">
+            <p className="text-sm font-semibold text-[#0C2340]">
+              Sizda javob berilmagan {missingCount} ta savol bor.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setUnansweredOpen(false);
+                  const missing = unansweredQuestionIndexes(questions, answers);
+                  if (missing.length) onJump(missing[0]);
+                }}
+                className="min-h-11 rounded-xl bg-[#2563EB] text-sm font-semibold text-white"
+              >
+                Davom ettirish
+              </button>
+              <button
+                type="button"
+                onClick={() => setUnansweredOpen(false)}
+                className="min-h-11 rounded-xl border border-[#E8EDF5] text-sm font-medium"
+              >
+                Testga qaytish
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {leaveOpen ? (
+        <div className="absolute inset-0 z-10 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5">
+            <p className="text-sm font-semibold text-[#0C2340]">Test hali yakunlanmagan.</p>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={onLeaveStay}
+                className="min-h-11 rounded-xl bg-[#2563EB] text-sm font-semibold text-white"
+              >
+                Testga qaytish
+              </button>
+              <button
+                type="button"
+                onClick={onLeaveExit}
+                className="min-h-11 rounded-xl border border-[#E8EDF5] text-sm font-medium"
+              >
+                Testdan chiqish
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1209,10 +1307,10 @@ function ResultPanel({ result, test, answers, attemptLimit, onRetry, onClose, on
         {result.passed ? (
           <button
             type="button"
-            onClick={onClose}
+            onClick={onContinue}
             className="w-full max-w-xs rounded-xl bg-[#2563EB] px-6 py-3 font-semibold text-white hover:bg-[#1D4ED8]"
           >
-            Yopish
+            Keyingi darsga o&apos;tish
           </button>
         ) : null}
         {exhausted && !result.passed ? (
@@ -1221,7 +1319,7 @@ function ResultPanel({ result, test, answers, attemptLimit, onRetry, onClose, on
             onClick={onContinue}
             className="w-full max-w-xs rounded-xl bg-[#2563EB] px-6 py-3 font-semibold text-white hover:bg-[#1D4ED8]"
           >
-            Keyingi darsga o&apos;tish →
+            Keyingi darsga o&apos;tish
           </button>
         ) : null}
         {!result.passed && canRetry ? (
@@ -1230,9 +1328,15 @@ function ResultPanel({ result, test, answers, attemptLimit, onRetry, onClose, on
             onClick={onRetry}
             className="w-full max-w-xs rounded-xl border-2 border-[#2563EB] px-6 py-3 font-semibold text-[#2563EB] hover:bg-[#EEF4FF]"
           >
-            Yana 1 marta
+            Testni qayta ishlash
           </button>
         ) : null}
+        <Link
+          href="/dashboard/results"
+          className="text-sm font-medium text-[#2563EB]"
+        >
+          Natijalarimni ko&apos;rish
+        </Link>
         {!result.passed && canRetry ? (
           <button type="button" onClick={onClose} className="text-sm text-[#94A3B8] hover:text-[#64748B]">
             Yopish

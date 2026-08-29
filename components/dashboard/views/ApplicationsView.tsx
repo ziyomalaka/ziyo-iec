@@ -95,7 +95,7 @@ export default function ApplicationsView() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white"
+            className="min-h-11 w-full rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white sm:w-auto"
           >
             Yangi ariza
           </button>

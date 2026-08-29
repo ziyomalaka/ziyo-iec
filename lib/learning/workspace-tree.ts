@@ -8,7 +8,7 @@ import { overlayLearningCourseKinds } from "@/lib/learning/lesson-kind";
 import {
   applySequentialUnlock,
   flattenLearningLessons,
-  hasBackendLessonStatuses,
+  shouldApplySequentialUnlock,
   sortLearningLessons,
   sortLearningModules,
 } from "@/lib/learning/lesson-progress";
@@ -197,10 +197,8 @@ export function mergeLearningWithCatalog(
     )
   );
 
-  if (!hasBackendLessonStatuses(merged.modules ?? []) && sequential) {
+  if (shouldApplySequentialUnlock(merged.modules ?? [])) {
     merged = applySequentialUnlock(merged, sequential);
-  } else if (!hasBackendLessonStatuses(merged.modules ?? [])) {
-    merged = applySequentialUnlock(merged);
   }
 
   return filterLearningToCatalog(merged, catalog);

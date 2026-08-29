@@ -128,17 +128,15 @@ export function isTestFullyAnswered(
 /** UI uchun status-aware xabar (403 ≠ test yo'q). */
 export function lessonTestErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 401) return "Tizimga qayta kiring";
-    if (err.status === 403) {
-      // Oddiy yo'nalish: ariza yo'q. Majburiy blogda auto-enroll retry ishlamagan.
-      return "Ushbu testni ko'rishga ruxsat yo'q. Ariza tasdiqlanganini tekshiring yoki qayta urinib ko'ring.";
-    }
-    if (err.status === 404) return "Bu darsda test yo'q";
-    if (err.status >= 500) return "Testni yuklashda server xatosi yuz berdi";
-    return err.message || "Test yuklanmadi";
+    if (err.status === 401) return "Tizimga qayta kiring.";
+    if (err.status === 403) return "Ushbu testga kirishga ruxsat yo'q.";
+    if (err.status === 404) return "Bu darsda test mavjud emas.";
+    if (err.status === 502 || err.status === 503) return "Server vaqtincha javob bermayapti.";
+    if (err.status >= 500) return "Serverda xatolik.";
+    return err.message || "Test yuklanmadi.";
   }
   if (err instanceof Error && err.message) return err.message;
-  return "Test yuklanmadi";
+  return "Test yuklanmadi.";
 }
 
 // ─── Normallashtirish ────────────────────────────────────────────────────────

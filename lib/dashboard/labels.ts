@@ -44,6 +44,13 @@ export const dashboardLabels = {
     notifications: "Bildirishnomalar",
     profile: "Profil",
   },
+  menuShort: {
+    home: "Bosh",
+    myCourses: "Yo'nalish",
+    learning: "O'quv",
+    results: "Natijalar",
+    profile: "Profil",
+  },
   pages: {
     dashboard: "Bosh sahifa",
     courses: "Malaka oshirish yo'nalishi",

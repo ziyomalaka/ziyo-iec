@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BookMarked, PlayCircle } from "lucide-react";
-import { Link, useRouter } from "@/i18n/navigation";
-import { ApiError } from "@/lib/api/errors";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { getMyApplications } from "@/lib/api/applications";
 import { getCatalogCourse, overlayCatalogWithSnapshot } from "@/lib/dashboard/qualification-catalog";
 import {
@@ -27,6 +26,7 @@ import {
   MANDATORY_BLOCK_TITLE,
   isApprovedApplicationStatus,
   isMandatoryBlockPath,
+  mandatoryLearningHref,
   parseDashboardCourseId,
   parseMandatoryBlogId,
 } from "@/lib/dashboard/course-application";
@@ -46,12 +46,19 @@ import {
   sidebarLessonKind,
 } from "@/lib/learning/lesson-kind";
 import {
+  applySequentialUnlock,
   canOpenLesson,
+  markCourseLessonCompleted,
+  readCourseLessonProgress,
   readMandatoryProgress,
   resolveLessonProgressStatus,
+  shouldApplySequentialUnlock,
   writeMandatoryProgress,
   type MandatoryStoredProgress,
 } from "@/lib/learning/lesson-progress";
+import { useIsLgUp } from "@/lib/hooks/useIsLgUp";
+import { OutlineSkeleton } from "@/components/dashboard/learning/LearningSkeletons";
+import { studentApiErrorMessage } from "@/lib/learning/student-errors";
 import {
   firstOpenLessonId,
   lessonDetailFromCourse,
@@ -61,7 +68,13 @@ import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import { readQualificationSnapshot } from "@/lib/qualification/published-snapshot";
 
 function err(error: unknown) {
-  return error instanceof ApiError ? error.message : "So'rov bajarilmadi";
+  return studentApiErrorMessage(error, "lesson");
+}
+
+function lessonIdFromPath(pathname: string, fallback?: number) {
+  const match = pathname.match(/\/lessons?\/(\d+)(?:\/|$)/);
+  if (match) return Number(match[1]);
+  return fallback;
 }
 
 function moduleLessons(module: LearningModule): LearningLessonSummary[] {
@@ -152,6 +165,11 @@ function MandatoryBlockEmptyView({ title = MANDATORY_BLOCK_TITLE }: { title?: st
 }
 
 function MandatoryBlockPlayer({ blogId, initialLessonId }: { blogId?: number | null; initialLessonId?: number }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const isLg = useIsLgUp();
+  const urlLessonId = lessonIdFromPath(pathname, initialLessonId);
+  const courseHref = blogId ? mandatoryLearningHref(blogId) : "/dashboard/learning/mandatory";
   const [blog, setBlog] = useState<QualificationDirection | null>(null);
   const [lesson, setLesson] = useState<LearningLessonDetail | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -159,7 +177,6 @@ function MandatoryBlockPlayer({ blogId, initialLessonId }: { blogId?: number | n
   const [loading, setLoading] = useState(true);
   const [lessonLoading, setLessonLoading] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const initialLessonOpened = useRef(false);
   const selectedIdRef = useRef<number | null>(null);
   const progressRef = useRef(progress);
   selectedIdRef.current = selectedId;
@@ -232,18 +249,6 @@ function MandatoryBlockPlayer({ blogId, initialLessonId }: { blogId?: number | n
       setProgress(stored);
       setBlog(local);
       setLoading(false);
-      if (!initialLessonOpened.current) {
-        const mapped = mapMandatoryBlogToLearning(local, stored);
-        const prefer =
-          initialLessonId &&
-          flattenLessons(mapped.modules ?? []).some((item) => item.id === initialLessonId)
-            ? initialLessonId
-            : firstOpenLessonId(mapped);
-        if (prefer) {
-          initialLessonOpened.current = true;
-          void openLesson(local, prefer, stored);
-        }
-      }
     } else {
       setLoading(true);
     }
@@ -258,18 +263,6 @@ function MandatoryBlockPlayer({ blogId, initialLessonId }: { blogId?: number | n
         const stored = readMandatoryProgress(data.id);
         setProgress(stored);
         setBlog(data);
-        if (!initialLessonOpened.current) {
-          const mapped = mapMandatoryBlogToLearning(data, stored);
-          const prefer =
-            initialLessonId &&
-            flattenLessons(mapped.modules ?? []).some((item) => item.id === initialLessonId)
-              ? initialLessonId
-              : firstOpenLessonId(mapped);
-          if (prefer) {
-            initialLessonOpened.current = true;
-            void openLesson(data, prefer, stored);
-          }
-        }
       })
       .catch(() => {
         if (!cancelled && !local) setBlog(null);
@@ -281,7 +274,20 @@ function MandatoryBlockPlayer({ blogId, initialLessonId }: { blogId?: number | n
     return () => {
       cancelled = true;
     };
-  }, [loadBlog, openLesson, pickLocalBlog, initialLessonId]);
+  }, [loadBlog, pickLocalBlog]);
+
+  useEffect(() => {
+    if (!blog) return;
+    if (urlLessonId && selectedId !== urlLessonId) {
+      void openLesson(blog, urlLessonId, progress);
+      return;
+    }
+    if (!urlLessonId && isLg && !selectedId) {
+      const mapped = mapMandatoryBlogToLearning(blog, progress);
+      const prefer = firstOpenLessonId(mapped);
+      if (prefer) void openLesson(blog, prefer, progress);
+    }
+  }, [blog, urlLessonId, isLg, selectedId, openLesson, progress]);
 
   useLiveRefresh((reason) => {
     void (async () => {
@@ -308,7 +314,7 @@ function MandatoryBlockPlayer({ blogId, initialLessonId }: { blogId?: number | n
     })();
   }, { skipTick: false });
 
-  if (loading) return <LoadingState />;
+  if (loading) return <OutlineSkeleton />;
 
   const course = blog ? overlayLearningCourseKinds(mapMandatoryBlogToLearning(blog, progress)) : null;
   const hasLessons = Boolean(blog && flattenMandatoryLessons(blog).length);
@@ -330,7 +336,12 @@ function MandatoryBlockPlayer({ blogId, initialLessonId }: { blogId?: number | n
       canLearn
       lessonLoading={lessonLoading}
       completing={completing}
-      onOpenLesson={(id) => void openLesson(blog, id, progress)}
+      courseHref={courseHref}
+      pane={urlLessonId ? "lesson" : "outline"}
+      onOpenLesson={(id) => {
+        if (id !== urlLessonId) router.push(`${courseHref}/lesson/${id}`);
+        void openLesson(blog, id, progress);
+      }}
       onComplete={(opts) => {
         if (!selectedId || !blog || completing) return;
         const goNext = opts?.goNext ?? true;
@@ -355,7 +366,10 @@ function MandatoryBlockPlayer({ blogId, initialLessonId }: { blogId?: number | n
           const upcoming = flattenLessons(mapped.modules ?? []).find(
             (item) => resolveLessonProgressStatus(item) === "current"
           );
-          if (upcoming) await openLesson(blog, upcoming.id, nextProgress);
+          if (upcoming) {
+            router.push(`${courseHref}/lesson/${upcoming.id}`);
+            await openLesson(blog, upcoming.id, nextProgress);
+          }
         })().finally(() => setCompleting(false));
       }}
     />
@@ -405,15 +419,20 @@ function AccessBanner({
   );
 }
 
-async function loadLearningCourseWithKinds(courseId: number) {
-  invalidateLearningCache(courseId);
+async function loadLearningCourseWithKinds(courseId: number, force = false) {
+  if (force) invalidateLearningCache(courseId);
+  const stored = readCourseLessonProgress(courseId);
   const [data, catalog, snapshot] = await Promise.all([
-    getLearningCourse(courseId, true),
+    getLearningCourse(courseId),
     getCatalogCourse(String(courseId)).catch(() => null),
-    readQualificationSnapshot({ forceNetwork: true }).catch(() => []),
+    readQualificationSnapshot({ forceNetwork: force }).catch(() => []),
   ]);
   const overlaid = overlayCatalogWithSnapshot(catalog, snapshot, courseId, data.title);
-  return mergeLearningWithCatalog(data, overlaid);
+  const merged = mergeLearningWithCatalog(data, overlaid, stored);
+  if (shouldApplySequentialUnlock(merged.modules ?? [])) {
+    return applySequentialUnlock(merged, stored);
+  }
+  return merged;
 }
 
 function LearningPlayer({
@@ -427,6 +446,10 @@ function LearningPlayer({
   skipApplicationGate?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isLg = useIsLgUp();
+  const urlLessonId = lessonIdFromPath(pathname, initialLessonId);
+  const courseHref = `/dashboard/learning/${courseId}`;
   const [course, setCourse] = useState<LearningCourseResponse | null>(null);
   const courseRef = useRef<LearningCourseResponse | null>(null);
   const [lesson, setLesson] = useState<LearningLessonDetail | null>(null);
@@ -474,10 +497,15 @@ function LearningPlayer({
       }
 
       const tree = courseRef.current;
-      if (tree && !flattenLessons(tree.modules ?? []).some((item) => item.id === id)) {
+      const listedOpen = tree ? flattenLessons(tree.modules ?? []).find((item) => item.id === id) : undefined;
+      if (tree && !listedOpen) {
         toast.error("Bu dars o'chirilgan");
         setLesson(null);
         setSelectedId(null);
+        return;
+      }
+      if (listedOpen && !canOpenLesson(resolveLessonProgressStatus(listedOpen))) {
+        toast.error("Ushbu darsga kirishga ruxsat yo'q.");
         return;
       }
 
@@ -539,10 +567,10 @@ function LearningPlayer({
         const allow = skipApplicationGate || data.can_learn;
         if (!allow) return;
         const prefer =
-          initialLessonId &&
-          flattenLessons(data.modules ?? []).some((item) => item.id === initialLessonId)
-            ? initialLessonId
-            : firstOpenLessonId(data);
+          urlLessonId &&
+          flattenLessons(data.modules ?? []).some((item) => item.id === urlLessonId)
+            ? urlLessonId
+            : null;
         if (prefer) void openLesson(prefer, true);
       })
       .catch((caught) => {
@@ -564,7 +592,20 @@ function LearningPlayer({
     return () => {
       cancelled = true;
     };
-  }, [loadCourse, openLesson, router, initialLessonId, skipApplicationGate]);
+  }, [loadCourse, openLesson, router, skipApplicationGate]);
+
+  useEffect(() => {
+    if (loading || !courseRef.current || urlLessonId || selectedId) return;
+    if (!isLg) return;
+    const prefer = firstOpenLessonId(courseRef.current);
+    if (prefer) void openLesson(prefer, skipApplicationGate || courseRef.current.can_learn === true);
+  }, [isLg, loading, urlLessonId, selectedId, openLesson, skipApplicationGate]);
+
+  useEffect(() => {
+    if (!courseRef.current || !urlLessonId || selectedId === urlLessonId) return;
+    if (!flattenLessons(courseRef.current.modules ?? []).some((item) => item.id === urlLessonId)) return;
+    void openLesson(urlLessonId, skipApplicationGate || courseRef.current.can_learn === true);
+  }, [urlLessonId, selectedId, openLesson, skipApplicationGate]);
 
   const refreshLive = useCallback(async () => {
     try {
@@ -594,27 +635,46 @@ function LearningPlayer({
     }
   }, [courseId, selectedId, skipApplicationGate]);
 
-  useLiveRefresh((reason) => void refreshLive(reason));
+  useLiveRefresh(() => void refreshLive());
 
   const complete = async (opts?: { goNext?: boolean }) => {
     if (!selectedId || completing) return;
     if (!skipApplicationGate && course?.can_learn !== true) return;
     const goNext = opts?.goNext ?? true;
     setCompleting(true);
+    markCourseLessonCompleted(courseId, selectedId);
     try {
       const result = await completeLearningLesson(selectedId);
       toast.success("Dars tugatildi");
-      const data = await loadCourse();
+      const data = await loadLearningCourseWithKinds(courseId, true);
+      rememberCourse(
+        skipApplicationGate
+          ? { ...data, enrolled: true, can_learn: data.can_learn !== false }
+          : data
+      );
       if (!goNext) return;
-      const upcoming = result.nextLessonId ?? lesson?.next_lesson_id;
+      const upcoming =
+        result.nextLessonId ??
+        flattenLessons(data.modules ?? []).find((item) => resolveLessonProgressStatus(item) === "current")?.id ??
+        lesson?.next_lesson_id;
       if (upcoming) {
+        router.push(`${courseHref}/lesson/${upcoming}`);
         await openLesson(upcoming, skipApplicationGate || data.can_learn);
       }
     } catch (caught) {
+      invalidateLearningCache(courseId);
+      const data = await loadLearningCourseWithKinds(courseId, true).catch(() => null);
+      if (data) rememberCourse(data);
       if (isLearnForbiddenError(caught)) {
         if (!skipApplicationGate) router.push("/dashboard/applications");
         else toast.error("Darsni yakunlashda ruxsat yo'q. Qayta urinib ko'ring.");
         return;
+      }
+      if (goNext) {
+        const upcoming = flattenLessons((data ?? course)?.modules ?? []).find(
+          (item) => resolveLessonProgressStatus(item) === "current"
+        );
+        if (upcoming) router.push(`${courseHref}/lesson/${upcoming.id}`);
       }
       toast.error(err(caught));
     } finally {
@@ -622,7 +682,7 @@ function LearningPlayer({
     }
   };
 
-  if (loading) return <LoadingState />;
+  if (loading) return <OutlineSkeleton />;
 
   if (error || !course) {
     return (
@@ -665,7 +725,12 @@ function LearningPlayer({
             : "Ariza tasdiqlangandan keyin dars pleyeri ochiladi."}
         </p>
       }
-      onOpenLesson={(id) => void openLesson(id, canLearn)}
+      courseHref={courseHref}
+      pane={urlLessonId ? "lesson" : "outline"}
+      onOpenLesson={(id) => {
+        if (id !== urlLessonId) router.push(`${courseHref}/lesson/${id}`);
+        void openLesson(id, canLearn);
+      }}
       onComplete={(opts) => void complete(opts)}
     />
   );

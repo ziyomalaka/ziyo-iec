@@ -4,6 +4,7 @@ import {
   BookMarked,
   BookOpen,
   FileText,
+  FolderOpen,
   GraduationCap,
   Home,
   User,
@@ -29,6 +30,21 @@ export const dashboardNavItems: DashboardNavItem[] = [
   { href: "/dashboard/results", labelKey: "results", icon: Award },
   { href: "/dashboard/notifications", labelKey: "notifications", icon: Bell },
   { href: "/dashboard/profile", labelKey: "profile", icon: User },
+];
+
+export const dashboardBottomNavItems: DashboardNavItem[] = [
+  { href: "/dashboard", labelKey: "home", icon: Home, exact: true },
+  { href: "/dashboard/my-courses", labelKey: "myCourses", icon: BookOpen },
+  { href: "/dashboard/learning", labelKey: "learning", icon: BookMarked },
+  { href: "/dashboard/results", labelKey: "results", icon: Award },
+  { href: "/dashboard/profile", labelKey: "profile", icon: User },
+];
+
+export const dashboardDrawerExtraItems: DashboardNavItem[] = [
+  { href: "/dashboard/courses", labelKey: "courses", icon: GraduationCap, exact: true },
+  { href: "/dashboard/applications", labelKey: "applications", icon: FileText },
+  { href: "/dashboard/portfolio", labelKey: "portfolio", icon: FolderOpen },
+  { href: "/dashboard/notifications", labelKey: "notifications", icon: Bell },
 ];
 
 export const dashboardPageTitles: Record<string, string> = {

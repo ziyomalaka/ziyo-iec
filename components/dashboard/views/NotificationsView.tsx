@@ -100,7 +100,7 @@ export default function NotificationsView() {
             <button
               type="button"
               onClick={() => markAllRead()}
-              className="rounded-xl border border-[#E8EDF5] px-4 py-2 text-sm font-medium text-[#2563EB] hover:bg-[#F7F9FC]"
+              className="min-h-11 w-full rounded-xl border border-[#E8EDF5] px-4 py-2 text-sm font-medium text-[#2563EB] hover:bg-[#F7F9FC] sm:w-auto"
             >
               Hammasini o&apos;qilgan deb belgilash
             </button>
