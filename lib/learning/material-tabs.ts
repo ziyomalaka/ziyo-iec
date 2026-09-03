@@ -23,25 +23,34 @@ export type ParsedMaterialBody = {
 export function materialKind(
   item: Pick<LearningMaterial, "type" | "material_type" | "url" | "file_url" | "content_url" | "original_name" | "title">
 ): LessonMaterialTab | "video" | null {
-  const type = String(item.material_type || item.type || "").toLowerCase();
-  if (type === "video" || type.includes("video")) return "video";
-  if (type === "presentation" || type.includes("presentation") || type === "pptx" || type === "ppt") {
-    return "presentation";
-  }
-  if (type === "lecture" || type === "guide" || type === "pdf" || type === "word" || type === "docx") {
-    return "lecture";
-  }
-  if (type === "seminar") return "seminar";
-  if (type === "laboratory" || type === "lab") return "laboratory";
-  if (type === "test") return "test";
-  if (type === "excel" || type === "xlsx" || type === "xls" || type.includes("sheet")) return "lecture";
+  const type = String(item.material_type || item.type || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[-\s]+/g, "_");
 
-  // Tip noma'lum — fayl kengaytmasi bo'yicha tabga joylash
+  if (type) {
+    if (type === "video" || type.includes("video")) return "video";
+    if (type === "presentation" || type.includes("presentation") || type === "pptx" || type === "ppt") {
+      return "presentation";
+    }
+    if (type === "lecture" || type === "guide" || type === "maruza" || type.includes("lecture")) {
+      return "lecture";
+    }
+    if (type === "seminar" || type.includes("seminar")) return "seminar";
+    if (type === "laboratory" || type === "lab" || type.includes("laborator")) return "laboratory";
+    if (type === "test" || type.includes("test")) return "test";
+    if (type === "pdf" || type === "word" || type === "docx" || type === "excel" || type === "xlsx" || type === "xls") {
+      return "lecture";
+    }
+  }
+
   const path = pickFileUrl(item) || item.original_name || item.title || "";
   const fileKind = fileKindFromUrl(path);
   if (fileKind === "video") return "video";
-  if (fileKind === "office" || fileKind === "pdf") return "presentation";
-  if (fileKind === "word" || fileKind === "text" || fileKind === "image") return "lecture";
+  if (fileKind === "office") {
+    return path.toLowerCase().includes(".ppt") ? "presentation" : "lecture";
+  }
+  if (fileKind === "pdf" || fileKind === "word" || fileKind === "text" || fileKind === "image") return "lecture";
   if (path.trim()) return "lecture";
   return null;
 }

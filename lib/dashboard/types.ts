@@ -15,6 +15,9 @@ export type MyDirection = {
   progress: number;
   status: DirectionStatus;
   currentLessonId?: string;
+  currentLessonTitle?: string;
+  completedLessons?: number;
+  totalLessons?: number;
   progressColor: "blue" | "green" | "orange";
   badgeClass: string;
   showActions?: boolean;

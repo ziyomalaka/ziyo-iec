@@ -95,9 +95,10 @@ export default function NotificationItem({
         className
       )}
     >
-      <span className="mt-0.5 shrink-0 text-lg leading-none" aria-hidden>
-        {unread ? "🔵" : "⚪"}
-      </span>
+      <span
+        className={cn("mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", unread ? "bg-[#0756F5]" : "bg-transparent")}
+        aria-hidden
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <h4 className={cn("min-w-0 break-words font-semibold text-[#0C2340]", unread && "text-[#0A3D91]")}>

@@ -22,7 +22,7 @@ import {
 import { getLearningCourse } from "@/lib/api/learning";
 import { parsePositiveInt } from "@/lib/api/unwrap";
 import { ApiError } from "@/lib/api/errors";
-import { applicationBadge, applicationStatusLabel, uiLabel } from "@/lib/admin/labels";
+import { studentApplicationBadge, studentApplicationKind, studentApplicationLabel } from "@/lib/dashboard/student-status";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 
 type CourseDetailViewProps = {
@@ -65,9 +65,8 @@ export default function CourseDetailView({ course }: CourseDetailViewProps) {
   useLiveRefresh(() => void refreshStatus());
 
   const status = application?.status ?? "";
-  const statusLabel = application
-    ? application.status_label || uiLabel(status, applicationStatusLabel)
-    : "";
+  const kind = studentApplicationKind(status);
+  const statusLabel = application ? studentApplicationLabel(status) : "";
   const supervisorNote = applicationDecisionNote(application);
   const canReapply = canReapplyApplication(application);
   const canOpen = isMandatoryBlock || enrolled || status === "approved";
@@ -247,37 +246,39 @@ export default function CourseDetailView({ course }: CourseDetailViewProps) {
               <button
                 type="button"
                 onClick={handleEnroll}
-                className="w-full rounded-xl bg-[#2563EB] py-3 text-sm font-semibold text-white hover:bg-[#3B82F6]"
+                className="min-h-11 w-full rounded-xl bg-[#0756F5] text-sm font-semibold text-white hover:bg-[#0648d1]"
               >
-                {isMandatoryBlock ? "Ochish" : "O'qishni davom ettirish"}
+                {isMandatoryBlock ? "Ochish" : "Darsni davom ettirish"}
               </button>
             ) : null}
 
-            {!isMandatoryBlock && application ? (
+            {!isMandatoryBlock && application && !canOpen ? (
               <div className="space-y-2">
                 <div
                   className={cn(
-                    "flex w-full items-center justify-center rounded-xl py-3",
-                    status === "approved" && "bg-emerald-50",
-                    status === "rejected" && "bg-red-50",
-                    status === "processing" && "bg-[#EEF4FF]",
-                    (status === "pending" || !status) && "bg-[#E8EDF5]",
-                    status === "archived" && "bg-[#F7F9FC]"
+                    "flex min-h-11 w-full items-center justify-center rounded-xl px-3 text-center text-sm font-semibold",
+                    kind === "approved" && "bg-emerald-50 text-emerald-700",
+                    kind === "rejected" && "bg-red-50 text-red-700",
+                    kind === "pending" && "bg-[#EEF4FF] text-[#2563EB]"
                   )}
                 >
-                  <DashboardBadge variant={applicationBadge(status)}>{statusLabel}</DashboardBadge>
+                  <DashboardBadge variant={studentApplicationBadge(status)}>{statusLabel}</DashboardBadge>
                 </div>
                 {supervisorNote ? (
-                  <p className="rounded-lg bg-[#F7F9FC] px-3 py-2 text-xs text-[#64748B]">
+                  <p className="rounded-xl bg-[#F7F9FC] px-3 py-2 text-xs text-[#64748B]">
                     Nazoratchi: {supervisorNote}
                   </p>
-                ) : status === "pending" || status === "processing" ? (
+                ) : kind === "pending" ? (
                   <p className="text-center text-xs text-[#94A3B8]">Nazoratchi javobi kutilmoqda.</p>
                 ) : null}
-                <Link href="/dashboard/applications" className="block text-center text-xs font-semibold text-[#2563EB]">
+                <Link href="/dashboard/applications" className="block min-h-11 text-center text-sm font-semibold leading-[2.75rem] text-[#2563EB]">
                   Arizalarim
                 </Link>
               </div>
+            ) : null}
+
+            {!isMandatoryBlock && canOpen && application ? (
+              <p className="text-center text-xs text-[#64748B]">Holat: {statusLabel}</p>
             ) : null}
 
             {!isMandatoryBlock && canReapply ? (
@@ -285,9 +286,9 @@ export default function CourseDetailView({ course }: CourseDetailViewProps) {
                 type="button"
                 disabled={saving}
                 onClick={() => void handleApply()}
-                className="w-full rounded-xl border border-[#E8EDF5] py-3 text-sm font-semibold text-[#0C2340] hover:bg-[#F7F9FC] disabled:opacity-60"
+                className="min-h-11 w-full rounded-xl bg-[#0756F5] text-sm font-semibold text-white disabled:opacity-60"
               >
-                {saving ? "Yuborilmoqda..." : application ? "Qayta ariza topshirish" : "Kursga ariza topshirish"}
+                {saving ? "Yuborilmoqda..." : "Ariza berish"}
               </button>
             ) : null}
           </div>

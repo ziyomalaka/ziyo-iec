@@ -33,22 +33,34 @@ export type PagedResponse<T> = {
   total_pages: number;
 };
 
+function pagedFromObject<T>(value: unknown): PagedResponse<T> | null {
+  if (Array.isArray(value)) {
+    return { items: value as T[], total: value.length, page: 1, per_page: value.length || 10, total_pages: 1 };
+  }
+  if (!value || typeof value !== "object") return null;
+
+  const obj = value as Record<string, unknown>;
+  const nested = obj.data && typeof obj.data === "object" && !Array.isArray(obj.data) ? (obj.data as Record<string, unknown>) : null;
+  const items = Array.isArray(obj.items)
+    ? (obj.items as T[])
+    : Array.isArray(obj.data)
+      ? (obj.data as T[])
+      : nested && Array.isArray(nested.items)
+        ? (nested.items as T[])
+        : null;
+  if (!items) return null;
+
+  const total = Number(obj.total ?? nested?.total ?? obj.count ?? items.length) || items.length;
+  const page = Number(obj.page ?? nested?.page ?? obj.current_page ?? 1) || 1;
+  const perPage = Number(obj.per_page ?? nested?.per_page ?? obj.limit ?? (items.length || 10)) || 10;
+  const totalPages =
+    Number(obj.total_pages ?? nested?.total_pages ?? obj.last_page ?? Math.max(1, Math.ceil(total / perPage) || 1)) || 1;
+  return { items, total, page, per_page: perPage, total_pages: totalPages };
+}
+
 export function asPaged<T>(data: unknown): PagedResponse<T> {
   const inner = unwrapApiPayload<unknown>(data);
-  if (inner && typeof inner === "object" && Array.isArray((inner as PagedResponse<T>).items)) {
-    const page = inner as PagedResponse<T>;
-    return {
-      items: page.items ?? [],
-      total: page.total ?? page.items.length,
-      page: page.page ?? 1,
-      per_page: page.per_page ?? 10,
-      total_pages: page.total_pages ?? 1,
-    };
-  }
-  if (Array.isArray(inner)) {
-    return { items: inner as T[], total: inner.length, page: 1, per_page: inner.length || 10, total_pages: 1 };
-  }
-  return { items: [], total: 0, page: 1, per_page: 10, total_pages: 0 };
+  return pagedFromObject<T>(inner) ?? pagedFromObject<T>(data) ?? { items: [], total: 0, page: 1, per_page: 10, total_pages: 0 };
 }
 
 export function unwrapNamed<T>(data: unknown, key: string): T {

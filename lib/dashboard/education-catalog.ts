@@ -6,6 +6,7 @@ import {
   matchPublishedDirectionByTitle,
   readQualificationSnapshotLocal,
 } from "@/lib/qualification/published-snapshot";
+import { classifyEducationLevel } from "@/lib/dashboard/education-level";
 
 export type { InstitutionType };
 
@@ -15,6 +16,7 @@ export type EducationDirection = {
   title: string;
   description: string;
   imageGradient: string;
+  categoryName?: string;
 };
 
 export {
@@ -73,6 +75,7 @@ function makeCourse(direction: EducationDirection, index: number): CourseCatalog
     title: direction.title,
     direction: direction.title,
     institution: direction.institution,
+    categoryName: direction.categoryName,
     subject: direction.title,
     courseType: "Malaka oshirish",
     status: "Ochiq",
@@ -159,7 +162,11 @@ export function overlayEducationCourseWithPublished(
   const match = matchPublishedDirectionByTitle(published, course.title);
   if (!match || !isVisibleToStudent(match.status)) return course;
   const modules = listedModules(match);
-  if (!modules.length) return course;
+  const categoryName = match.category_name || course.categoryName;
+  const institution = classifyEducationLevel(match.category_name) ?? course.institution;
+  if (!modules.length) {
+    return { ...course, categoryName, institution };
+  }
   const syllabus = modules.map((module) => ({
     id: String(module.id),
     title: module.title,
@@ -177,8 +184,14 @@ export function overlayEducationCourseWithPublished(
     duration: match.duration_hours ? `${match.duration_hours} soat` : course.duration,
     modulesCount: syllabus.length,
     lessonsCount: syllabus.reduce((sum, module) => sum + module.lessons.length, 0),
+    categoryName,
+    institution,
     syllabus,
   };
+}
+
+function institutionOfPublished(item: QualificationDirection, fallback: InstitutionType = "oliy"): InstitutionType {
+  return classifyEducationLevel(item.category_name) ?? fallback;
 }
 
 export function mergeOliyEducationCourses(published: QualificationDirection[] = []): CourseCatalogItem[] {
@@ -194,15 +207,17 @@ export function mergeOliyEducationCourses(published: QualificationDirection[] = 
     const key = canonicalDirectionTitleKey(item.title);
     if (!key || baseKeys.has(key) || seen.has(key)) return;
     seen.add(key);
+    const institution = institutionOfPublished(item);
     extras.push(
       overlayEducationCourseWithPublished(
         makeCourse(
           {
-            id: `oliy-${item.itId ?? item.id}-${slugifyDirection(item.title)}`,
-            institution: "oliy",
+            id: `${institution}-${item.itId ?? item.id}-${slugifyDirection(item.title)}`,
+            institution,
             title: item.title,
             description: item.description || `${item.title} yo'nalishida malaka oshirish.`,
             imageGradient: gradients[index % gradients.length],
+            categoryName: item.category_name,
           },
           base.length + extras.length
         ),

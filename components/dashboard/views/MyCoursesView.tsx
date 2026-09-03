@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Briefcase } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { getMyApplications } from "@/lib/api/applications";
 import { getLearningCourse, getMyLearningCourses, lessonUiStatus } from "@/lib/api/learning";
 import { getCatalogCourse } from "@/lib/dashboard/qualification-catalog";
@@ -35,7 +36,9 @@ import type {
 import type { LearningCourseResponse } from "@/lib/api/types/learning";
 import type { ClientApplicationResponse } from "@/lib/api/types/applications";
 import type { CourseCatalogItem, DirectionStats, MyDirection, UpcomingLesson } from "@/lib/dashboard/types";
+import { lessonProgressOf, continueFromCourse } from "@/lib/dashboard/continue-learning";
 import EmptyState from "@/components/dashboard/ui/EmptyState";
+import ErrorState from "@/components/dashboard/ui/ErrorState";
 import DirectionCard from "@/components/dashboard/directions/DirectionCard";
 import DirectionStatsRow from "@/components/dashboard/directions/DirectionStatsRow";
 import DirectionTabs, { type DirectionTabId } from "@/components/dashboard/directions/DirectionTabs";
@@ -117,12 +120,13 @@ function approvedDirectionFromCourse(
   if (isMandatoryBlockCourse({ title: course.title })) return null;
 
   const totalHours = course.duration_hours ?? 0;
-  const progress = Math.max(0, Math.min(100, Math.round(learning?.progress_percent ?? 0)));
+  const learningProgress = learning ? lessonProgressOf(learning) : null;
+  const continueInfo = learning ? continueFromCourse(learning) : null;
+  const progress = learningProgress?.progressPercent ?? 0;
   const completedHours = totalHours > 0 ? Math.round((totalHours * progress) / 100) : 0;
   const modules = course.modules?.length ?? course.module_count ?? 0;
   const startDate =
-    (application?.approved_at ?? application?.updated_at ?? application?.created_at ?? "").slice(0, 10) ||
-    "2026-08-18";
+    (application?.approved_at ?? application?.updated_at ?? application?.created_at ?? "").slice(0, 10);
 
   return {
     id: `approved-course-${course.id}`,
@@ -137,12 +141,15 @@ function approvedDirectionFromCourse(
     startDate,
     progress,
     status: progress >= 100 ? "completed" : "active",
-    currentLessonId: String(course.id),
+    currentLessonId: continueInfo ? String(continueInfo.currentLessonId ?? course.id) : String(course.id),
+    currentLessonTitle: continueInfo?.currentLessonTitle,
+    completedLessons: learningProgress?.completedLessons,
+    totalLessons: learningProgress?.totalLessons,
     progressColor: progress >= 100 ? "green" : progress >= 30 ? "blue" : "orange",
     badgeClass: "bg-[#0AA64F]",
     showActions: true,
     detailHref: `/dashboard/learning/${course.id}`,
-    continueHref: `/dashboard/learning/${course.id}`,
+    continueHref: continueInfo?.href ?? `/dashboard/learning/${course.id}`,
   };
 }
 
@@ -151,8 +158,7 @@ function approvedDirectionFromCatalog(
   course: CourseCatalogItem
 ): MyDirection {
   const href = courseOpenHref(course, application);
-  const startDate =
-    (application.approved_at ?? application.updated_at ?? application.created_at ?? "").slice(0, 10) || "2026-08-18";
+  const startDate = (application.approved_at ?? application.updated_at ?? application.created_at ?? "").slice(0, 10);
 
   return {
     id: `approved-catalog-${course.id}`,
@@ -181,10 +187,12 @@ export default function MyCoursesView() {
   const [directions, setDirections] = useState<MyDirection[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingLesson[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
   const loadDirections = useCallback(async (silent = false, reason?: LiveRefreshReason) => {
     if (!silent) setLoading(true);
     try {
+      setError(null);
       const blogs =
         silent && reason === "tick"
           ? await readMandatorySnapshot({ forceNetwork: true })
@@ -349,8 +357,9 @@ export default function MyCoursesView() {
           )
         );
       }
-    } catch {
+    } catch (caught) {
       if (!silent) {
+        setError(caught);
         setDirections([]);
         setUpcoming([]);
       }
@@ -387,6 +396,14 @@ export default function MyCoursesView() {
     return <LoadingState className="px-6 pt-2 pb-8" />;
   }
 
+  if (error) {
+    return (
+      <div className="px-4 pt-2 pb-8 sm:px-6">
+        <ErrorState error={error} onRetry={() => void loadDirections(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 pt-2 pb-8 sm:px-6">
       <div className="border-b border-[#E8EDF5]">
@@ -402,8 +419,22 @@ export default function MyCoursesView() {
           {filtered.length === 0 ? (
             <EmptyState
               icon={Briefcase}
-              title="Yo'nalish topilmadi"
-              description="Holatni o'zgartirib ko'ring."
+              title={directions.length === 0 ? "Faol yo'nalish yo'q" : "Yo'nalish topilmadi"}
+              description={
+                directions.length === 0
+                  ? "Tasdiqlangan yo'nalish shu yerda chiqadi. Avval malaka oshirish yo'nalishiga ariza yuboring."
+                  : "Holatni o'zgartirib ko'ring."
+              }
+              action={
+                directions.length === 0 ? (
+                  <Link
+                    href="/dashboard/courses"
+                    className="inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
+                  >
+                    Yo'nalishlarni ko'rish
+                  </Link>
+                ) : undefined
+              }
             />
           ) : (
             <div className="space-y-[13px]">

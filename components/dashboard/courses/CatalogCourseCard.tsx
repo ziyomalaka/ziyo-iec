@@ -9,15 +9,15 @@ import { educationLevelLabels } from "@/lib/dashboard/education-level";
 import type { CourseCatalogItem } from "@/lib/dashboard/types";
 import type { ClientApplicationResponse } from "@/lib/api/types/applications";
 import {
-  applicationDecisionLabel,
   applicationDecisionNote,
   applyToCourse,
   canReapplyApplication,
-  courseOpenHref,
   isApprovedApplicationStatus,
   isMandatoryBlockCourse,
   MANDATORY_BLOCK_LEARNING_HREF,
 } from "@/lib/dashboard/course-application";
+import DashboardBadge from "@/components/dashboard/ui/DashboardBadge";
+import { studentApplicationKind, studentApplicationLabel } from "@/lib/dashboard/student-status";
 import { ApiError } from "@/lib/api/errors";
 
 const badgeTones = {
@@ -32,11 +32,10 @@ type CatalogCourseCardProps = {
   onApplied?: (courseId: string, application: ClientApplicationResponse) => void;
 };
 
-function statusButtonClass(status?: string) {
-  if (status === "approved") return "bg-emerald-50 text-emerald-700";
-  if (status === "rejected") return "bg-red-50 text-red-700";
-  if (status === "processing") return "bg-[#EEF4FF] text-[#2563EB]";
-  return "bg-[#E8EDF5] text-[#64748B]";
+function statusButtonClass(kind: string) {
+  if (kind === "approved") return "bg-emerald-50 text-emerald-700";
+  if (kind === "rejected") return "bg-red-50 text-red-700";
+  return "bg-[#EEF4FF] text-[#2563EB]";
 }
 
 export default function CatalogCourseCard({ course, application, onApplied }: CatalogCourseCardProps) {
@@ -44,10 +43,10 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
   const [localApp, setLocalApp] = useState<ClientApplicationResponse | null>(null);
   const isMandatoryBlock = isMandatoryBlockCourse(course);
   const current = application ?? localApp;
+  const kind = studentApplicationKind(current?.status);
   const approved = isApprovedApplicationStatus(current?.status);
   const canApply = !isMandatoryBlock && canReapplyApplication(current);
-  const openHref = courseOpenHref(course, current);
-  const label = current ? applicationDecisionLabel(current) : "";
+  const label = current ? studentApplicationLabel(current.status) : "";
   const note = applicationDecisionNote(current);
 
   const handleApply = async () => {
@@ -66,7 +65,7 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
   };
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-[10px] border border-[#e1e7f0] bg-white shadow-[0_2px_5px_rgba(15,35,70,0.05)] transition-shadow hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(15,35,70,0.09)]">
+    <article className="flex h-full flex-col overflow-hidden rounded-xl border border-[#E8EDF5] bg-white shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
       <div className={cn("relative h-[178px] overflow-hidden bg-gradient-to-br", course.imageGradient)}>
         {course.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -95,6 +94,21 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
         <h3 className="line-clamp-3 break-words text-[18px] leading-[1.3] font-bold text-[#101a37]">
           {course.title}
         </h3>
+        {course.description ? (
+          <p className="mt-2 line-clamp-3 break-words text-[13px] leading-snug text-[#64748B]">{course.description}</p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {course.hours ? (
+            <DashboardBadge variant="neutral">{course.hours} soat</DashboardBadge>
+          ) : course.duration ? (
+            <DashboardBadge variant="neutral">{course.duration}</DashboardBadge>
+          ) : null}
+          {current ? (
+            <DashboardBadge variant={kind === "approved" ? "success" : kind === "rejected" ? "danger" : "info"}>
+              {label}
+            </DashboardBadge>
+          ) : null}
+        </div>
         <div className="mt-3 flex items-center gap-2.5 text-[13px] text-[#445574]">
           <span className="inline-flex items-center gap-1">
             <LayoutGrid className="h-3.5 w-3.5 text-[#0756F5]" strokeWidth={1.75} />
@@ -116,7 +130,7 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
             {isMandatoryBlock ? (
               <Link
                 href={MANDATORY_BLOCK_LEARNING_HREF}
-                className="flex min-h-11 items-center justify-center rounded-[7px] bg-[#0756F5] px-3 text-[12px] font-semibold text-white"
+                className="flex min-h-11 items-center justify-center rounded-xl bg-[#0756F5] px-3 text-[13px] font-semibold text-white"
               >
                 Ochish
               </Link>
@@ -125,23 +139,23 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
                 type="button"
                 disabled={saving}
                 onClick={() => void handleApply()}
-                className="flex min-h-11 items-center justify-center rounded-[7px] bg-[#0756F5] px-3 text-[12px] font-semibold text-white disabled:opacity-60"
+                className="flex min-h-11 items-center justify-center rounded-xl bg-[#0756F5] px-3 text-[13px] font-semibold text-white disabled:opacity-60"
               >
-                {saving ? "..." : current ? "Qayta ariza" : "Ariza"}
+                {saving ? "Yuborilmoqda..." : "Ariza berish"}
               </button>
             ) : approved ? (
               <Link
-                href={openHref}
-                className="flex min-h-11 items-center justify-center rounded-[7px] bg-[#0756F5] px-3 text-[12px] font-semibold text-white"
+                href="/dashboard/my-courses"
+                className="flex min-h-11 items-center justify-center rounded-xl bg-[#0756F5] px-3 text-[13px] font-semibold text-white"
               >
-                Ochish
+                Mening yo'nalishimga o'tish
               </Link>
             ) : current ? (
               <span
                 title={note || label}
                 className={cn(
-                  "flex min-h-11 max-w-full items-center justify-center rounded-[7px] px-2.5 text-center text-[11px] leading-tight font-semibold",
-                  statusButtonClass(current.status)
+                  "flex min-h-11 max-w-full items-center justify-center rounded-xl px-3 text-center text-[13px] font-semibold",
+                  statusButtonClass(kind)
                 )}
               >
                 {label}
@@ -149,7 +163,7 @@ export default function CatalogCourseCard({ course, application, onApplied }: Ca
             ) : null}
             <Link
               href={`/dashboard/courses/${course.id}`}
-              className="flex min-h-11 min-w-[76px] shrink-0 items-center justify-center rounded-[7px] border border-[#d9e3f0] bg-white px-3 text-[12px] font-semibold text-[#0057ff]"
+              className="flex min-h-11 min-w-[76px] shrink-0 items-center justify-center rounded-xl border border-[#d9e3f0] bg-white px-3 text-[13px] font-semibold text-[#0057ff]"
             >
               Batafsil
             </Link>

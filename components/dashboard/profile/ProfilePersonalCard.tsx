@@ -57,7 +57,7 @@ export default function ProfilePersonalCard({ profile, onEdit }: ProfilePersonal
       </div>
 
       <div className="mt-5 flex justify-end">
-        <OutlineButton onClick={onEdit} className="h-8 px-4">
+        <OutlineButton onClick={onEdit} className="mt-5 min-h-11 w-full sm:w-auto">
           Ma&apos;lumotlarni tahrirlash <Pencil className="h-3 w-3" strokeWidth={2} />
         </OutlineButton>
       </div>

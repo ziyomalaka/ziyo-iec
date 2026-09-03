@@ -33,13 +33,14 @@ export default function LessonMaterialTabs({
 }: LessonMaterialTabsProps) {
   const tabs = useMemo(() => {
     // Test alohida LessonTest bo'limida — tabda takrorlamaymiz
-    const visible = visibleMaterialTabs(lesson).filter((id) => id !== "test");
-    return LESSON_MATERIAL_TABS.filter((t) => visible.includes(t.id));
+    const visible = new Set(visibleMaterialTabs(lesson).filter((id) => id !== "test"));
+    return LESSON_MATERIAL_TABS.filter((t) => t.id !== "test" && visible.has(t.id));
   }, [lesson]);
 
   const counts = useMemo(() => {
-    const map = {} as Record<LessonMaterialTab, number>;
+    const map: Partial<Record<LessonMaterialTab, number>> = {};
     for (const tab of tabs) {
+      if (tab.id === "test") continue;
       map[tab.id] = materialsForTab(lesson, tab.id).length;
       if (tab.id === "seminar") map[tab.id] += assignmentsForSeminar(lesson).length;
     }

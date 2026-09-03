@@ -31,13 +31,13 @@ function DashboardShellInner({
 }) {
   const { hideBottomNav } = useLearningChrome();
   return (
-    <div className="min-h-screen w-full bg-white font-sans">
+    <div className="min-h-screen w-full overflow-x-hidden bg-white font-sans">
       <DashboardSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="min-h-screen min-w-0 lg:ml-[247px] lg:w-[calc(100%-247px)]">
         <DashboardHeader pathname={pathname} onMenuClick={() => setMobileOpen(true)} />
         <main
           className={cn(
-            "w-full min-w-0 lg:pb-6",
+            "w-full min-w-0 overflow-x-hidden lg:pb-6",
             hideBottomNav ? "pb-6" : "pb-[calc(4.75rem+env(safe-area-inset-bottom))]",
             isCoursesCatalog || isMyDirection
               ? "px-0 pt-0"

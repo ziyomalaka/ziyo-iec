@@ -21,7 +21,7 @@ export default function DashboardTabs({ tabs, active, onChange, action, classNam
             type="button"
             onClick={() => onChange(tab.id)}
             className={cn(
-              "min-h-11 shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+              "min-h-11 shrink-0 rounded-xl px-4 py-2 text-sm font-medium transition-colors",
               active === tab.id
                 ? "bg-[#2563EB] text-white"
                 : "text-[#64748B] hover:bg-[#F7F9FC] hover:text-[#0C2340]"

@@ -22,7 +22,6 @@ import {
 } from "@/lib/api/learning-test";
 import { recordSubmitForResults, readLessonTestAttempt, saveLessonTestAttempt } from "@/lib/api/learning-progress";
 import { ApiError } from "@/lib/api/errors";
-import { getAuthToken } from "@/lib/auth/session";
 import { MAX_LESSON_TEST_ATTEMPTS } from "@/lib/learning/required-materials";
 import { useLearningChrome } from "@/components/dashboard/learning/LearningChromeContext";
 import { Link } from "@/i18n/navigation";
@@ -138,11 +137,6 @@ export default function LessonTest({
     setModalOpen(false);
     setChecking(true);
 
-    const hasAuthorization = Boolean(typeof window !== "undefined" ? getAuthToken() : null);
-    console.log("STUDENT TEST AUTH:", { hasAuthorization, lessonId });
-    console.log("STUDENT LessonTest mount lessonId:", lessonId);
-    console.log("STUDENT LessonTest materialTestId (tests[0].id):", materialTestId);
-
     const saved = readLessonTestAttempt(lessonId);
     if (saved?.result) {
       localAttemptRef.current = saved.result.attempt ?? 0;
@@ -201,13 +195,6 @@ export default function LessonTest({
           setPhase({ type: "no-test" });
           onResolvedRef.current?.(false);
         } else {
-          if (status === 403) {
-            console.log("STUDENT LESSON TESTS 403 DIAG:", {
-              lessonId,
-              hasAuthorization,
-              note: "Swagger: ariza tasdiqlanmagan / dars yopiq — yoki role policy",
-            });
-          }
           onResolvedRef.current?.(true);
           setPhase({
             type: "error",
@@ -300,8 +287,6 @@ export default function LessonTest({
 
     try {
       const preloadedId = knownTestId ?? findTestMaterial(materials)?.id ?? undefined;
-      console.log("TEST FETCH lessonId:", lessonId, "testId:", preloadedId ?? "(resolve via /tests)");
-
       const test = await fetchLessonTest(lessonId, preloadedId);
 
       if (!test || test.questions.length === 0) {

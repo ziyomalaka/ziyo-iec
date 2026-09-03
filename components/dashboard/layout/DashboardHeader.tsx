@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Bell, BookOpen, ChevronDown, Menu, Search, User } from "lucide-react";
-import BrandLogo from "@/components/ui/BrandLogo";
 import { getAuthUser } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/sign-out";
 import { dashboardLabels } from "@/lib/dashboard/labels";
@@ -34,18 +33,20 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
   const pageTitle = getDashboardPageTitle(pathname);
   const isMyDirectionPage =
     pathname === "/dashboard/my-courses" || pathname.startsWith("/dashboard/my-direction");
+  const hideHeaderSearch = pathname !== "/dashboard/courses";
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    const handler = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)) {
         setMenuOpen(false);
       }
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      if (notifRef.current && !notifRef.current.contains(target)) {
         setNotifOpen(false);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
   }, []);
 
   useEscapeKey(menuOpen || notifOpen, () => {
@@ -65,8 +66,8 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
   };
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-[#e8edf5] bg-white pt-[env(safe-area-inset-top)]">
-      <div className="flex h-14 w-full items-center justify-between gap-2 px-3 sm:h-16 sm:gap-4 sm:px-6 lg:h-[96px]">
+    <header className="sticky top-0 z-40 w-full overflow-visible border-b border-[#e8edf5] bg-white pt-[env(safe-area-inset-top)]">
+      <div className="flex h-14 w-full min-w-0 items-center justify-between gap-2 overflow-visible px-3 sm:h-16 sm:gap-4 sm:px-6 lg:h-[96px]">
         <div className="flex min-w-0 items-center gap-2 sm:gap-6">
           <button
             type="button"
@@ -76,9 +77,8 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
           >
             <Menu className="h-5 w-5" strokeWidth={1.75} />
           </button>
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-2 lg:hidden" aria-label="ZiyoMalaka">
-            <BrandLogo size="xs" className="h-8 w-8" />
-            <span className="truncate text-[15px] font-bold text-[#0C2340]">ZiyoMalaka</span>
+          <Link href="/dashboard" className="min-w-0 lg:hidden" aria-label="ZiyoMalaka">
+            <span className="block truncate text-[15px] font-bold leading-none text-[#0C2340]">ZiyoMalaka</span>
           </Link>
           {isMyDirectionPage ? (
             <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5] lg:flex">
@@ -96,7 +96,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          {!isMyDirectionPage ? (
+          {!hideHeaderSearch ? (
             <div className="relative hidden h-[45px] w-[250px] md:block">
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#52627d]" strokeWidth={1.75} />
               <input
@@ -109,10 +109,13 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
             </div>
           ) : null}
 
-          <div ref={notifRef} className="relative">
+          <div ref={notifRef} className="relative z-20">
             <button
               type="button"
-              onClick={() => setNotifOpen((open) => !open)}
+              onClick={() => {
+                setMenuOpen(false);
+                setNotifOpen((open) => !open);
+              }}
               className="relative flex h-11 w-11 items-center justify-center rounded-[9px] border border-[#dce5f2] text-[#536287] sm:h-12 sm:w-12"
               aria-label="Bildirishnomalar"
               aria-expanded={notifOpen}
@@ -126,7 +129,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
             </button>
 
             {notifOpen && (
-              <div className="absolute top-full right-0 z-50 mt-2 w-[min(22.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-[9px] border border-[#DFE7F2] bg-white shadow-[0_8px_24px_rgba(15,35,70,0.12)]">
+              <div className="absolute top-full right-0 z-[80] mt-2 w-[min(22.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-[#DFE7F2] bg-white shadow-[0_12px_32px_rgba(15,35,70,0.16)]">
                 <div className="flex items-center justify-between border-b border-[#E8EDF5] px-4 py-3">
                   <p className="text-[14px] font-semibold text-[#101a37]">Bildirishnomalar</p>
                   <div className="flex items-center gap-3">
@@ -136,7 +139,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                         className="text-[12px] font-medium text-[#0756F5]"
                         onClick={() => markAllRead()}
                       >
-                        O&apos;qildi
+                        Hammasini o&apos;qildi
                       </button>
                     ) : null}
                     <Link
@@ -184,13 +187,17 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
             )}
           </div>
 
-          <div ref={menuRef} className="relative">
+          <div ref={menuRef} className="relative z-20">
             <button
               type="button"
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="flex min-h-11 items-center gap-2"
+              onClick={() => {
+                setNotifOpen(false);
+                setMenuOpen((open) => !open);
+              }}
+              className="flex min-h-11 items-center gap-2 rounded-xl px-1 hover:bg-[#F7FAFE]"
               aria-label="Profil menyusi"
               aria-expanded={menuOpen}
+              aria-haspopup="menu"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0756F5] text-[14px] font-bold text-white sm:h-[46px] sm:w-[46px]">
                 {user.avatarInitials}
@@ -199,10 +206,14 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
               <ChevronDown className={cn("hidden h-4 w-4 text-[#536287] sm:block", menuOpen && "rotate-180")} strokeWidth={1.75} />
             </button>
 
-            {menuOpen && (
-              <div className="absolute top-full right-0 z-50 mt-2 w-48 overflow-hidden rounded-[9px] border border-[#DFE7F2] bg-white py-1 shadow-[0_1px_3px_rgba(20,40,80,.06)]">
+            {menuOpen ? (
+              <div
+                role="menu"
+                className="absolute top-full right-0 z-[80] mt-2 w-52 overflow-hidden rounded-xl border border-[#DFE7F2] bg-white py-1 shadow-[0_12px_32px_rgba(15,35,70,0.16)]"
+              >
                 <Link
                   href="/dashboard/profile"
+                  role="menuitem"
                   className="flex min-h-11 items-center gap-2 px-4 py-2.5 text-[13px] text-[#35466c] hover:bg-[#F7FAFE]"
                   onClick={() => setMenuOpen(false)}
                 >
@@ -210,6 +221,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                 </Link>
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
                     setLogoutOpen(true);
@@ -219,7 +231,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                   {dashboardLabels.logout}
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

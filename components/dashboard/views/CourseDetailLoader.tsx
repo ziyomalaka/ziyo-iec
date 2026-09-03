@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { GraduationCap } from "lucide-react";
 import { getCatalogCourse } from "@/lib/dashboard/qualification-catalog";
 import {
   getEducationCourseById,
@@ -9,10 +8,9 @@ import {
   overlayEducationCourseWithPublished,
 } from "@/lib/dashboard/education-catalog";
 import { readQualificationSnapshot, matchPublishedDirectionByTitle } from "@/lib/qualification/published-snapshot";
-import { ApiError } from "@/lib/api/errors";
 import { mapCourseDetail } from "@/lib/dashboard/mappers/courses";
 import type { CourseCatalogItem } from "@/lib/dashboard/types";
-import EmptyState from "@/components/dashboard/ui/EmptyState";
+import ErrorState from "@/components/dashboard/ui/ErrorState";
 import LoadingState from "@/components/dashboard/ui/LoadingState";
 import CourseDetailView from "@/components/dashboard/views/CourseDetailView";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
@@ -20,7 +18,7 @@ import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 export default function CourseDetailLoader({ id }: { id: string }) {
   const [course, setCourse] = useState<CourseCatalogItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   const load = useCallback(
     async (silent = false) => {
@@ -75,7 +73,7 @@ export default function CourseDetailLoader({ id }: { id: string }) {
           return;
         }
         setCourse(null);
-        setError(err instanceof ApiError ? err.message : "Kurs topilmadi.");
+        setError(err);
       } finally {
         if (!silent) setLoading(false);
       }
@@ -93,11 +91,7 @@ export default function CourseDetailLoader({ id }: { id: string }) {
   if (error || !course) {
     return (
       <div className="p-6">
-        <EmptyState
-          icon={GraduationCap}
-          title="Kurs topilmadi"
-          description={error ?? "Bu kurs mavjud emas."}
-        />
+        <ErrorState error={error} onRetry={() => void load(false)} />
       </div>
     );
   }

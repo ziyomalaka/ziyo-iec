@@ -14,6 +14,7 @@ const titles: Record<string, string> = {
   "/admin/software/qualification/material/create": "Material qo'shish",
   "/admin/software/qualification": "Malaka oshirish",
   "/admin/software/mandatory": "Majburiy blog",
+  "/admin/software/library": "Kutubxona",
   "/admin/management": "Boshqaruv",
   "/admin/supervisor": "Nazorat",
 };

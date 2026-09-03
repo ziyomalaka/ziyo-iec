@@ -4,9 +4,9 @@ import {
   BookMarked,
   BookOpen,
   FileText,
-  FolderOpen,
   GraduationCap,
   Home,
+  LibraryBig,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +28,7 @@ export const dashboardNavItems: DashboardNavItem[] = [
   { href: "/dashboard/applications", labelKey: "applications", icon: FileText },
   { href: "/dashboard/learning", labelKey: "learning", icon: BookMarked },
   { href: "/dashboard/results", labelKey: "results", icon: Award },
+  { href: "/dashboard/library", labelKey: "library", icon: LibraryBig },
   { href: "/dashboard/notifications", labelKey: "notifications", icon: Bell },
   { href: "/dashboard/profile", labelKey: "profile", icon: User },
 ];
@@ -40,13 +41,6 @@ export const dashboardBottomNavItems: DashboardNavItem[] = [
   { href: "/dashboard/profile", labelKey: "profile", icon: User },
 ];
 
-export const dashboardDrawerExtraItems: DashboardNavItem[] = [
-  { href: "/dashboard/courses", labelKey: "courses", icon: GraduationCap, exact: true },
-  { href: "/dashboard/applications", labelKey: "applications", icon: FileText },
-  { href: "/dashboard/portfolio", labelKey: "portfolio", icon: FolderOpen },
-  { href: "/dashboard/notifications", labelKey: "notifications", icon: Bell },
-];
-
 export const dashboardPageTitles: Record<string, string> = {
   "/dashboard": "Bosh sahifa",
   "/dashboard/courses": "Malaka oshirish yo'nalishi",
@@ -54,6 +48,7 @@ export const dashboardPageTitles: Record<string, string> = {
   "/dashboard/applications": "Arizalarim",
   "/dashboard/learning": "O'quv jarayoni",
   "/dashboard/results": "Natijalarim",
+  "/dashboard/library": "Kutubxona",
   "/dashboard/portfolio": "Portfolio",
   "/dashboard/notifications": "Bildirishnomalar",
   "/dashboard/profile": "Profil",
@@ -68,6 +63,9 @@ export function getDashboardPageTitle(pathname: string) {
   }
   if (pathname.includes("/learning/")) {
     return "O'quv jarayoni";
+  }
+  if (pathname.startsWith("/dashboard/library/")) {
+    return "Kutubxona";
   }
   return dashboardPageTitles[pathname] ?? "Kabinet";
 }

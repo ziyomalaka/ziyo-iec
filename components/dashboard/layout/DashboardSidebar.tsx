@@ -5,7 +5,6 @@ import { Link, usePathname } from "@/i18n/navigation";
 import BrandLogo from "@/components/ui/BrandLogo";
 import { dashboardLabels } from "@/lib/dashboard/labels";
 import {
-  dashboardDrawerExtraItems,
   dashboardNavItems,
   isDashboardNavActive,
 } from "@/lib/dashboard/navigation";
@@ -42,7 +41,7 @@ function NavLinks({
               active ? "bg-[#0756F5]" : "hover:bg-white/10"
             )}
           >
-            <Icon className="h-[22px] w-[22px] shrink-0" strokeWidth={1.75} />
+            <Icon className="h-[22px] w-[22px] shrink-0" strokeWidth={active ? 2.1 : 1.6} />
             <span className="min-w-0 flex-1 leading-snug">{dashboardLabels.menu[item.labelKey]}</span>
             {item.labelKey === "notifications" && unreadCount > 0 ? (
               <span
@@ -99,13 +98,9 @@ function SidebarChrome({
 
       <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5">
         {mobile ? (
-          <>
-            <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/55">Menyu</p>
-            <NavLinks items={dashboardDrawerExtraItems} onNavigate={onNavigate} />
-          </>
-        ) : (
-          <NavLinks items={dashboardNavItems} onNavigate={onNavigate} />
-        )}
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/55">Menyu</p>
+        ) : null}
+        <NavLinks items={dashboardNavItems} onNavigate={onNavigate} />
       </nav>
 
       <div

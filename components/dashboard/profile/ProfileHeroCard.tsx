@@ -69,15 +69,18 @@ export default function ProfileHeroCard({ profile, onEdit, onAvatarClick }: Prof
             </div>
 
             <div className="mt-3.5 flex flex-col items-center gap-2.5 sm:items-start">
-              <InfoLine icon={Mail} badge={<VerifiedBadge verified={profile.emailVerified} />}>
-                {profile.email}
-              </InfoLine>
               <InfoLine icon={Phone} badge={<VerifiedBadge verified={profile.phoneVerified} />}>
                 {profile.phone}
+              </InfoLine>
+              <InfoLine icon={Mail} badge={<VerifiedBadge verified={profile.emailVerified} />}>
+                {profile.email}
               </InfoLine>
               <InfoLine icon={Calendar}>{formatDisplayDate(profile.birthDate)}</InfoLine>
               <InfoLine icon={MapPin}>{formatRegion(profile)}</InfoLine>
             </div>
+            <OutlineButton onClick={onEdit} className="mt-4 min-h-11 w-full sm:hidden">
+              Tahrirlash <Pencil className="h-3 w-3" strokeWidth={2} />
+            </OutlineButton>
           </div>
         </div>
 
@@ -97,7 +100,7 @@ export default function ProfileHeroCard({ profile, onEdit, onAvatarClick }: Prof
               <dd className="text-right font-medium">{formatDisplayDateTime(profile.lastLoginAt)}</dd>
             </div>
           </dl>
-          <OutlineButton onClick={onEdit} className="mt-4 min-h-11 w-full">
+          <OutlineButton onClick={onEdit} className="mt-4 hidden min-h-11 w-full sm:inline-flex">
             Profilni tahrirlash <Pencil className="h-3 w-3" strokeWidth={2} />
           </OutlineButton>
         </div>

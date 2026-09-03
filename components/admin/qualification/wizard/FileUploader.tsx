@@ -12,6 +12,8 @@ export type FileUploaderProps = {
   onChange: (file: File | null) => void;
   disabled?: boolean;
   label?: string;
+  accept?: string;
+  hint?: string;
 };
 
 export default function FileUploader({
@@ -22,6 +24,8 @@ export default function FileUploader({
   onChange,
   disabled,
   label = "Fayl",
+  accept,
+  hint,
 }: FileUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const shownName = value?.name || fileName;
@@ -85,12 +89,15 @@ export default function FileUploader({
           className="flex min-h-[5.5rem] w-full flex-col items-center justify-center rounded-lg border border-dashed border-[#E8EDF5] px-3 py-6 text-sm text-[#64748B] hover:bg-[#F7F9FC] disabled:opacity-50"
         >
           <span className="font-semibold text-[#0C2340]">Fayl tanlash</span>
-          <span className="mt-1 block text-xs">Har qanday format. Maksimal {formatBytes(maxSize)}.</span>
+          <span className="mt-1 block text-xs">
+            {hint ?? `Har qanday format. Maksimal ${formatBytes(maxSize)}.`}
+          </span>
         </button>
       )}
       <input
         ref={inputRef}
         type="file"
+        accept={accept}
         className="sr-only"
         disabled={disabled}
         aria-label={label}

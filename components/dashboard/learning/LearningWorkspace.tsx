@@ -161,7 +161,7 @@ export default function LearningWorkspace({
   const outline = (
     <aside className="min-w-0">
       <Link href={backHref} className="mb-3 inline-flex min-h-11 items-center text-sm font-medium text-[#2563EB] lg:hidden">
-        ← Orqaga
+        ← Mening yo&apos;nalishim
       </Link>
       <h2 className="break-words font-bold text-[#0C2340]">{tree.title || "Kurs tarkibi"}</h2>
       <p className="mt-1 text-sm text-[#64748B]">Jarayon: {tree.progress_percent ?? 0}%</p>
@@ -289,7 +289,7 @@ export default function LearningWorkspace({
               type="button"
               disabled={!prevId}
               onClick={() => prevId && onOpenLesson(prevId)}
-              className="min-h-11 w-full rounded-lg border border-[#E8EDF5] px-4 py-2 text-sm font-medium disabled:opacity-40 sm:w-auto"
+              className="min-h-11 w-full rounded-xl border border-[#E8EDF5] px-4 py-2 text-sm font-medium disabled:opacity-40 sm:w-auto"
             >
               Oldingi dars
             </button>
@@ -299,7 +299,7 @@ export default function LearningWorkspace({
                   type="button"
                   disabled={completing}
                   onClick={() => onComplete()}
-                  className="min-h-11 w-full rounded-lg border border-[#2563EB] px-4 py-2 text-sm font-medium text-[#2563EB] disabled:opacity-60 sm:w-auto"
+                  className="min-h-11 w-full rounded-xl border border-[#2563EB] px-4 py-2 text-sm font-medium text-[#2563EB] disabled:opacity-60 sm:w-auto"
                 >
                   {completing ? "Saqlanmoqda..." : "Darsni tugatish"}
                 </button>
@@ -308,7 +308,7 @@ export default function LearningWorkspace({
                 type="button"
                 disabled={!nextId || (nextStatus === "locked" && !lessonReadyForNext)}
                 onClick={() => nextId && onOpenLesson(nextId)}
-                className="min-h-11 w-full rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white disabled:opacity-40 sm:w-auto"
+                className="min-h-11 w-full rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-medium text-white disabled:opacity-40 sm:w-auto"
               >
                 Keyingi dars
               </button>
@@ -326,7 +326,7 @@ export default function LearningWorkspace({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 overflow-x-hidden space-y-4">
       {banner}
       <div className="flex min-w-0 flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <div className={cn(pane === "lesson" ? "hidden lg:block" : "block")}>{outline}</div>

@@ -2,50 +2,47 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@/i18n/navigation";
-import { Award, BookOpen, CheckCircle, TrendingUp } from "lucide-react";
+import { BookOpen, PlayCircle } from "lucide-react";
 import { getAuthUser } from "@/lib/auth/session";
-import { mapAuthUserToDashboard, formatDateTime } from "@/lib/dashboard/utils";
+import { mapAuthUserToDashboard, formatDate } from "@/lib/dashboard/utils";
 import { profileService } from "@/lib/profile/service";
-import type { ProfileDashboard } from "@/lib/profile/types";
-import { getCatalogCourses } from "@/lib/dashboard/qualification-catalog";
-import { getMyApplications } from "@/lib/api/applications";
-import { mapCourseCard } from "@/lib/dashboard/mappers/courses";
-import type { CourseCatalogItem } from "@/lib/dashboard/types";
-import type { ClientApplicationResponse } from "@/lib/api/types/applications";
-import { applicationBadge, applicationStatusLabel, uiLabel } from "@/lib/admin/labels";
-import {
-  isApprovedApplicationStatus,
-  isMandatoryBlockCourse,
-} from "@/lib/dashboard/course-application";
-import StatCard from "@/components/dashboard/ui/StatCard";
-import CourseCard from "@/components/dashboard/ui/CourseCard";
-import NotificationItem from "@/components/dashboard/ui/NotificationItem";
+import { loadStudentContinueState, type StudentContinueState } from "@/lib/dashboard/continue-learning";
+import { fetchMyTestResults, type StoredTestResultRow } from "@/lib/api/learning-progress";
 import DashboardBadge from "@/components/dashboard/ui/DashboardBadge";
+import EmptyState from "@/components/dashboard/ui/EmptyState";
+import ErrorState from "@/components/dashboard/ui/ErrorState";
 import LoadingState from "@/components/dashboard/ui/LoadingState";
+import NotificationItem from "@/components/dashboard/ui/NotificationItem";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 
 export default function DashboardHomeView() {
   const sessionUser = mapAuthUserToDashboard(getAuthUser());
-  const { items: notifications, listError, loading: notificationsLoading, markRead } = useNotifications();
-  const [dash, setDash] = useState<ProfileDashboard | null>(null);
-  const [courses, setCourses] = useState<CourseCatalogItem[]>([]);
-  const [applications, setApplications] = useState<ClientApplicationResponse[]>([]);
+  const { items: notifications, unreadCount, listError, loading: notificationsLoading, markRead, reload } =
+    useNotifications();
+  const [firstName, setFirstName] = useState(sessionUser.firstName || "");
+  const [continueState, setContinueState] = useState<StudentContinueState | null>(null);
+  const [lastResult, setLastResult] = useState<StoredTestResultRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    const [dashboardRes, coursesRes, appsRes] = await Promise.allSettled([
-      profileService.getDashboard(),
-      getCatalogCourses({ page: 1, per_page: 6 }),
-      getMyApplications(),
-    ]);
-    if (dashboardRes.status === "fulfilled") setDash(dashboardRes.value);
-    if (coursesRes.status === "fulfilled") {
-      setCourses((coursesRes.value.items ?? []).map(mapCourseCard).filter((course) => !isMandatoryBlockCourse(course)));
+    try {
+      const [dashboard, continueNext, results] = await Promise.all([
+        profileService.getDashboard().catch(() => null),
+        loadStudentContinueState(),
+        fetchMyTestResults().catch(() => ({ items: [] as StoredTestResultRow[] })),
+      ]);
+      if (dashboard?.profile.firstName) setFirstName(dashboard.profile.firstName);
+      setContinueState(continueNext);
+      setLastResult(results.items[0] ?? null);
+      setError(null);
+    } catch (err) {
+      if (!silent) setError(err);
+    } finally {
+      if (!silent) setLoading(false);
     }
-    if (appsRes.status === "fulfilled") setApplications(appsRes.value.slice(0, 5));
-    if (!silent) setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -54,144 +51,124 @@ export default function DashboardHomeView() {
 
   useLiveRefresh(() => void load(true));
 
-  const firstName = dash?.profile.firstName || sessionUser.firstName || "";
-  const stats = dash?.stats;
-  const activities = dash?.activities.slice(0, 4) ?? [];
-  const continueApp = applications.find(
-    (item) => isApprovedApplicationStatus(item.status) && item.course_id
-  );
-  const continueHref = continueApp?.course_id
-    ? `/dashboard/learning/${continueApp.course_id}`
-    : "/dashboard/learning";
-  const progressValue = stats?.averageScore ?? 0;
+  const unread = notifications.filter((item) => !item.read).slice(0, 4);
 
   if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} onRetry={() => void load(false)} />;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="break-words text-xl font-bold text-[#0C2340] sm:text-2xl">Xush kelibsiz{firstName ? `, ${firstName}` : ""}!</h2>
-        <p className="mt-1 text-sm text-[#64748B]">
-          Ta'lim jarayoningiz va malaka oshirish holatingizni kuzatib boring.
-        </p>
-      </div>
+    <div className="min-w-0 space-y-5">
+      <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
+        <h2 className="break-words text-xl font-bold text-[#0C2340] sm:text-2xl">
+          Xush kelibsiz{firstName ? `, ${firstName}` : ""}!
+        </h2>
+        <p className="mt-1 text-sm text-[#64748B]">Malaka oshirish jarayoningizni shu yerdan davom ettirasiz.</p>
+      </section>
 
-      <div className="rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-sm">
-        <p className="text-xs font-medium text-[#64748B]">Umumiy progress</p>
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E8EDF5]">
-            <div className="h-full rounded-full bg-[#0756F5]" style={{ width: `${Math.min(100, progressValue)}%` }} />
+      {continueState ? (
+        <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
+          <p className="text-xs font-semibold tracking-wide text-[#64748B] uppercase">Faol yo'nalish</p>
+          <h3 className="mt-1 break-words text-lg font-bold text-[#0C2340]">{continueState.courseTitle}</h3>
+          <p className="mt-3 text-xs font-medium text-[#64748B]">Umumiy o'quv progress</p>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E8EDF5]">
+              <div
+                className="h-full rounded-full bg-[#0756F5]"
+                style={{ width: `${continueState.progressPercent}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-sm font-bold text-[#0C2340]">{continueState.progressPercent}%</span>
           </div>
-          <span className="shrink-0 text-sm font-bold text-[#0C2340]">{progressValue}%</span>
-        </div>
-        {continueApp ? (
-          <p className="mt-3 break-words text-sm font-semibold text-[#0C2340]">{continueApp.title}</p>
-        ) : (
-          <p className="mt-3 text-sm text-[#64748B]">Tasdiqlangan yo&apos;nalish ochilgach, shu yerdan davom etasiz.</p>
-        )}
-        <Link
-          href={continueHref}
-          className="mt-4 flex min-h-11 w-full items-center justify-center rounded-lg bg-[#0756F5] text-sm font-semibold text-white"
-        >
-          Darsni davom ettirish
-        </Link>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Jami kurslar" value={stats?.totalCourses ?? 0} icon={BookOpen} />
-        <StatCard label="Tugallangan kurslar" value={stats?.completedCourses ?? 0} icon={CheckCircle} />
-        <StatCard label="O'rtacha natija" value={stats?.averageScore ?? 0} suffix="%" icon={TrendingUp} />
-        <StatCard label="Sertifikatlar" value={stats?.certificateCount ?? 0} icon={Award} />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-xl border border-[#E8EDF5] bg-white p-6 shadow-sm xl:col-span-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-[#0C2340]">So'nggi arizalar</h3>
-            <Link href="/dashboard/applications" className="text-sm text-[#2563EB] hover:underline">
-              Barchasi
+          <p className="mt-2 text-xs text-[#64748B]">
+            {continueState.completedLessons} / {continueState.totalLessons || "—"} dars yakunlangan
+            {continueState.moduleCount ? ` · ${continueState.moduleCount} modul` : ""}
+          </p>
+          <p className="mt-4 text-xs font-semibold tracking-wide text-[#64748B] uppercase">Hozirgi dars</p>
+          <p className="mt-1 break-words text-sm font-semibold text-[#0C2340]">
+            {continueState.currentLessonTitle || "Darsni ochib davom eting"}
+          </p>
+          <Link
+            href={continueState.href}
+            className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0756F5] text-sm font-semibold text-white"
+          >
+            <PlayCircle className="h-5 w-5" strokeWidth={1.75} />
+            Darsni davom ettirish
+          </Link>
+        </section>
+      ) : (
+        <EmptyState
+          icon={BookOpen}
+          title="Faol yo'nalish yo'q"
+          description="Malaka oshirish yo'nalishiga ariza yuboring. Tasdiqlangach dars shu yerdan ochiladi."
+          action={
+            <Link
+              href="/dashboard/courses"
+              className="inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
+            >
+              Yo'nalishlarni ko'rish
             </Link>
-          </div>
-          {applications.length === 0 ? (
-            <p className="mt-4 text-sm text-[#64748B]">Hali ariza yo'q.</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {applications.map((item) => (
-                <li key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-[#E8EDF5] p-3">
-                  <div>
-                    <p className="text-sm font-medium text-[#0C2340]">{item.title}</p>
-                    <p className="mt-1 text-xs text-[#64748B]">{item.type ?? "Kursga ariza"}</p>
-                  </div>
-                  <DashboardBadge variant={applicationBadge(item.status)}>
-                    {item.status_label || uiLabel(item.status, applicationStatusLabel)}
-                  </DashboardBadge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          }
+        />
+      )}
 
-        <div className="rounded-xl border border-[#E8EDF5] bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-[#0C2340]">Faoliyat</h3>
-          {activities.length === 0 ? (
-            <p className="mt-4 text-sm text-[#64748B]">Hozircha yozuv yo'q.</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {activities.map((item) => (
-                <li key={item.id} className="rounded-lg border border-[#E8EDF5] p-3">
-                  <p className="text-sm font-medium text-[#0C2340]">{item.title}</p>
-                  <p className="mt-1 text-xs text-[#64748B]">{item.description}</p>
-                  {item.createdAt ? (
-                    <p className="mt-1 text-xs text-[#2563EB]">{formatDateTime(item.createdAt)}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[#E8EDF5] bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-[#0C2340]">So'nggi bildirishnomalar</h3>
-          <Link href="/dashboard/notifications" className="text-sm text-[#2563EB] hover:underline">
+      <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-base font-bold text-[#0C2340]">So'nggi natija</h3>
+          <Link href="/dashboard/results" className="text-sm font-medium text-[#0756F5]">
             Barchasi
           </Link>
         </div>
-        <div className="mt-4 space-y-3">
-          {notificationsLoading ? (
-            <p className="text-sm text-[#64748B]">Yuklanmoqda...</p>
-          ) : listError ? (
-            <p className="rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-4 py-6 text-center text-sm text-[#B91C1C]">
-              Bildirishnomalarni yuklashda xatolik yuz berdi.
+        {lastResult ? (
+          <div className="mt-3 rounded-xl border border-[#E8EDF5] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="break-words text-sm font-semibold text-[#0C2340]">
+                  {lastResult.lessonTitle || lastResult.testTitle || "Test"}
+                </p>
+                <p className="mt-1 text-xs text-[#64748B]">
+                  {lastResult.courseTitle ? `${lastResult.courseTitle} · ` : ""}
+                  {lastResult.attempt ? `${lastResult.attempt}-urinish · ` : ""}
+                  {formatDate(lastResult.date)}
+                </p>
+              </div>
+              <DashboardBadge variant={lastResult.passed ? "success" : "danger"}>
+                {lastResult.passed ? "O'tdi" : "O'tmadi"}
+              </DashboardBadge>
+            </div>
+            <p className="mt-3 text-lg font-bold text-[#0C2340]">
+              {lastResult.percentage != null || lastResult.score != null
+                ? `${lastResult.percentage ?? lastResult.score}%`
+                : "—"}
             </p>
-          ) : notifications.length === 0 ? (
-            <p className="text-sm text-[#64748B]">Hozircha bildirishnomalar mavjud emas.</p>
-          ) : (
-            notifications.slice(0, 3).map((n) => (
-              <NotificationItem key={n.id} notification={n} onMarkRead={markRead} />
-            ))
-          )}
-        </div>
-      </div>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-[#64748B]">Hozircha test natijasi yo'q.</p>
+        )}
+      </section>
 
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-[#0C2340]">Kurslar</h3>
-          <Link href="/dashboard/courses" className="text-sm text-[#2563EB] hover:underline">
+      <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-base font-bold text-[#0C2340]">O'qilmagan bildirishnomalar</h3>
+          <Link href="/dashboard/notifications" className="text-sm font-medium text-[#0756F5]">
             Barchasi
           </Link>
         </div>
-        {courses.length === 0 ? (
-          <p className="text-sm text-[#64748B]">Kurslar hozircha yo'q.</p>
+        {notificationsLoading ? (
+          <div className="mt-3 h-24 animate-pulse rounded-xl bg-[#E8EDF5]" />
+        ) : listError ? (
+          <ErrorState message={listError} onRetry={() => void reload()} className="mt-3 py-8" />
+        ) : unread.length === 0 ? (
+          <p className="mt-3 text-sm text-[#64748B]">
+            {unreadCount > 0 ? "O'qilmagan xabarlar boshqa sahifada." : "Yangi bildirishnoma yo'q."}
+          </p>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {courses.map((course) => (
-              <CourseCard key={course.id} course={course} />
+          <div className="mt-3 space-y-3">
+            {unread.map((item) => (
+              <NotificationItem key={item.id} notification={item} onMarkRead={markRead} />
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

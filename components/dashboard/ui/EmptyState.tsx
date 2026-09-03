@@ -23,8 +23,8 @@ export default function EmptyState({
         className
       )}
     >
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#F7F9FC] text-[#94A3B8]">
-        <Icon className="h-7 w-7" />
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EEF4FF] text-[#0756F5] shadow-[0_4px_14px_rgba(7,86,245,0.12)] ring-1 ring-[#D6E4FF]">
+        <Icon className="h-8 w-8" strokeWidth={1.5} />
       </div>
       <h3 className="text-base font-semibold text-[#0C2340]">{title}</h3>
       {description && <p className="mt-2 max-w-sm text-sm text-[#64748B]">{description}</p>}

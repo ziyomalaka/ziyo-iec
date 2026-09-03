@@ -21,7 +21,7 @@ export default function OutlineButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "inline-flex h-[31px] items-center justify-center gap-1.5 rounded-[5px] border border-[#AAC7FB] bg-white px-4 text-[11px] font-semibold text-[#0756F5] disabled:opacity-60",
+        "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[#AAC7FB] bg-white px-4 text-sm font-semibold text-[#0756F5] disabled:opacity-60",
         className
       )}
     >

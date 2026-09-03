@@ -16,8 +16,7 @@ import {
   type NotificationListState,
 } from "@/lib/api/notifications";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
-
-const LIST_LOAD_ERROR = "Bildirishnomalarni yuklashda xatolik yuz berdi.";
+import { studentApiErrorMessage } from "@/lib/learning/student-errors";
 
 type NotificationsContextValue = {
   items: Notification[];
@@ -32,6 +31,7 @@ type NotificationsContextValue = {
   remove: (id: string) => void;
   removeAll: () => void;
   refresh: () => Promise<void>;
+  reload: () => Promise<void>;
 };
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
@@ -74,15 +74,15 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         setListError(null);
       } else {
         if (!silent) {
-          setListError(LIST_LOAD_ERROR);
+          setListError(studentApiErrorMessage(listResult.reason, "generic"));
         }
         if (countResult.status === "fulfilled") {
           setState((prev) => ({ ...prev, unread: countResult.value }));
         }
       }
-    } catch {
+    } catch (caught) {
       if (seq !== requestSeq.current) return;
-      if (!silent) setListError(LIST_LOAD_ERROR);
+      if (!silent) setListError(studentApiErrorMessage(caught, "generic"));
     } finally {
       if (seq === requestSeq.current) setLoading(false);
     }
@@ -179,6 +179,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   }, [refresh, syncUnread]);
 
   const silentRefresh = useCallback(() => refresh(true), [refresh]);
+  const reload = useCallback(() => refresh(false), [refresh]);
 
   const value = useMemo(
     () => ({
@@ -194,8 +195,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       remove: (id: string) => void remove(id),
       removeAll: () => void removeAll(),
       refresh: silentRefresh,
+      reload,
     }),
-    [state, loading, listError, page, markRead, markAllRead, remove, removeAll, silentRefresh]
+    [state, loading, listError, page, markRead, markAllRead, remove, removeAll, silentRefresh, reload]
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
@@ -217,6 +219,7 @@ export function useNotifications() {
       remove: () => undefined,
       removeAll: () => undefined,
       refresh: async () => undefined,
+      reload: async () => undefined,
     };
   }
   return ctx;

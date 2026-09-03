@@ -22,7 +22,7 @@ type UpcomingLessonsCardProps = {
 
 export default function UpcomingLessonsCard({ lessons }: UpcomingLessonsCardProps) {
   return (
-    <section className="rounded-[10px] border border-[#E0E7F1] bg-white p-5">
+    <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
       <div className="flex items-center justify-between">
         <h3 className="text-[16px] font-bold text-[#101A37]">Yaqin darslar</h3>
         <Link href="/dashboard/learning" className="text-[12px] font-medium text-[#0756F5]">
@@ -43,8 +43,8 @@ export default function UpcomingLessonsCard({ lessons }: UpcomingLessonsCardProp
               <Play className="h-4 w-4" fill="currentColor" strokeWidth={0} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold text-[#101A37]">{lesson.directionTitle}</p>
-              <p className="mt-0.5 truncate text-[12px] text-[#41547B]">{lesson.moduleTitle}</p>
+              <p className="break-words text-[13px] font-semibold text-[#101A37]">{lesson.directionTitle}</p>
+              <p className="mt-0.5 break-words text-[12px] text-[#41547B]">{lesson.moduleTitle}</p>
               <p className="mt-0.5 text-[11px] text-[#41547B]">{formatLessonWhen(lesson)}</p>
             </div>
             <Link

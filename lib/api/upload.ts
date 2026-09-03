@@ -6,6 +6,8 @@ import { requestLiveRefresh } from "@/lib/live/refresh-bus";
 export type UploadOptions = {
   onProgress?: (percent: number) => void;
   signal?: AbortSignal;
+  method?: "POST" | "PUT" | "PATCH";
+  headers?: Record<string, string>;
 };
 
 /** Katta fayl upload /backend proxy orqali ketmasin — to'g'ridan-to'g'ri backend. */
@@ -25,9 +27,17 @@ export async function apiUpload<T>(path: string, formData: FormData, options: Up
 
   return new Promise<T>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
+    xhr.open(options.method ?? "POST", url);
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.setRequestHeader("ngrok-skip-browser-warning", "true");
+    if (options.headers) {
+      for (const [key, value] of Object.entries(options.headers)) {
+        if (!key || !value) continue;
+        if (key.toLowerCase() === "content-type") continue;
+        if (key.toLowerCase() === "authorization" && token) continue;
+        xhr.setRequestHeader(key, value);
+      }
+    }
     xhr.responseType = "text";
 
     xhr.upload.onprogress = (event) => {
@@ -54,7 +64,7 @@ export async function apiUpload<T>(path: string, formData: FormData, options: Up
         }
         return;
       }
-      reject(new ApiError(xhr.status, raw.trim() || "Fayl yuklanmadi", raw));
+      reject(new ApiError(xhr.status, uploadErrorMessage(raw, xhr.status), raw));
     };
 
     xhr.onerror = () => {
@@ -69,4 +79,18 @@ export async function apiUpload<T>(path: string, formData: FormData, options: Up
 
     xhr.send(formData);
   });
+}
+
+function uploadErrorMessage(raw: string, status: number) {
+  const text = raw.trim();
+  if (!text) return status === 413 ? "Fayl hajmi juda katta." : "Fayl yuklanmadi";
+  try {
+    const data = JSON.parse(text) as { message?: unknown; error?: unknown };
+    const message = [data.message, data.error].map((value) => (typeof value === "string" ? value.trim() : "")).find(Boolean);
+    if (message) return message;
+  } catch {
+    /* oddiy matn */
+  }
+  if (text.startsWith("{") || text.includes("<html")) return "So'rov bajarilmadi. Qayta urinib ko'ring.";
+  return text;
 }

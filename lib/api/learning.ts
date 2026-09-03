@@ -407,44 +407,18 @@ export async function getLearningCourse(id: number, silentAuth = false) {
 export async function getLearningLesson(id: number, silentAuth = false) {
   if (!silentAuth) {
     const cached = readCache(lessonCache, id);
-    if (cached) {
-      console.log("STUDENT LESSON CACHE HIT lessonId:", id, {
-        testsCount: cached.tests?.length ?? 0,
-        has_tests: cached.has_tests,
-        materialTestIds: (cached.materials ?? [])
-          .filter((m) => m.type === "test" || m.material_type === "test")
-          .map((m) => m.id),
-      });
-      return cached;
-    }
+    if (cached) return cached;
   }
   const requestUrl = `/learning/lessons/${id}`;
-  console.log("STUDENT CURRENT LESSON fetch lessonId:", id);
-  console.log("TEST FETCH lessonId:", id);
-  console.log("TEST FETCH URL:", requestUrl);
 
   const data = await withLearningAccessRetry(() =>
     apiRequest<unknown>(requestUrl, silentAuth ? { skipAuthRedirect: true } : {})
   );
-  const root = asRecord(unwrapApiPayload(data));
-  const rawTests = root.tests ?? asRecord(root.lesson).tests;
-  console.log("STUDENT LESSON raw tests[]:", rawTests);
-  console.log("STUDENT LESSON raw id fields:", {
-    id: root.id ?? asRecord(root.lesson).id,
-    lesson_id: root.lesson_id ?? asRecord(root.lesson).lesson_id,
-  });
 
   const normalized = normalizeLearningLesson(data);
   if (!isLessonListedForStudent(normalized.status)) {
     throw new ApiError(404, "Dars topilmadi");
   }
-  console.log("STUDENT CURRENT LESSON:", {
-    id: normalized.id,
-    title: normalized.title,
-    has_tests: normalized.has_tests,
-    tests: normalized.tests,
-  });
-  console.log("STUDENT lessonId:", normalized.id);
 
   // Swagger fallback: lesson.tests[] bo'sh bo'lsa → GET /learning/lessons/{id}/tests
   let lesson = normalized;
@@ -469,27 +443,11 @@ export async function getLearningLesson(id: number, silentAuth = false) {
             ...testMaterials.filter((t) => !existingIds.has(t.id)),
           ],
         };
-        console.log("STUDENT LESSON tests from /tests:", summaries.map((t) => t.id));
       }
-    } catch (err) {
+    } catch {
       // 403/401 — yutib "test yo'q" deb ko'rsatmaymiz; LessonTest o'zi xabar beradi
-      const status = (err as { status?: number })?.status;
-      console.log("STUDENT LESSON /tests fallback skipped:", { lessonId: id, status });
     }
   }
-
-  const adminSaved =
-    typeof window !== "undefined" ? window.sessionStorage.getItem("zm_diag_admin_test_lesson_id") : null;
-  const adminTestId =
-    typeof window !== "undefined" ? window.sessionStorage.getItem("zm_diag_admin_test_id") : null;
-  console.table({
-    adminSavedLessonId: adminSaved ?? "(shu brauzerda test saqlanmagan)",
-    studentCurrentLessonId: lesson.id,
-    testRequestLessonId: id,
-    match: adminSaved ? String(adminSaved) === String(lesson.id) : "N/A",
-    adminTestId: adminTestId ?? "—",
-    testsFromApi: lesson.tests?.length ?? 0,
-  });
 
   if (!silentAuth) writeCache(lessonCache, id, lesson);
   return lesson;

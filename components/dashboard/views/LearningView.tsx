@@ -11,6 +11,7 @@ import {
   enrollInCourse,
   getLearningCourse,
   getLearningLesson,
+  getMyLearningCourses,
   invalidateLearningCache,
   isAlreadyEnrolledError,
   isLearnForbiddenError,
@@ -25,6 +26,7 @@ import type { LearningCourseResponse, LearningLessonDetail, LearningLessonSummar
 import {
   MANDATORY_BLOCK_TITLE,
   isApprovedApplicationStatus,
+  isMandatoryBlockCourse,
   isMandatoryBlockPath,
   mandatoryLearningHref,
   parseDashboardCourseId,
@@ -38,6 +40,7 @@ import {
 } from "@/lib/dashboard/mandatory-map";
 import DashboardBadge from "@/components/dashboard/ui/DashboardBadge";
 import EmptyState from "@/components/dashboard/ui/EmptyState";
+import ErrorState from "@/components/dashboard/ui/ErrorState";
 import LoadingState from "@/components/dashboard/ui/LoadingState";
 import LearningWorkspace from "@/components/dashboard/learning/LearningWorkspace";
 import {
@@ -64,6 +67,7 @@ import {
   lessonDetailFromCourse,
   mergeLearningWithCatalog,
 } from "@/lib/learning/workspace-tree";
+import { continueFromCourse, lessonProgressOf } from "@/lib/dashboard/continue-learning";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import { readQualificationSnapshot } from "@/lib/qualification/published-snapshot";
 
@@ -105,37 +109,109 @@ export default function LearningView({ courseId, initialLessonId }: LearningView
 }
 
 function LearningHome() {
-  const [target, setTarget] = useState<
-    { type: "course"; id: number } | { type: "mandatory"; blogId?: number } | null
-  >(null);
+  const router = useRouter();
+  const [options, setOptions] = useState<Array<{ id: number; title: string; href: string; progress: number }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [apps, blogs] = await Promise.all([
-        getMyApplications().catch(() => []),
-        readMandatorySnapshot({ forceNetwork: true }).catch(() => readMandatorySnapshotLocal()),
-      ]);
-      if (cancelled) return;
+      try {
+        const [apps, blogs, enrolled] = await Promise.all([
+          getMyApplications().catch(() => []),
+          readMandatorySnapshot({ forceNetwork: true }).catch(() => readMandatorySnapshotLocal()),
+          getMyLearningCourses(true),
+        ]);
+        if (cancelled) return;
 
-      const approved = apps.find((item) => isApprovedApplicationStatus(item.status) && item.course_id);
-      if (approved?.course_id) {
-        setTarget({ type: "course", id: approved.course_id });
-        return;
+        const cards: Array<{ id: number; title: string; href: string; progress: number }> = [];
+        const seen = new Set<number>();
+
+        for (const course of enrolled) {
+          if (!course.id || seen.has(course.id) || isMandatoryBlockCourse({ title: course.title })) continue;
+          seen.add(course.id);
+          const progress = lessonProgressOf(course).progressPercent;
+          const href = continueFromCourse(course).href;
+          cards.push({ id: course.id, title: course.title, href, progress });
+        }
+
+        for (const item of apps) {
+          if (!isApprovedApplicationStatus(item.status) || !item.course_id || seen.has(item.course_id)) continue;
+          seen.add(item.course_id);
+          cards.push({
+            id: item.course_id,
+            title: item.title,
+            href: `/dashboard/learning/${item.course_id}`,
+            progress: 0,
+          });
+        }
+
+        if (cards.length === 1) {
+          router.replace(cards[0].href);
+          return;
+        }
+
+        if (cards.length === 0) {
+          const published = publishedMandatoryBlogs(blogs);
+          const withLessons = published.find((item) => flattenMandatoryLessons(item).length > 0) ?? published[0];
+          if (withLessons?.id) {
+            router.replace(mandatoryLearningHref(withLessons.id));
+            return;
+          }
+        }
+
+        setOptions(cards);
+        setError(null);
+        setLoading(false);
+      } catch (caught) {
+        if (cancelled) return;
+        setError(caught);
+        setLoading(false);
       }
-
-      const published = publishedMandatoryBlogs(blogs);
-      const withLessons = published.find((item) => flattenMandatoryLessons(item).length > 0) ?? published[0];
-      setTarget({ type: "mandatory", blogId: withLessons?.id });
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
-  if (!target) return <LoadingState />;
-  if (target.type === "course") return <LearningPlayer courseId={target.id} />;
-  return <MandatoryBlockPlayer blogId={target.blogId ?? null} />;
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} onRetry={() => window.location.reload()} />;
+  if (!options.length) {
+    return (
+      <EmptyState
+        icon={BookMarked}
+        title="O'quv jarayoni ochilmagan"
+        description="Tasdiqlangan yo'nalish bo'lsa, darslar shu yerda chiqadi."
+        action={
+          <Link href="/dashboard/courses" className="inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white">
+            Yo'nalishlarni ko'rish
+          </Link>
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="min-w-0 space-y-3">
+      <h2 className="text-lg font-bold text-[#0C2340]">Yo'nalishni tanlang</h2>
+      {options.map((item) => (
+        <Link
+          key={item.id}
+          href={item.href}
+          className="block rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-[0_2px_12px_rgba(15,35,64,0.04)]"
+        >
+          <p className="break-words font-semibold text-[#0C2340]">{item.title}</p>
+          <div className="mt-3 flex items-center gap-3">
+            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E8EDF5]">
+              <div className="h-full rounded-full bg-[#0756F5]" style={{ width: `${item.progress}%` }} />
+            </div>
+            <span className="text-sm font-bold text-[#0C2340]">{item.progress}%</span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 function MandatoryBlockEmptyView({ title = MANDATORY_BLOCK_TITLE }: { title?: string }) {
@@ -397,11 +473,11 @@ function AccessBanner({
       {!skipApplicationGate ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {status === "none" ? (
-            <Link href="/dashboard/courses" className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white">
+            <Link href="/dashboard/courses" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white">
               Katalogdan ariza yuborish
             </Link>
           ) : (
-            <Link href="/dashboard/applications" className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white">
+            <Link href="/dashboard/applications" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white">
               Arizalarim
             </Link>
           )}
@@ -410,7 +486,7 @@ function AccessBanner({
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="mt-4 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white"
+          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white"
         >
           Qayta urinish
         </button>
@@ -457,7 +533,7 @@ function LearningPlayer({
   const [loading, setLoading] = useState(true);
   const [lessonLoading, setLessonLoading] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   const rememberCourse = (data: LearningCourseResponse) => {
     courseRef.current = data;
@@ -584,7 +660,7 @@ function LearningPlayer({
           if (!skipApplicationGate) router.push("/dashboard/applications");
           return;
         }
-        setError(err(caught));
+        setError(caught);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -685,18 +761,7 @@ function LearningPlayer({
   if (loading) return <OutlineSkeleton />;
 
   if (error || !course) {
-    return (
-      <EmptyState
-        icon={BookMarked}
-        title="Kurs yuklanmadi"
-        description={error ?? "O'quv jarayoni topilmadi."}
-        action={
-          <Link href="/dashboard/my-courses" className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white">
-            Mening yo'nalishim
-          </Link>
-        }
-      />
-    );
+    return <ErrorState error={error} onRetry={() => window.location.reload()} />;
   }
 
   const canLearn = skipApplicationGate ? true : course.can_learn === true;

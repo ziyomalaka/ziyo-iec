@@ -53,8 +53,9 @@ export function displayEducationCategoryName(...parts: Array<string | number | u
 
 export function courseEducationLevel(course: Pick<CourseCatalogItem, "institution" | "categoryName" | "courseType" | "direction" | "title">) {
   return (
+    classifyEducationLevel(course.categoryName, course.courseType) ??
     course.institution ??
-    classifyEducationLevel(course.categoryName, course.courseType, course.direction, course.title)
+    classifyEducationLevel(course.direction, course.title)
   );
 }
 

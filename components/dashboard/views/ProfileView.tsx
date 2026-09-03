@@ -24,7 +24,7 @@ import ProfilePersonalCard from "@/components/dashboard/profile/ProfilePersonalC
 import ProfileSecurityCard from "@/components/dashboard/profile/ProfileSecurityCard";
 import ProfileActivityCard from "@/components/dashboard/profile/ProfileActivityCard";
 import ProfileSettingsLinks from "@/components/dashboard/profile/ProfileSettingsLinks";
-import EmptyState from "@/components/dashboard/ui/EmptyState";
+import ErrorState from "@/components/dashboard/ui/ErrorState";
 import {
   ActivityListModal,
   AvatarModal,
@@ -37,7 +37,6 @@ import {
   SessionsModal,
   TwoFactorSetupModal,
 } from "@/components/dashboard/profile/ProfileModals";
-import { UserX } from "lucide-react";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -45,7 +44,7 @@ export default function ProfileView() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -80,7 +79,7 @@ export default function ProfileView() {
       setSessions(data.sessions);
       setSettings(data.settings);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Ma'lumotlarni yuklashda xatolik yuz berdi.");
+      setError(err);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -224,16 +223,7 @@ export default function ProfileView() {
     return (
       <div>
         <ProfilePageIntro />
-        <EmptyState
-          icon={UserX}
-          title="Ma'lumotlarni yuklashda xatolik yuz berdi."
-          description={error ?? undefined}
-          action={
-            <button type="button" onClick={() => loadData()} className="rounded-[5px] bg-[#0756F5] px-4 py-2 text-[13px] font-medium text-white">
-              Qayta urinish
-            </button>
-          }
-        />
+        <ErrorState error={error} onRetry={() => void loadData()} />
       </div>
     );
   }

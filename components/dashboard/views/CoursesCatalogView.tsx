@@ -6,6 +6,8 @@ import { useDashboardSearch } from "@/components/dashboard/layout/DashboardSearc
 import CatalogCourseCard from "@/components/dashboard/courses/CatalogCourseCard";
 import InstitutionTabs from "@/components/dashboard/courses/InstitutionTabs";
 import EmptyState from "@/components/dashboard/ui/EmptyState";
+import ErrorState from "@/components/dashboard/ui/ErrorState";
+import LoadingState from "@/components/dashboard/ui/LoadingState";
 import SearchInput from "@/components/dashboard/ui/SearchInput";
 import { dashboardLabels } from "@/lib/dashboard/labels";
 import { getMyApplications } from "@/lib/api/applications";
@@ -16,6 +18,7 @@ import { readQualificationSnapshot } from "@/lib/qualification/published-snapsho
 import type { QualificationDirection } from "@/lib/api/types/qualification";
 import {
   countEducationLevels,
+  courseEducationLevel,
   educationLevelLabels,
   educationLevels,
   type InstitutionType,
@@ -36,21 +39,31 @@ export default function CoursesCatalogView() {
   const [level, setLevel] = useState<InstitutionType | "all">("all");
   const [applications, setApplications] = useState<ClientApplicationResponse[]>([]);
   const [published, setPublished] = useState<QualificationDirection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
-  const loadCatalog = useCallback(async () => {
-    const [apps, snapshot] = await Promise.all([
-      getMyApplications().catch(() => [] as ClientApplicationResponse[]),
-      readQualificationSnapshot({ forceNetwork: true }).catch(() => []),
-    ]);
-    setApplications(apps);
-    setPublished(snapshot);
+  const loadCatalog = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const [apps, snapshot] = await Promise.all([
+        getMyApplications().catch(() => [] as ClientApplicationResponse[]),
+        readQualificationSnapshot({ forceNetwork: true }),
+      ]);
+      setApplications(apps);
+      setPublished(snapshot);
+      setError(null);
+    } catch (caught) {
+      if (!silent) setError(caught);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    void loadCatalog();
+    void loadCatalog(false);
   }, [loadCatalog]);
 
-  useLiveRefresh(() => void loadCatalog());
+  useLiveRefresh(() => void loadCatalog(true));
 
   const classified = useMemo(
     () => mergeOliyEducationCourses(published).filter((course) => matchesSearch(course, search)),
@@ -64,8 +77,12 @@ export default function CoursesCatalogView() {
       maktabgacha: [],
       umumtalim: [],
       "orta-maxsus": [],
-      oliy: classified,
+      oliy: [],
     };
+    for (const course of classified) {
+      const level = courseEducationLevel(course) ?? "oliy";
+      sections[level].push(course);
+    }
     return sections;
   }, [classified]);
 
@@ -84,7 +101,11 @@ export default function CoursesCatalogView() {
             placeholder={dashboardLabels.searchCourses}
           />
         </div>
-        {!hasVisible ? (
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState error={error} onRetry={() => void loadCatalog(false)} />
+        ) : !hasVisible ? (
           <EmptyState
             icon={GraduationCap}
             title="Yo'nalish topilmadi"

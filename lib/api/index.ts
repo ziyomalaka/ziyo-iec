@@ -117,6 +117,17 @@ export {
   uploadLessonMaterial,
 } from "@/lib/api/qualification";
 export {
+  createAdminLibraryItem,
+  deleteAdminLibraryItem,
+  getAdminLibrary,
+  getAdminLibraryItem,
+  setAdminLibraryStatus,
+  updateAdminLibraryItem,
+  uploadLibraryFile,
+} from "@/lib/api/library";
+export { getStudentLibrary, getStudentLibraryItem } from "@/lib/api/library-student";
+export type { LibraryItem, LibraryListQuery, LibraryWritePayload } from "@/lib/api/types/library";
+export {
   createMandatoryBlog,
   createMandatoryLesson,
   createMandatoryModule,

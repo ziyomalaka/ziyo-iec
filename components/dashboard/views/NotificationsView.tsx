@@ -2,10 +2,13 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { Bell } from "lucide-react";
 import PageHeader from "@/components/dashboard/ui/PageHeader";
 import DashboardTabs from "@/components/dashboard/ui/DashboardTabs";
 import DashboardModal from "@/components/dashboard/ui/DashboardModal";
 import NotificationItem from "@/components/dashboard/ui/NotificationItem";
+import EmptyState from "@/components/dashboard/ui/EmptyState";
+import ErrorState from "@/components/dashboard/ui/ErrorState";
 import LoadingState from "@/components/dashboard/ui/LoadingState";
 import AdminPagination from "@/components/admin/AdminPagination";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
@@ -47,6 +50,7 @@ export default function NotificationsView() {
     markRead,
     markAllRead,
     remove,
+    reload,
   } = useNotifications();
 
   const filtered = useMemo(() => {
@@ -116,7 +120,7 @@ export default function NotificationsView() {
           <button
             type="button"
             onClick={() => setContactOpen(true)}
-            className="rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white hover:bg-[#0648d1]"
+            className="min-h-11 rounded-xl bg-[#0756F5] px-4 text-sm font-medium text-white hover:bg-[#0648d1]"
           >
             Admin bilan bog&apos;lanish
           </button>
@@ -125,16 +129,16 @@ export default function NotificationsView() {
       {loading ? (
         <LoadingState />
       ) : listError ? (
-        <p className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-8 text-center text-sm text-[#B91C1C]">
-          {listError}
-        </p>
+        <ErrorState message={listError} onRetry={() => void reload()} />
       ) : (
         <>
           <div className="space-y-3">
             {filtered.length === 0 ? (
-              <p className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-8 text-center text-sm text-[#64748B]">
-                Hozircha bildirishnomalar mavjud emas.
-              </p>
+              <EmptyState
+                icon={Bell}
+                title="Bildirishnoma yo'q"
+                description={active === "unread" ? "O'qilmagan xabar yo'q." : "Hozircha bildirishnomalar mavjud emas."}
+              />
             ) : (
               filtered.map((n) => (
                 <NotificationItem
