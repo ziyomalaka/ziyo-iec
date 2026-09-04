@@ -83,7 +83,7 @@ export default function Header() {
       </div>
 
       <div className="border-b border-border/80 bg-white shadow-[0_4px_20px_-8px_rgba(15,35,64,0.12)]">
-        <Container className="flex w-full items-center justify-between gap-4 py-3.5">
+        <Container className="flex w-full items-center justify-between gap-2 py-3.5 sm:gap-4">
           <Link href="/" prefetch className="flex items-center gap-3 shrink-0" onClick={closeMobile}>
             <BrandLogo size="sm" priority />
             <div className="hidden flex-col sm:flex">
@@ -110,8 +110,13 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button href="/kirish" variant="outline-sm" className="hidden sm:inline-flex">
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              href="/kirish"
+              variant="outline-sm"
+              className="inline-flex shrink-0 px-3 sm:px-4"
+              onClick={closeMobile}
+            >
               {t("buttons.login")}
             </Button>
 

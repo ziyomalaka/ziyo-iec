@@ -103,6 +103,7 @@ test.describe("RWD public header drawer", () => {
     await page.goto("/uz", { waitUntil: "domcontentloaded" });
     const menu = page.getByRole("button", { name: /Menyuni ochish|Открыть меню/i });
     await expect(menu).toBeVisible();
+    await expect(page.getByRole("link", { name: /Kirish|Войти/i }).first()).toBeVisible();
     await menu.click();
     await expect(page.getByRole("dialog", { name: /Menyu|Меню/i })).toBeVisible();
     await page.keyboard.press("Escape");
