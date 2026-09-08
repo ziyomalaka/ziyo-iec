@@ -24,7 +24,7 @@ export function canAccessIt(role?: string | null) {
   return role === "it";
 }
 
-export function getPostLoginPath(role?: string | null) {
+export function getPostLoginPath(role?: string | null, programType?: string | null) {
   switch (role) {
     case "boshqaruv":
       return "/admin/management";
@@ -32,8 +32,13 @@ export function getPostLoginPath(role?: string | null) {
       return "/admin/supervisor";
     case "it":
       return "/admin/software/qualification";
-    default:
-      return "/dashboard";
+    default: {
+      const program = (programType ?? "").trim().toUpperCase();
+      if (program === "QAYTA_TAYYORLASH") return "/retraining";
+      if (program === "MALAKA_OSHIRISH") return "/dashboard";
+      // Bo'sh program_type — avtomatik dastur berilmaydi, user o'zi tanlaydi.
+      return "/select-program";
+    }
   }
 }
 

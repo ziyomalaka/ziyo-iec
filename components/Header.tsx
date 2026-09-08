@@ -15,7 +15,6 @@ import { cn } from "@/lib/cn";
 
 const topLinks = [
   { key: "about", href: "#" },
-  { key: "news", href: "/#yangiliklar" },
   { key: "contact", href: "/aloqa" },
 ] as const;
 

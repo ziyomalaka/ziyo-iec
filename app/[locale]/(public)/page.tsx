@@ -6,7 +6,6 @@ import HowItWorks from "@/components/HowItWorks";
 import PopularCourses from "@/components/PopularCourses";
 import Partners from "@/components/Partners";
 import Testimonials from "@/components/Testimonials";
-import News from "@/components/News";
 import FaqBanner from "@/components/FaqBanner";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
@@ -32,7 +31,6 @@ export default function Home() {
       <PopularCourses />
       <Partners />
       <Testimonials />
-      <News />
       <FaqBanner />
     </>
   );

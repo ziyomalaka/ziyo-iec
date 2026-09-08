@@ -8,7 +8,7 @@ import {
 } from "@/lib/api/qualification";
 import type { ContentSource, QualificationDirection, QualificationLessonType } from "@/lib/api/types/qualification";
 import { rememberLessonKind, withLessonKindMarker } from "@/lib/learning/lesson-kind";
-import { isItSource, isMandatorySource } from "@/lib/qualification/it-bridge";
+import { isItSource, usesQualificationSnapshot } from "@/lib/qualification/it-bridge";
 
 function normTitle(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -97,7 +97,8 @@ export async function persistSelectedLessonKind(input: {
     }
   }
 
-  if (input.itDirectionId && !isMandatorySource(input.source)) {
+  // Qayta tayyorlash/majburiy yo'nalish ID'si qualification-directions bilan bir xil emas.
+  if (input.itDirectionId && usesQualificationSnapshot(input.source)) {
     await syncQualificationLessonKind({
       directions: input.directions,
       itDirectionId: input.itDirectionId,

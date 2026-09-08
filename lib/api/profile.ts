@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api/client";
+import { apiRequest, apiRequestFirst } from "@/lib/api/client";
 import type { MessageResponse } from "@/lib/api/types/auth";
 import type {
   ActivityResponse,
@@ -81,8 +81,39 @@ export async function updateProfile(payload: UpdateProfileRequest) {
   if (payload.workplace) body.workplace = payload.workplace;
   if (payload.field_of_study) body.field_of_study = payload.field_of_study;
   if (payload.avatar_url) body.avatar_url = payload.avatar_url;
+  if (payload.program_type) body.program_type = payload.program_type;
 
   const data = await apiRequest<unknown>("/profile", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  return asProfile(data);
+}
+
+/**
+ * Ta'lim turini backendga saqlaydi.
+ * Avval maxsus endpoint sinaladi, u bo'lmasa (404) profil yangilash orqali yuboriladi.
+ */
+export async function updateProgramType(programType: string) {
+  const profile = await getProfile();
+  const body = {
+    program_type: programType,
+    confirm_edit: true,
+    first_name: profile.first_name,
+    last_name: profile.last_name,
+    father_name: profile.father_name,
+    phone_number: profile.phone_number,
+    date_of_birth: profile.date_of_birth || undefined,
+    gender: profile.gender || undefined,
+    address: profile.address || undefined,
+    city: profile.city || undefined,
+    district: profile.district || undefined,
+    position: profile.position || undefined,
+    workplace: profile.workplace || undefined,
+    field_of_study: profile.field_of_study || undefined,
+  };
+
+  const data = await apiRequestFirst<unknown>(["/profile/program-type", "/profile"], {
     method: "PUT",
     body: JSON.stringify(body),
   });

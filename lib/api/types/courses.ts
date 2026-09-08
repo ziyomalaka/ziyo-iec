@@ -19,6 +19,12 @@ export type CourseCardResponse = {
   status?: string;
   status_label?: string;
   thumbnail_url?: string;
+  kind?: string;
+  application_id?: number;
+  application_status?: string;
+  can_apply?: boolean;
+  cta?: string;
+  reject_reason?: string;
 };
 
 export type CourseLessonSummary = {
@@ -55,6 +61,10 @@ export type CourseModuleResponse = {
 
 export type CourseDetailResponse = CourseCardResponse & {
   description?: string;
+  goal?: string;
+  requirements?: string;
+  admission?: string;
+  study_form?: string;
   modules?: CourseModuleResponse[];
 };
 

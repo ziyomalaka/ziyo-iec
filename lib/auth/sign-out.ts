@@ -1,4 +1,5 @@
 import { logout } from "@/lib/api/auth";
+import { resetProgramTypeCache } from "@/lib/auth/program";
 import { clearAuthSession } from "@/lib/auth/session";
 
 /** Backendga chiqish so'rovini yuboradi, so'ng mahalliy sessiyani tozalaydi. */
@@ -10,4 +11,5 @@ export async function signOut() {
   }
 
   clearAuthSession();
+  resetProgramTypeCache();
 }

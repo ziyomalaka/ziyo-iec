@@ -33,7 +33,13 @@ function senderLabel() {
   return [name || user?.nickname, user?.email].filter(Boolean).join(" · ") || "Siz";
 }
 
-export default function NotificationsView() {
+export default function NotificationsView({
+  emptyTitle = "Bildirishnoma yo'q",
+  emptyDescription,
+}: {
+  emptyTitle?: string;
+  emptyDescription?: string;
+} = {}) {
   const [active, setActive] = useState("all");
   const [contactOpen, setContactOpen] = useState(false);
   const [title, setTitle] = useState("Murojaat");
@@ -136,8 +142,11 @@ export default function NotificationsView() {
             {filtered.length === 0 ? (
               <EmptyState
                 icon={Bell}
-                title="Bildirishnoma yo'q"
-                description={active === "unread" ? "O'qilmagan xabar yo'q." : "Hozircha bildirishnomalar mavjud emas."}
+                title={emptyTitle}
+                description={
+                  emptyDescription ??
+                  (active === "unread" ? "O'qilmagan xabar yo'q." : "Hozircha bildirishnomalar mavjud emas.")
+                }
               />
             ) : (
               filtered.map((n) => (

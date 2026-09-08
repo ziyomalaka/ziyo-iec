@@ -57,6 +57,18 @@ import {
   updateMandatoryLesson,
   updateMandatoryModule,
 } from "@/lib/api/mandatory-blogs";
+import {
+  createRetrainingDirection,
+  createRetrainingLesson,
+  createRetrainingModule,
+  getRetrainingDirections,
+  publishRetrainingLesson,
+  saveRetrainingLessonDraft,
+  submitRetrainingLessonMaterial,
+  updateRetrainingDirection,
+  updateRetrainingLesson,
+  updateRetrainingModule,
+} from "@/lib/api/retraining-admin";
 import type {
   ContentSource,
   MaterialFormData,
@@ -65,7 +77,15 @@ import type {
   QualificationMaterialType,
 } from "@/lib/api/types/qualification";
 import { formatLessonCode } from "@/lib/qualification/constants";
-import { isItSource, isMandatorySource, directionKey, mapItDirection, mergeModules } from "@/lib/qualification/it-bridge";
+import {
+  isItSource,
+  isMandatorySource,
+  isRetrainingSource,
+  usesQualificationSnapshot,
+  directionKey,
+  mapItDirection,
+  mergeModules,
+} from "@/lib/qualification/it-bridge";
 import { loadMergedDirections, buildAdminQualificationList } from "@/lib/qualification/load-directions";
 import { persistSelectedLessonKind } from "@/lib/qualification/lesson-kind-sync";
 import { lessonSchema, moduleSchema } from "@/lib/qualification/schemas";
@@ -216,19 +236,29 @@ export default function MaterialWizard() {
     saveWizardDraft(state);
   }, [hydrated, state]);
 
-  const directionSource = searchParams.get("source") === "mandatory" || state.source === "mandatory";
+  const urlSource = searchParams.get("source");
+  // Wizard qaysi panel nomidan ochilgan: majburiy blog, qayta tayyorlash yoki malaka oshirish.
+  const panelSource: ContentSource | null =
+    urlSource === "mandatory" || isMandatorySource(state.source)
+      ? "mandatory"
+      : urlSource === "retraining" || isRetrainingSource(state.source)
+        ? "retraining"
+        : null;
+
   useEffect(() => {
     let cancelled = false;
-    const request = directionSource
-      ? getMandatoryBlogs({ per_page: 100 }).then((items) => {
-          if (!cancelled) setDirections(items);
-        })
-      : loadMergedDirections().then(({ merged }) => {
-          if (!cancelled) {
-            setDirections(buildAdminQualificationList(merged).filter((item) => item.id > 0));
-          }
-        });
+    const request =
+      panelSource === "mandatory"
+        ? getMandatoryBlogs({ per_page: 100 })
+        : panelSource === "retraining"
+          ? getRetrainingDirections({ per_page: 100 })
+          : loadMergedDirections().then(({ merged }) =>
+              buildAdminQualificationList(merged).filter((item) => item.id > 0)
+            );
     request
+      .then((items) => {
+        if (!cancelled) setDirections(items);
+      })
       .catch((error) => toast.error(err(error)))
       .finally(() => {
         if (!cancelled) setIsLoadingDirections(false);
@@ -236,7 +266,7 @@ export default function MaterialWizard() {
     return () => {
       cancelled = true;
     };
-  }, [directionSource]);
+  }, [panelSource]);
 
   useEffect(() => {
     const dirty = Boolean(state.directionId || state.moduleTitle || state.lessonTitle || state.materials.length);
@@ -258,7 +288,8 @@ export default function MaterialWizard() {
   const lessonCode = state.lessonCode || formatLessonCode(state.moduleNumber, state.lessonNumber);
 
   const goDirection = (id: number, title: string, source?: ContentSource) => {
-    const nextSource = source === "it" ? "it" : source === "mandatory" ? "mandatory" : "qualification";
+    const nextSource: ContentSource =
+      source === "it" || source === "mandatory" || source === "retraining" ? source : "qualification";
     const hasChildData = Boolean(
       state.moduleId ||
         state.lessonId ||
@@ -320,6 +351,11 @@ export default function MaterialWizard() {
             module_number: state.moduleNumber,
             title: state.moduleTitle.trim(),
           });
+        } else if (isRetrainingSource(state.source)) {
+          await updateRetrainingModule(state.moduleId, {
+            module_number: state.moduleNumber,
+            title: state.moduleTitle.trim(),
+          });
         } else {
           await updateQualificationModule(state.moduleId, {
             module_number: state.moduleNumber,
@@ -330,7 +366,7 @@ export default function MaterialWizard() {
           savedModuleNumber: state.moduleNumber,
           savedModuleTitle: state.moduleTitle.trim(),
         });
-        if (!isMandatorySource(state.source) && state.directionId) {
+        if (usesQualificationSnapshot(state.source) && state.directionId) {
           await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
         }
         toast.success("Modul yangilandi");
@@ -352,7 +388,17 @@ export default function MaterialWizard() {
               },
               { idempotencyKey: moduleIdempotencyKey.current }
             )
-          : await createQualificationModule(
+          : isRetrainingSource(state.source)
+            ? await createRetrainingModule(
+                state.directionId,
+                {
+                  module_number: state.moduleNumber,
+                  title: state.moduleTitle.trim(),
+                  status: "PUBLISHED",
+                },
+                { idempotencyKey: moduleIdempotencyKey.current }
+              )
+            : await createQualificationModule(
               state.directionId,
               {
                 module_number: state.moduleNumber,
@@ -361,7 +407,7 @@ export default function MaterialWizard() {
               { idempotencyKey: moduleIdempotencyKey.current }
             );
       if (!created?.id) throw new ApiError(500, "Modul ID qaytmadi");
-      if (!isItSource(state.source) && !isMandatorySource(state.source)) {
+      if (!isItSource(state.source) && !isMandatorySource(state.source) && !isRetrainingSource(state.source)) {
         await setModuleStatus(created.id, "PUBLISHED", {
           module_number: state.moduleNumber,
           title: state.moduleTitle.trim(),
@@ -378,7 +424,7 @@ export default function MaterialWizard() {
         savedModuleNumber: state.moduleNumber,
         savedModuleTitle: state.moduleTitle.trim(),
       });
-      if (!isMandatorySource(state.source)) {
+      if (usesQualificationSnapshot(state.source)) {
         await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
       }
       toast.success("✓ Modul yaratildi");
@@ -456,6 +502,20 @@ export default function MaterialWizard() {
             lessonCode: updated.lesson_code || formatLessonCode(state.moduleNumber, state.lessonNumber),
           });
           await persistItLessonKind(existingLessonId);
+        } else if (isRetrainingSource(state.source)) {
+          const updated = await updateRetrainingLesson(existingLessonId, {
+            lesson_number: state.lessonNumber,
+            lesson_type: state.lessonType,
+            title: state.lessonTitle.trim(),
+          });
+          patch({
+            lessonId: existingLessonId,
+            savedLessonNumber: state.lessonNumber,
+            savedLessonType: state.lessonType,
+            savedLessonTitle: state.lessonTitle.trim(),
+            lessonCode: updated.lesson_code || formatLessonCode(state.moduleNumber, state.lessonNumber),
+          });
+          await persistItLessonKind(existingLessonId);
         } else {
           const updated = await updateQualificationLesson(existingLessonId, {
             lesson_number: state.lessonNumber,
@@ -472,7 +532,7 @@ export default function MaterialWizard() {
           await persistItLessonKind(existingLessonId);
         }
         toast.success("Dars yangilandi");
-        if (!isMandatorySource(state.source) && state.directionId) {
+        if (usesQualificationSnapshot(state.source) && state.directionId) {
           await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
         }
         return true;
@@ -502,6 +562,16 @@ export default function MaterialWizard() {
               },
               { idempotencyKey: lessonIdempotencyKey.current }
             )
+          : isRetrainingSource(state.source)
+            ? await createRetrainingLesson(
+                state.moduleId,
+                {
+                  lesson_number: state.lessonNumber,
+                  lesson_type: state.lessonType,
+                  title: state.lessonTitle.trim(),
+                },
+                { idempotencyKey: lessonIdempotencyKey.current }
+              )
           : await createQualificationLesson(
               state.moduleId,
               {
@@ -546,7 +616,7 @@ export default function MaterialWizard() {
         }
       }
       await persistItLessonKind(created.id);
-      if (!isMandatorySource(state.source) && state.directionId) {
+      if (usesQualificationSnapshot(state.source) && state.directionId) {
         await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
       }
       toast.success(
@@ -576,8 +646,12 @@ export default function MaterialWizard() {
         }));
       },
     };
-    // mandatory-blog / qualification / IT — bir xil: files → lessons/{id}/materials (file_id)
-    const submitMaterial = isMandatorySource(state.source) ? submitMandatoryLessonMaterial : submitLessonMaterial;
+    // mandatory-blog / retraining-admin / qualification / IT — files → lessons/{id}/materials (file_id)
+    const submitMaterial = isMandatorySource(state.source)
+      ? submitMandatoryLessonMaterial
+      : isRetrainingSource(state.source)
+        ? submitRetrainingLessonMaterial
+        : submitLessonMaterial;
     const result = await submitMaterial(lessonId, item, options);
     setState((prev) => ({
       ...prev,
@@ -623,7 +697,7 @@ export default function MaterialWizard() {
       }
     }
     setIsUploading(false);
-    if (ok && !isMandatorySource(state.source) && state.directionId) {
+    if (ok && usesQualificationSnapshot(state.source) && state.directionId) {
       await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
     }
     return ok;
@@ -711,11 +785,14 @@ export default function MaterialWizard() {
         toast.success("✓ Qoralama saqlandi");
         return;
       }
-      await saveLessonDraft(state.lessonId, {
+      const draftPayload = {
         lesson_number: state.lessonNumber ?? 1,
         lesson_type: state.lessonType || "THEORY",
         title: state.lessonTitle.trim() || "Dars",
-      });
+      };
+      await (isRetrainingSource(state.source)
+        ? saveRetrainingLessonDraft(state.lessonId, draftPayload)
+        : saveLessonDraft(state.lessonId, draftPayload));
       patch({ status: "DRAFT" });
       toast.success("✓ Qoralama saqlandi");
     } catch {
@@ -734,14 +811,16 @@ export default function MaterialWizard() {
       // Faqat POST /publish — tayyorlik checklari backendda
       await (isMandatorySource(state.source)
         ? publishMandatoryLesson(state.lessonId)
-        : publishLesson(state.lessonId));
+        : isRetrainingSource(state.source)
+          ? publishRetrainingLesson(state.lessonId)
+          : publishLesson(state.lessonId));
       if (isMandatorySource(state.source) && state.directionId) {
         const detailed = await getMandatoryBlog(state.directionId).catch(() => null);
         if (detailed) {
           const { publishMandatorySnapshot } = await import("@/lib/api/mandatory-snapshot");
           void publishMandatorySnapshot([detailed], "upsert", { notify: true });
         }
-      } else if (state.directionId) {
+      } else if (state.directionId && usesQualificationSnapshot(state.source)) {
         await pushQualificationSnapshotForDirection(state.directionId, state.source);
       }
       patch({ status: "PUBLISHED" });
@@ -765,9 +844,11 @@ export default function MaterialWizard() {
   };
 
   const homeHref =
-    isMandatorySource(state.source) || searchParams.get("source") === "mandatory"
+    panelSource === "mandatory"
       ? "/admin/software/mandatory"
-      : "/admin/software/qualification";
+      : panelSource === "retraining"
+        ? "/admin/software/retraining"
+        : "/admin/software/qualification";
 
   const leave = () => {
     const dirty = Boolean(state.directionId || state.moduleTitle || state.lessonTitle || state.materials.length);
@@ -806,7 +887,7 @@ export default function MaterialWizard() {
           lessonIdempotencyKey.current = crypto.randomUUID();
           setState({
             ...emptyWizardState(),
-            source: isMandatorySource(state.source) ? "mandatory" : undefined,
+            source: panelSource ?? undefined,
           });
         }}
         onHome={() => router.push(homeHref)}
@@ -817,7 +898,11 @@ export default function MaterialWizard() {
   return (
     <div className="rounded-2xl border border-[#E8EDF5] bg-white p-4 shadow-sm sm:p-5">
       <button type="button" onClick={leave} className="mb-4 text-sm text-[#0756F5]">
-        ← Malaka oshirish
+        {panelSource === "mandatory"
+          ? "← Majburiy blog"
+          : panelSource === "retraining"
+            ? "← Qayta tayyorlash"
+            : "← Malaka oshirish"}
       </button>
       <WizardStepper step={state.step} />
       <div className="mt-6">
@@ -934,14 +1019,21 @@ export default function MaterialWizard() {
         open={createDirectionOpen}
         saving={isSavingDirection}
         setSaving={setIsSavingDirection}
-        title={isMandatorySource(state.source) || searchParams.get("source") === "mandatory" ? "Yangi majburiy blog" : undefined}
+        title={
+          panelSource === "mandatory"
+            ? "Yangi majburiy blog"
+            : panelSource === "retraining"
+              ? "Yangi qayta tayyorlash yo'nalishi"
+              : undefined
+        }
         save={
-          isMandatorySource(state.source) || searchParams.get("source") === "mandatory"
+          panelSource === "mandatory"
             ? async (payload, editing) =>
-                editing?.id
-                  ? updateMandatoryBlog(editing.id, payload)
-                  : createMandatoryBlog(payload)
-            : undefined
+                editing?.id ? updateMandatoryBlog(editing.id, payload) : createMandatoryBlog(payload)
+            : panelSource === "retraining"
+              ? async (payload, editing) =>
+                  editing?.id ? updateRetrainingDirection(editing.id, payload) : createRetrainingDirection(payload)
+              : undefined
         }
         onClose={() => setCreateDirectionOpen(false)}
         onSaved={(created) => {

@@ -2,6 +2,7 @@ import { pickFileUrl } from "@/lib/api/media";
 import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { isLearnForbiddenError, withLearningAccessRetry } from "@/lib/api/learning-access";
+import { LEARNING_API_PREFIX, learningApiPath } from "@/lib/api/student-api";
 import { parsePositiveInt, unwrapApiPayload, asList } from "@/lib/api/unwrap";
 import { lessonKindFromDescription, mapStoredLessonKind, stripLessonKindMarker } from "@/lib/learning/lesson-kind";
 import { isLessonListedForStudent, isModuleListedForStudent, isRemovedLessonRecord, isVisibleToStudent } from "@/lib/publish-status";
@@ -357,26 +358,37 @@ export function isAlreadyEnrolledError(error: unknown) {
 }
 
 const CACHE_TTL_MS = 30_000;
-const courseCache = new Map<number, { at: number; data: LearningCourseResponse }>();
-const lessonCache = new Map<number, { at: number; data: LearningLessonDetail }>();
+const courseCache = new Map<string, { at: number; data: LearningCourseResponse }>();
+const lessonCache = new Map<string, { at: number; data: LearningLessonDetail }>();
 
-function readCache<T>(map: Map<number, { at: number; data: T }>, id: number) {
-  const hit = map.get(id);
+function cacheKey(prefix: string, id: number) {
+  return `${prefix}:${id}`;
+}
+
+function readCache<T>(map: Map<string, { at: number; data: T }>, key: string) {
+  const hit = map.get(key);
   if (!hit || Date.now() - hit.at > CACHE_TTL_MS) return null;
   return hit.data;
 }
 
-function writeCache<T>(map: Map<number, { at: number; data: T }>, id: number, data: T) {
-  map.set(id, { at: Date.now(), data });
+function writeCache<T>(map: Map<string, { at: number; data: T }>, key: string, data: T) {
+  map.set(key, { at: Date.now(), data });
+}
+
+function dropCacheById<T>(map: Map<string, T>, id: number) {
+  for (const key of [...map.keys()]) {
+    if (key.endsWith(`:${id}`)) map.delete(key);
+  }
 }
 
 export function invalidateLearningCache(courseId?: number, lessonId?: number) {
-  if (courseId != null) courseCache.delete(courseId);
-  if (lessonId != null) lessonCache.delete(lessonId);
+  if (courseId != null) dropCacheById(courseCache, courseId);
+  else courseCache.clear();
+  if (lessonId != null) dropCacheById(lessonCache, lessonId);
 }
 
-export async function enrollInCourse(id: number) {
-  return apiRequest<unknown>(`/learning/courses/${id}/enroll`, { method: "POST" });
+export async function enrollInCourse(id: number, prefix: string = LEARNING_API_PREFIX.malaka) {
+  return apiRequest<unknown>(learningApiPath(prefix, `/courses/${id}/enroll`), { method: "POST" });
 }
 
 /** GET /learning/courses — yozilgan kurslar (yo'q bo'lsa bo'sh). */
@@ -391,25 +403,35 @@ export async function getMyLearningCourses(silentAuth = true): Promise<LearningC
   }
 }
 
-export async function getLearningCourse(id: number, silentAuth = false) {
+export async function getLearningCourse(
+  id: number,
+  silentAuth = false,
+  prefix: string = LEARNING_API_PREFIX.malaka
+) {
+  const key = cacheKey(prefix, id);
   if (!silentAuth) {
-    const cached = readCache(courseCache, id);
+    const cached = readCache(courseCache, key);
     if (cached) return cached;
   }
   const data = await withLearningAccessRetry(() =>
-    apiRequest<unknown>(`/learning/courses/${id}`, silentAuth ? { skipAuthRedirect: true } : {})
+    apiRequest<unknown>(learningApiPath(prefix, `/courses/${id}`), silentAuth ? { skipAuthRedirect: true } : {})
   );
   const normalized = normalizeLearningCourse(data);
-  if (!silentAuth) writeCache(courseCache, id, normalized);
+  if (!silentAuth) writeCache(courseCache, key, normalized);
   return normalized;
 }
 
-export async function getLearningLesson(id: number, silentAuth = false) {
+export async function getLearningLesson(
+  id: number,
+  silentAuth = false,
+  prefix: string = LEARNING_API_PREFIX.malaka
+) {
+  const key = cacheKey(prefix, id);
   if (!silentAuth) {
-    const cached = readCache(lessonCache, id);
+    const cached = readCache(lessonCache, key);
     if (cached) return cached;
   }
-  const requestUrl = `/learning/lessons/${id}`;
+  const requestUrl = learningApiPath(prefix, `/lessons/${id}`);
 
   const data = await withLearningAccessRetry(() =>
     apiRequest<unknown>(requestUrl, silentAuth ? { skipAuthRedirect: true } : {})
@@ -420,12 +442,12 @@ export async function getLearningLesson(id: number, silentAuth = false) {
     throw new ApiError(404, "Dars topilmadi");
   }
 
-  // Swagger fallback: lesson.tests[] bo'sh bo'lsa → GET /learning/lessons/{id}/tests
+  // Swagger fallback: lesson.tests[] bo'sh bo'lsa → GET .../lessons/{id}/tests
   let lesson = normalized;
   if (!(lesson.tests?.length)) {
     try {
       const { fetchLessonTestSummaries } = await import("@/lib/api/learning-test");
-      const summaries = await fetchLessonTestSummaries(id);
+      const summaries = await fetchLessonTestSummaries(id, prefix);
       if (summaries.length) {
         const testMaterials = summaries.map((t) => ({
           id: t.id,
@@ -449,17 +471,21 @@ export async function getLearningLesson(id: number, silentAuth = false) {
     }
   }
 
-  if (!silentAuth) writeCache(lessonCache, id, lesson);
+  if (!silentAuth) writeCache(lessonCache, key, lesson);
   return lesson;
 }
 
-export async function completeLearningLesson(id: number, silentAuth = false) {
-  const data = await apiRequest<unknown>(`/learning/lessons/${id}/complete`, {
+export async function completeLearningLesson(
+  id: number,
+  silentAuth = false,
+  prefix: string = LEARNING_API_PREFIX.malaka
+) {
+  const data = await apiRequest<unknown>(learningApiPath(prefix, `/lessons/${id}/complete`), {
     method: "POST",
     ...(silentAuth ? { skipAuthRedirect: true } : {}),
   });
   if (!silentAuth) {
-    lessonCache.delete(id);
+    dropCacheById(lessonCache, id);
     courseCache.clear();
   }
   const root = asRecord(unwrapApiPayload(data));

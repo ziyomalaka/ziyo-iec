@@ -104,6 +104,8 @@ export type CourseCatalogItem = {
   instructor: string;
   goal: string;
   audience: string;
+  requirements?: string;
+  admission?: string;
   lessonsCount: number;
   syllabus: CourseModule[];
 };

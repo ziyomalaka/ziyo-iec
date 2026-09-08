@@ -11,7 +11,7 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight } from "@/lib/icons";
 import { login } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/errors";
 import { saveAuthSession } from "@/lib/auth/session";
-import { getPostLoginPath } from "@/lib/auth/roles";
+import { resolvePostLoginPath } from "@/lib/auth/program";
 import { GMAIL_ONLY_MESSAGE, isGmailAddress, isStaffNickname } from "@/lib/auth/gmail";
 import type { LoginRequest } from "@/lib/api/types/auth";
 import BrandLogo from "@/components/ui/BrandLogo";
@@ -68,7 +68,7 @@ export default function LoginFormCard() {
       toast.success(t("toast.successTitle"), {
         description: t("toast.successDescription"),
       });
-      router.push(getPostLoginPath(response.user.role));
+      router.push(await resolvePostLoginPath(response.user));
       router.refresh();
     } catch (error) {
       const message =

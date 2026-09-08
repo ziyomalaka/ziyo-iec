@@ -1,6 +1,6 @@
 "use client";
 
-import { BookMarked, GraduationCap, LibraryBig, Shield, Users } from "lucide-react";
+import { BookMarked, GraduationCap, LibraryBig, Repeat, Shield, Users } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import BrandLogo from "@/components/ui/BrandLogo";
 import { getAuthUser } from "@/lib/auth/session";
@@ -19,6 +19,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     canAccessManagement(role) && { href: "/admin/management", label: "Boshqaruv", icon: Users },
     canAccessSupervisor(role) && { href: "/admin/supervisor", label: "Nazorat", icon: Shield },
     canAccessIt(role) && { href: "/admin/software/qualification", label: "Malaka oshirish", icon: GraduationCap },
+    canAccessIt(role) && { href: "/admin/software/retraining", label: "Qayta tayyorlash", icon: Repeat },
     canAccessIt(role) && { href: "/admin/software/mandatory", label: "Majburiy blog", icon: BookMarked },
     canAccessIt(role) && { href: "/admin/software/library", label: "Kutubxona", icon: LibraryBig },
   ].filter(Boolean) as { href: string; label: string; icon: typeof Users }[];

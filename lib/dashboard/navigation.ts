@@ -71,11 +71,12 @@ export function getDashboardPageTitle(pathname: string) {
 }
 
 export function isDashboardNavActive(pathname: string, item: DashboardNavItem) {
-  if (item.href === "/dashboard/my-courses") {
-    return pathname === item.href || pathname.startsWith("/dashboard/my-direction");
+  if (item.href.endsWith("/my-courses")) {
+    const myDirection = item.href.replace(/\/my-courses$/, "/my-direction");
+    return pathname === item.href || pathname.startsWith(`${myDirection}`);
   }
   if (item.match === "courseDetail") {
-    return pathname.includes("/dashboard/courses/") && !pathname.endsWith("/courses");
+    return pathname.includes("/courses/") && !pathname.endsWith("/courses");
   }
   if (item.exact) return pathname === item.href;
   return pathname === item.href || pathname.startsWith(`${item.href}/`);

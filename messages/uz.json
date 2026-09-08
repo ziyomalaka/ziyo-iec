@@ -159,7 +159,6 @@
     ],
     "usefulLinksItems": [
       { "label": "Biz haqimizda", "href": "#" },
-      { "label": "Yangiliklar", "href": "/#yangiliklar" },
       { "label": "FAQ", "href": "#" },
       { "label": "Maxfiylik siyosati", "href": "#" },
       { "label": "Foydalanish shartlari", "href": "#" },
@@ -1231,7 +1230,9 @@
       "passwordMin": "Parol kamida 6 ta belgidan iborat bo'lishi kerak",
       "confirmRequired": "Parolni tasdiqlang",
       "passwordMismatch": "Parollar mos kelmaydi",
-      "termsRequired": "Foydalanish shartlarini qabul qilishingiz kerak"
+      "termsRequired": "Foydalanish shartlarini qabul qilishingiz kerak",
+      "programTypeRequired": "Ta'lim turini tanlang.",
+      "retrainingTypeRequired": "Qayta tayyorlash turini tanlang."
     },
     "passwordReset": {
       "email": "Email manzil noto'g'ri",
@@ -1313,7 +1314,18 @@
         "email": "Email manzil",
         "phone": "Telefon raqam",
         "password": "Parol",
-        "confirmPassword": "Parolni tasdiqlash"
+        "confirmPassword": "Parolni tasdiqlash",
+        "programType": "Ta'lim turini tanlang",
+        "retrainingType": "Qayta tayyorlash turini tanlang"
+      },
+      "programTypes": {
+        "MALAKA_OSHIRISH": "Malaka oshirish",
+        "QAYTA_TAYYORLASH": "Qayta tayyorlash"
+      },
+      "retrainingTypes": {
+        "UMUMIY": "Umumiy qayta tayyorlash",
+        "KASBIY": "Kasbiy qayta tayyorlash",
+        "PEDAGOGIK": "Pedagogik qayta tayyorlash"
       },
       "placeholders": {
         "firstName": "Ismingiz",
@@ -1383,6 +1395,21 @@
         "successDescription": "Endi yangi parol bilan kirishingiz mumkin.",
         "errorTitle": "Parol yangilanmadi",
         "errorDescription": "Kod yoki ma'lumotlarni tekshirib, qayta urinib ko'ring."
+      }
+    },
+    "selectProgram": {
+      "title": "Ta'lim turini tanlang",
+      "subtitle": "Davom etish uchun o'zingizga mos ta'lim turini belgilang. Tanlov profilingizga saqlanadi.",
+      "label": "Ta'lim turi",
+      "submit": "Davom etish",
+      "submitting": "Saqlanmoqda...",
+      "signOut": "Boshqa akkaunt bilan kirish",
+      "toast": {
+        "successTitle": "Ta'lim turi saqlandi",
+        "successDescription": "Tegishli panelga o'tkazamiz.",
+        "errorTitle": "Saqlanmadi",
+        "errorDescription": "Ta'lim turi saqlanmadi. Qayta urinib ko'ring.",
+        "notSaved": "Server ta'lim turini profilga yozmadi. Backendda program_type ni yangilash endpointi yoqilganini tekshiring."
       }
     }
   }

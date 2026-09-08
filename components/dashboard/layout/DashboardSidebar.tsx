@@ -8,6 +8,8 @@ import {
   dashboardNavItems,
   isDashboardNavActive,
 } from "@/lib/dashboard/navigation";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
+import { retrainingMenuLabels } from "@/lib/retraining/navigation";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
 import { cn } from "@/lib/cn";
 
@@ -25,12 +27,17 @@ function NavLinks({
 }) {
   const pathname = usePathname();
   const { unreadCount } = useNotifications();
+  const { kind } = useStudentProgramPaths();
 
   return (
     <>
       {items.map((item) => {
         const Icon = item.icon;
         const active = isDashboardNavActive(pathname, item);
+        const label =
+          kind === "retraining"
+            ? retrainingMenuLabels[item.labelKey] ?? dashboardLabels.menu[item.labelKey]
+            : dashboardLabels.menu[item.labelKey];
         return (
           <Link
             key={item.href}
@@ -42,7 +49,7 @@ function NavLinks({
             )}
           >
             <Icon className="h-[22px] w-[22px] shrink-0" strokeWidth={active ? 2.1 : 1.6} />
-            <span className="min-w-0 flex-1 leading-snug">{dashboardLabels.menu[item.labelKey]}</span>
+            <span className="min-w-0 flex-1 leading-snug">{label}</span>
             {item.labelKey === "notifications" && unreadCount > 0 ? (
               <span
                 className={cn(
@@ -69,6 +76,7 @@ function SidebarChrome({
   onClose?: () => void;
   mobile?: boolean;
 }) {
+  const { home, tagline, navItems } = useStudentProgramPaths();
   return (
     <div
       className="relative flex h-full w-full flex-col overflow-hidden px-5 text-white"
@@ -77,11 +85,11 @@ function SidebarChrome({
       }}
     >
       <div className="flex shrink-0 items-start justify-between gap-2 pt-6 pb-3">
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5" onClick={onNavigate}>
+        <Link href={home} className="flex min-w-0 items-center gap-2.5" onClick={onNavigate}>
           <BrandLogo size="sm" className="h-10 w-10 shrink-0" />
           <div className="min-w-0 leading-tight">
             <p className="text-[22px] font-bold text-white">ZiyoMalaka</p>
-            <p className="text-[11px] font-normal text-white/85">{dashboardLabels.platformTagline}</p>
+            <p className="text-[11px] font-normal text-white/85">{tagline}</p>
           </div>
         </Link>
         {mobile && onClose ? (
@@ -100,7 +108,7 @@ function SidebarChrome({
         {mobile ? (
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-white/55">Menyu</p>
         ) : null}
-        <NavLinks items={dashboardNavItems} onNavigate={onNavigate} />
+        <NavLinks items={navItems ?? dashboardNavItems} onNavigate={onNavigate} />
       </nav>
 
       <div

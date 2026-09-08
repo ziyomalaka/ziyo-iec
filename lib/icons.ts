@@ -13,6 +13,7 @@ export {
   Building2,
   Calculator,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -68,6 +69,7 @@ export {
   Video,
   Wallet,
   X,
+  Loader2,
 } from "lucide-react";
 
 export {

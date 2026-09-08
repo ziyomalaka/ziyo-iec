@@ -68,6 +68,10 @@ import {
   mergeLearningWithCatalog,
 } from "@/lib/learning/workspace-tree";
 import { continueFromCourse, lessonProgressOf } from "@/lib/dashboard/continue-learning";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
+import { getRetrainingApplications } from "@/lib/retraining/applications";
+import { getRetrainingMyCourses } from "@/lib/api/retraining";
+import { isRetrainingApplication } from "@/lib/retraining/match";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import { readQualificationSnapshot } from "@/lib/qualification/published-snapshot";
 
@@ -95,13 +99,15 @@ type LearningViewProps = {
 };
 
 export default function LearningView({ courseId, initialLessonId }: LearningViewProps) {
-  // Admin majburiy blog → student: snapshot / public-mandatory (learning course emas)
+  const { kind } = useStudentProgramPaths();
   const mandatoryBlogId = parseMandatoryBlogId(courseId);
-  if (mandatoryBlogId) {
-    return <MandatoryBlockPlayer blogId={mandatoryBlogId} initialLessonId={initialLessonId} />;
-  }
-  if (isMandatoryBlockPath(courseId)) {
-    return <MandatoryBlockPlayer blogId={null} initialLessonId={initialLessonId} />;
+  if (kind !== "retraining") {
+    if (mandatoryBlogId) {
+      return <MandatoryBlockPlayer blogId={mandatoryBlogId} initialLessonId={initialLessonId} />;
+    }
+    if (isMandatoryBlockPath(courseId)) {
+      return <MandatoryBlockPlayer blogId={null} initialLessonId={initialLessonId} />;
+    }
   }
   const numericId = parseDashboardCourseId(courseId);
   if (numericId) return <LearningPlayer courseId={numericId} initialLessonId={initialLessonId} />;
@@ -110,6 +116,8 @@ export default function LearningView({ courseId, initialLessonId }: LearningView
 
 function LearningHome() {
   const router = useRouter();
+  const { kind, learning, courses } = useStudentProgramPaths();
+  const isRetraining = kind === "retraining";
   const [options, setOptions] = useState<Array<{ id: number; title: string; href: string; progress: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -118,31 +126,49 @@ function LearningHome() {
     let cancelled = false;
     void (async () => {
       try {
-        const [apps, blogs, enrolled] = await Promise.all([
-          getMyApplications().catch(() => []),
-          readMandatorySnapshot({ forceNetwork: true }).catch(() => readMandatorySnapshotLocal()),
-          getMyLearningCourses(true),
+        const [apps, blogs, enrolled, retrainingMine] = await Promise.all([
+          (isRetraining ? getRetrainingApplications() : getMyApplications()).catch(() => []),
+          isRetraining
+            ? Promise.resolve([] as QualificationDirection[])
+            : readMandatorySnapshot({ forceNetwork: true }).catch(() => readMandatorySnapshotLocal()),
+          isRetraining ? Promise.resolve([]) : getMyLearningCourses(true),
+          isRetraining ? getRetrainingMyCourses().catch(() => []) : Promise.resolve([]),
         ]);
         if (cancelled) return;
 
         const cards: Array<{ id: number; title: string; href: string; progress: number }> = [];
         const seen = new Set<number>();
 
-        for (const course of enrolled) {
-          if (!course.id || seen.has(course.id) || isMandatoryBlockCourse({ title: course.title })) continue;
-          seen.add(course.id);
-          const progress = lessonProgressOf(course).progressPercent;
-          const href = continueFromCourse(course).href;
-          cards.push({ id: course.id, title: course.title, href, progress });
+        if (isRetraining) {
+          for (const item of retrainingMine) {
+            if (!item.course_id || seen.has(item.course_id)) continue;
+            seen.add(item.course_id);
+            const lessonId = item.current_lesson_id;
+            cards.push({
+              id: item.course_id,
+              title: item.course_title,
+              href: lessonId ? `${learning}/${item.course_id}/lesson/${lessonId}` : `${learning}/${item.course_id}`,
+              progress: item.progress_percent ?? 0,
+            });
+          }
+        } else {
+          for (const course of enrolled) {
+            if (!course.id || seen.has(course.id) || isMandatoryBlockCourse({ title: course.title })) continue;
+            seen.add(course.id);
+            const progress = lessonProgressOf(course).progressPercent;
+            const href = continueFromCourse(course, learning).href;
+            cards.push({ id: course.id, title: course.title, href, progress });
+          }
         }
 
         for (const item of apps) {
           if (!isApprovedApplicationStatus(item.status) || !item.course_id || seen.has(item.course_id)) continue;
+          if (isRetraining && !isRetrainingApplication(item)) continue;
           seen.add(item.course_id);
           cards.push({
             id: item.course_id,
             title: item.title,
-            href: `/dashboard/learning/${item.course_id}`,
+            href: `${learning}/${item.course_id}`,
             progress: 0,
           });
         }
@@ -152,7 +178,7 @@ function LearningHome() {
           return;
         }
 
-        if (cards.length === 0) {
+        if (cards.length === 0 && !isRetraining) {
           const published = publishedMandatoryBlogs(blogs);
           const withLessons = published.find((item) => flattenMandatoryLessons(item).length > 0) ?? published[0];
           if (withLessons?.id) {
@@ -173,7 +199,7 @@ function LearningHome() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [isRetraining, learning, router]);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={() => window.location.reload()} />;
@@ -181,11 +207,15 @@ function LearningHome() {
     return (
       <EmptyState
         icon={BookMarked}
-        title="O'quv jarayoni ochilmagan"
-        description="Tasdiqlangan yo'nalish bo'lsa, darslar shu yerda chiqadi."
+        title={isRetraining ? "O'quv jarayoni ochilmagan" : "O'quv jarayoni ochilmagan"}
+        description={
+          isRetraining
+            ? "Tasdiqlangan qayta tayyorlash kursi bo'lsa, darslar shu yerda chiqadi."
+            : "Tasdiqlangan yo'nalish bo'lsa, darslar shu yerda chiqadi."
+        }
         action={
-          <Link href="/dashboard/courses" className="inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white">
-            Yo'nalishlarni ko'rish
+          <Link href={courses} className="inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white">
+            {isRetraining ? "Kurslarni ko'rish" : "Yo'nalishlarni ko'rish"}
           </Link>
         }
       />
@@ -461,6 +491,7 @@ function AccessBanner({
   status?: string;
   skipApplicationGate?: boolean;
 }) {
+  const { courses, applications } = useStudentProgramPaths();
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
       <p className="font-semibold text-[#0C2340]">Darslar hozircha yopiq</p>
@@ -473,11 +504,11 @@ function AccessBanner({
       {!skipApplicationGate ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {status === "none" ? (
-            <Link href="/dashboard/courses" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white">
+            <Link href={courses} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white">
               Katalogdan ariza yuborish
             </Link>
           ) : (
-            <Link href="/dashboard/applications" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white">
+            <Link href={applications} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white">
               Arizalarim
             </Link>
           )}
@@ -495,15 +526,20 @@ function AccessBanner({
   );
 }
 
-async function loadLearningCourseWithKinds(courseId: number, force = false) {
+async function loadLearningCourseWithKinds(
+  courseId: number,
+  force = false,
+  skipQualification = false,
+  prefix?: string
+) {
   if (force) invalidateLearningCache(courseId);
   const stored = readCourseLessonProgress(courseId);
   const [data, catalog, snapshot] = await Promise.all([
-    getLearningCourse(courseId),
-    getCatalogCourse(String(courseId)).catch(() => null),
-    readQualificationSnapshot({ forceNetwork: force }).catch(() => []),
+    getLearningCourse(courseId, false, prefix),
+    skipQualification ? Promise.resolve(null) : getCatalogCourse(String(courseId)).catch(() => null),
+    skipQualification ? Promise.resolve([]) : readQualificationSnapshot({ forceNetwork: force }).catch(() => []),
   ]);
-  const overlaid = overlayCatalogWithSnapshot(catalog, snapshot, courseId, data.title);
+  const overlaid = skipQualification ? null : overlayCatalogWithSnapshot(catalog, snapshot, courseId, data.title);
   const merged = mergeLearningWithCatalog(data, overlaid, stored);
   if (shouldApplySequentialUnlock(merged.modules ?? [])) {
     return applySequentialUnlock(merged, stored);
@@ -524,8 +560,10 @@ function LearningPlayer({
   const router = useRouter();
   const pathname = usePathname();
   const isLg = useIsLgUp();
+  const { kind, learning, applications, learningApi } = useStudentProgramPaths();
+  const skipQualification = kind === "retraining";
   const urlLessonId = lessonIdFromPath(pathname, initialLessonId);
-  const courseHref = `/dashboard/learning/${courseId}`;
+  const courseHref = `${learning}/${courseId}`;
   const [course, setCourse] = useState<LearningCourseResponse | null>(null);
   const courseRef = useRef<LearningCourseResponse | null>(null);
   const [lesson, setLesson] = useState<LearningLessonDetail | null>(null);
@@ -542,7 +580,7 @@ function LearningPlayer({
   };
 
   const loadCourse = useCallback(async () => {
-    const data = await loadLearningCourseWithKinds(courseId);
+    const data = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi);
     if (skipApplicationGate) {
       return rememberCourse({
         ...data,
@@ -552,18 +590,18 @@ function LearningPlayer({
     }
     if (!data.enrolled) {
       try {
-        await enrollInCourse(courseId);
+        await enrollInCourse(courseId, learningApi);
       } catch (caught) {
         if (isLearnForbiddenError(caught)) throw caught;
         if (!isAlreadyEnrolledError(caught)) {
           return rememberCourse(data);
         }
       }
-      const refreshed = await loadLearningCourseWithKinds(courseId);
+      const refreshed = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi);
       return rememberCourse({ ...refreshed, enrolled: true, can_learn: refreshed.can_learn || true });
     }
     return rememberCourse(data);
-  }, [courseId, skipApplicationGate]);
+  }, [courseId, skipApplicationGate, skipQualification, learningApi]);
 
   const openLesson = useCallback(
     async (id: number, canLearn = true) => {
@@ -587,7 +625,7 @@ function LearningPlayer({
 
       setLessonLoading(true);
       try {
-        const fromApi = await getLearningLesson(id).catch((caught) => {
+        const fromApi = await getLearningLesson(id, false, learningApi).catch((caught) => {
           if (isLearnForbiddenError(caught)) throw caught;
           return null;
         });
@@ -622,7 +660,7 @@ function LearningPlayer({
               ? "Darsga kirishda xatolik. Qayta urinib ko'ring."
               : err(caught)
           );
-          if (!skipApplicationGate) router.push("/dashboard/applications");
+          if (!skipApplicationGate) router.push(applications);
           return;
         }
         toast.error(err(caught));
@@ -630,7 +668,7 @@ function LearningPlayer({
         setLessonLoading(false);
       }
     },
-    [router, skipApplicationGate]
+    [applications, router, skipApplicationGate, learningApi]
   );
 
   useEffect(() => {
@@ -657,7 +695,7 @@ function LearningPlayer({
               ? "Kursga kirishda xatolik. Qayta urinib ko'ring."
               : err(caught)
           );
-          if (!skipApplicationGate) router.push("/dashboard/applications");
+          if (!skipApplicationGate) router.push(applications);
           return;
         }
         setError(caught);
@@ -668,7 +706,7 @@ function LearningPlayer({
     return () => {
       cancelled = true;
     };
-  }, [loadCourse, openLesson, router, skipApplicationGate]);
+  }, [applications, loadCourse, openLesson, router, skipApplicationGate]);
 
   useEffect(() => {
     if (loading || !courseRef.current || urlLessonId || selectedId) return;
@@ -685,7 +723,7 @@ function LearningPlayer({
 
   const refreshLive = useCallback(async () => {
     try {
-      const data = await loadLearningCourseWithKinds(courseId);
+      const data = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi);
       const next = skipApplicationGate
         ? { ...data, enrolled: true, can_learn: data.can_learn !== false }
         : data;
@@ -702,14 +740,14 @@ function LearningPlayer({
         return;
       }
       if ((!skipApplicationGate && !next.can_learn)) return;
-      const lessonData = await getLearningLesson(nextId);
+      const lessonData = await getLearningLesson(nextId, false, learningApi);
       const kind = sidebarLessonKind(lessonData);
       setSelectedId(lessonData.id || nextId);
       setLesson({ ...lessonData, lesson_type: kind });
     } catch {
       /* fon yangilash */
     }
-  }, [courseId, selectedId, skipApplicationGate]);
+  }, [courseId, selectedId, skipApplicationGate, skipQualification, learningApi]);
 
   useLiveRefresh(() => void refreshLive());
 
@@ -720,9 +758,9 @@ function LearningPlayer({
     setCompleting(true);
     markCourseLessonCompleted(courseId, selectedId);
     try {
-      const result = await completeLearningLesson(selectedId);
+      const result = await completeLearningLesson(selectedId, false, learningApi);
       toast.success("Dars tugatildi");
-      const data = await loadLearningCourseWithKinds(courseId, true);
+      const data = await loadLearningCourseWithKinds(courseId, true, skipQualification, learningApi);
       rememberCourse(
         skipApplicationGate
           ? { ...data, enrolled: true, can_learn: data.can_learn !== false }
@@ -739,10 +777,10 @@ function LearningPlayer({
       }
     } catch (caught) {
       invalidateLearningCache(courseId);
-      const data = await loadLearningCourseWithKinds(courseId, true).catch(() => null);
+      const data = await loadLearningCourseWithKinds(courseId, true, skipQualification, learningApi).catch(() => null);
       if (data) rememberCourse(data);
       if (isLearnForbiddenError(caught)) {
-        if (!skipApplicationGate) router.push("/dashboard/applications");
+        if (!skipApplicationGate) router.push(applications);
         else toast.error("Darsni yakunlashda ruxsat yo'q. Qayta urinib ko'ring.");
         return;
       }

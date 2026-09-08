@@ -32,9 +32,11 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
       return;
     }
 
-    const role = getAuthUser()?.role;
+    const user = getAuthUser();
+    const role = user?.role;
     if (!canAccessPath(pathname, role)) {
-      router.replace(isStaffRole(role) ? getPostLoginPath(role) : "/dashboard");
+      // Student bo'lsa: dasturi bo'yicha panelga, program_type bo'sh bo'lsa tanlash sahifasiga.
+      router.replace(getPostLoginPath(role, user?.program_type));
       return;
     }
 

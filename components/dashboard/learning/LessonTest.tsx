@@ -24,6 +24,7 @@ import { recordSubmitForResults, readLessonTestAttempt, saveLessonTestAttempt } 
 import { ApiError } from "@/lib/api/errors";
 import { MAX_LESSON_TEST_ATTEMPTS } from "@/lib/learning/required-materials";
 import { useLearningChrome } from "@/components/dashboard/learning/LearningChromeContext";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 import { Link } from "@/i18n/navigation";
 
 // ─── Holat tiplari ────────────────────────────────────────────────────────────
@@ -97,6 +98,7 @@ export default function LessonTest({
   const [submitHint, setSubmitHint] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const { setHideBottomNav } = useLearningChrome();
+  const { learningApi, kind } = useStudentProgramPaths();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedCalledRef = useRef(false);
@@ -172,7 +174,7 @@ export default function LessonTest({
 
     void (async () => {
       try {
-        const summaries = await fetchLessonTestSummaries(lessonId);
+        const summaries = await fetchLessonTestSummaries(lessonId, learningApi);
         if (cancelled) return;
         const first = summaries[0];
         if (first) {
@@ -210,7 +212,7 @@ export default function LessonTest({
     return () => {
       cancelled = true;
     };
-  }, [lessonId, materialTestId, materialTest?.title]);
+  }, [lessonId, materialTestId, materialTest?.title, learningApi]);
 
   // Taymer — vaqt tugasa ham javobsiz testdi yubormaydi
   useEffect(() => {
@@ -287,7 +289,7 @@ export default function LessonTest({
 
     try {
       const preloadedId = knownTestId ?? findTestMaterial(materials)?.id ?? undefined;
-      const test = await fetchLessonTest(lessonId, preloadedId);
+      const test = await fetchLessonTest(lessonId, preloadedId, learningApi);
 
       if (!test || test.questions.length === 0) {
         setPhase({
@@ -398,7 +400,7 @@ export default function LessonTest({
 
       try {
         const result = attachSubmittedAnswers(
-          await submitLessonTest(test.id, lessonId, submitAnswers),
+          await submitLessonTest(test.id, lessonId, submitAnswers, learningApi),
           currentAnswers,
           test.questions,
           test.passing_score
@@ -422,6 +424,7 @@ export default function LessonTest({
           moduleTitle: metaRef.current.moduleTitle,
           lessonTitle: metaRef.current.lessonTitle,
           result: normalized,
+          scope: kind,
         });
         persistAttempt(test, normalized, currentAnswers);
 
@@ -1098,6 +1101,7 @@ function ResultPanel({ result, test, answers, attemptLimit, onRetry, onClose, on
   onClose: () => void;
   onContinue: () => void;
 }) {
+  const { results } = useStudentProgramPaths();
   const canRetry = canRetryTest(result, attemptLimit);
   const exhausted = isAttemptsExhausted(result, attemptLimit);
   const attemptsLeft = result.attempts_remaining ?? result.remaining_attempts;
@@ -1317,7 +1321,7 @@ function ResultPanel({ result, test, answers, attemptLimit, onRetry, onClose, on
           </button>
         ) : null}
         <Link
-          href="/dashboard/results"
+          href={results}
           className="text-sm font-medium text-[#2563EB]"
         >
           Natijalarimni ko&apos;rish

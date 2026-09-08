@@ -7,6 +7,7 @@ import { getAuthUser } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/sign-out";
 import { dashboardLabels } from "@/lib/dashboard/labels";
 import { getDashboardPageTitle } from "@/lib/dashboard/navigation";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 import { mapAuthUserToDashboard, getShortName } from "@/lib/dashboard/utils";
 import LogoutConfirmModal from "@/components/dashboard/layout/LogoutConfirmModal";
 import { useDashboardSearch } from "@/components/dashboard/layout/DashboardSearchContext";
@@ -30,10 +31,11 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const user = mapAuthUserToDashboard(getAuthUser());
-  const pageTitle = getDashboardPageTitle(pathname);
+  const paths = useStudentProgramPaths();
+  const pageTitle = paths.pageTitle?.(pathname) ?? getDashboardPageTitle(pathname);
   const isMyDirectionPage =
-    pathname === "/dashboard/my-courses" || pathname.startsWith("/dashboard/my-direction");
-  const hideHeaderSearch = pathname !== "/dashboard/courses";
+    pathname === paths.myCourses || pathname.startsWith(`${paths.base}/my-direction`);
+  const hideHeaderSearch = pathname !== paths.courses;
 
   useEffect(() => {
     const handler = (e: PointerEvent) => {
@@ -77,7 +79,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
           >
             <Menu className="h-5 w-5" strokeWidth={1.75} />
           </button>
-          <Link href="/dashboard" className="min-w-0 lg:hidden" aria-label="ZiyoMalaka">
+          <Link href={paths.home} className="min-w-0 lg:hidden" aria-label="ZiyoMalaka">
             <span className="block truncate text-[15px] font-bold leading-none text-[#0C2340]">ZiyoMalaka</span>
           </Link>
           {isMyDirectionPage ? (
@@ -143,7 +145,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                       </button>
                     ) : null}
                     <Link
-                      href="/dashboard/notifications"
+                      href={paths.notifications}
                       className="text-[12px] font-medium text-[#0756F5]"
                       onClick={() => setNotifOpen(false)}
                     >
@@ -171,7 +173,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                         onClick={() => {
                           if (!n.read) markRead(n.id);
                           setNotifOpen(false);
-                          router.push("/dashboard/notifications");
+                          router.push(paths.notifications);
                         }}
                       >
                         <div className="flex w-full items-start justify-between gap-2">
@@ -212,7 +214,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                 className="absolute top-full right-0 z-[80] mt-2 w-52 overflow-hidden rounded-xl border border-[#DFE7F2] bg-white py-1 shadow-[0_12px_32px_rgba(15,35,70,0.16)]"
               >
                 <Link
-                  href="/dashboard/profile"
+                  href={paths.profile}
                   role="menuitem"
                   className="flex min-h-11 items-center gap-2 px-4 py-2.5 text-[13px] text-[#35466c] hover:bg-[#F7FAFE]"
                   onClick={() => setMenuOpen(false)}

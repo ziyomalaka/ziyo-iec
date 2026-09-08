@@ -208,6 +208,7 @@ export function applicationSupervisorCommentDraft(item?: { comment?: string | nu
 function isTechnicalApplicationComment(item: { course_id?: number } | null | undefined, note: string) {
   if (!note) return false;
   if (item?.course_id && note === String(item.course_id)) return true;
+  if (note.startsWith("retraining:")) return true;
   return Boolean(parseCatalogApplicationRef(note));
 }
 

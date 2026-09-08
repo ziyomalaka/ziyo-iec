@@ -14,11 +14,11 @@ export default function AuthPageTopBar() {
   };
 
   return (
-    <div className="flex shrink-0 items-center justify-between py-1">
+    <div className="flex shrink-0 items-center justify-between gap-2 py-1">
       <button
         type="button"
         onClick={handleBack}
-        className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-white text-slate-700 shadow-sm transition-colors hover:border-primary hover:text-primary"
+        className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white text-slate-700 shadow-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
         aria-label={t("back")}
       >
         <ArrowLeft className="h-5 w-5" />

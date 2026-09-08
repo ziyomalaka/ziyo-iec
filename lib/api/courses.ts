@@ -5,6 +5,7 @@
 import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { pickFileUrl } from "@/lib/api/media";
+import { COURSES_API_PREFIX } from "@/lib/api/student-api";
 import { asList, asPaged, parsePositiveInt, unwrapApiPayload } from "@/lib/api/unwrap";
 import { lessonKindFromDescription, mapStoredLessonKind } from "@/lib/learning/lesson-kind";
 import { isRemovedLessonRecord, isVisibleToStudent } from "@/lib/publish-status";
@@ -90,6 +91,12 @@ function mapCourseCard(data: unknown): CourseCardResponse | null {
     status,
     status_label: optionalString(row.status_label),
     thumbnail_url: optionalString(row.thumbnail_url),
+    kind: optionalString(row.kind),
+    application_id: parsePositiveInt(row.application_id) ?? undefined,
+    application_status: optionalString(row.application_status),
+    can_apply: typeof row.can_apply === "boolean" ? row.can_apply : undefined,
+    cta: optionalString(row.cta),
+    reject_reason: optionalString(row.reject_reason),
   };
 }
 
@@ -173,6 +180,10 @@ function mapCourseDetail(data: unknown): CourseDetailResponse {
   return {
     ...card,
     description: optionalString(row.description),
+    goal: optionalString(row.goal ?? row.purpose),
+    requirements: optionalString(row.requirements),
+    admission: optionalString(row.admission ?? row.admission_terms),
+    study_form: optionalString(row.study_form ?? row.study_format ?? row.format),
     modules: modules.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
   };
 }
@@ -181,9 +192,19 @@ function silentGet(silentAuth?: boolean) {
   return silentAuth ? { skipAuthRedirect: true } : {};
 }
 
+function coursesPath(prefix: string, rest = "") {
+  const base = (prefix || COURSES_API_PREFIX.malaka).replace(/\/$/, "");
+  if (!rest) return base;
+  return `${base}${rest.startsWith("/") ? rest : `/${rest}`}`;
+}
+
 /** GET /courses — filtr, qidiruv, pagination */
-export async function getCourses(query: CourseListQuery = {}, silentAuth = false): Promise<CourseListResponse> {
-  const data = await apiRequest<unknown>(`/courses${toQuery(query)}`, silentGet(silentAuth));
+export async function getCourses(
+  query: CourseListQuery = {},
+  silentAuth = false,
+  prefix: string = COURSES_API_PREFIX.malaka
+): Promise<CourseListResponse> {
+  const data = await apiRequest<unknown>(`${coursesPath(prefix)}${toQuery(query)}`, silentGet(silentAuth));
   const page = asPaged<unknown>(data);
   const items = (page.items.length ? page.items : asList<unknown>(data, ["items", "courses"]))
     .map(mapCourseCard)
@@ -198,9 +219,16 @@ export async function getCourses(query: CourseListQuery = {}, silentAuth = false
 }
 
 /** GET /courses/{id} */
-export async function getCourse(id: string | number, silentAuth = false) {
+export async function getCourse(
+  id: string | number,
+  silentAuth = false,
+  prefix: string = COURSES_API_PREFIX.malaka
+) {
   const detail = mapCourseDetail(
-    await apiRequest<unknown>(`/courses/${encodeURIComponent(String(id))}`, silentGet(silentAuth))
+    await apiRequest<unknown>(
+      coursesPath(prefix, `/${encodeURIComponent(String(id))}`),
+      silentGet(silentAuth)
+    )
   );
   if (!isVisibleToStudent(detail.status)) {
     throw new ApiError(404, "Kurs topilmadi");
@@ -209,8 +237,11 @@ export async function getCourse(id: string | number, silentAuth = false) {
 }
 
 /** GET /courses/filters */
-export async function getCourseFilters(silentAuth = false): Promise<CourseFiltersResponse> {
-  const data = await apiRequest<unknown>("/courses/filters", silentGet(silentAuth));
+export async function getCourseFilters(
+  silentAuth = false,
+  prefix: string = COURSES_API_PREFIX.malaka
+): Promise<CourseFiltersResponse> {
+  const data = await apiRequest<unknown>(coursesPath(prefix, "/filters"), silentGet(silentAuth));
   const row = asRecord(unwrapApiPayload(data));
   return {
     directions: mapFilterOptions(row.directions ?? row.categories),

@@ -13,6 +13,7 @@ import { useEscapeKey } from "@/lib/hooks/useEscapeKey";
 const titles: Record<string, string> = {
   "/admin/software/qualification/material/create": "Material qo'shish",
   "/admin/software/qualification": "Malaka oshirish",
+  "/admin/software/retraining": "Qayta tayyorlash",
   "/admin/software/mandatory": "Majburiy blog",
   "/admin/software/library": "Kutubxona",
   "/admin/management": "Boshqaruv",

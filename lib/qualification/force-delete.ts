@@ -26,9 +26,16 @@ import {
   getMandatoryBlogModules,
   getMandatoryModuleLessons,
 } from "@/lib/api/mandatory-blogs";
-import type { QualificationDirection, QualificationLesson } from "@/lib/api/types/qualification";
+import {
+  deleteRetrainingDirection,
+  deleteRetrainingLesson,
+  deleteRetrainingModule,
+  getRetrainingDirectionModules,
+  getRetrainingModuleLessons,
+} from "@/lib/api/retraining-admin";
+import type { ContentSource, QualificationDirection, QualificationLesson } from "@/lib/api/types/qualification";
 import type { ItDirection, ItLesson, ItModule } from "@/lib/api/types/admin";
-import { isItSource, isMandatorySource } from "@/lib/qualification/it-bridge";
+import { isItSource, isMandatorySource, isRetrainingSource } from "@/lib/qualification/it-bridge";
 
 async function goneOrOk(run: () => Promise<unknown>) {
   try {
@@ -65,9 +72,20 @@ function materialIds(lesson?: QualificationLesson | null) {
 export async function forceDeleteLesson(
   id: number,
   lesson?: QualificationLesson | null,
-  source?: "it" | "mandatory" | "qualification"
+  source?: ContentSource
 ) {
   if (!id) return;
+
+  if (source === "retraining" || isRetrainingSource(lesson?.source)) {
+    // Backend: DELETE /api/v1/admin/lessons/{id} — soft-delete + material/test cascade.
+    try {
+      await deleteRetrainingLesson(id);
+      return;
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return;
+      throw error instanceof ApiError ? error : new ApiError(400, "Dars o'chirilmadi");
+    }
+  }
 
   const isMandatory = source === "mandatory" || isMandatorySource(lesson?.source);
 
@@ -135,9 +153,25 @@ export async function forceDeleteModule(
   id: number,
   lessons: QualificationLesson[] | { id: number }[] = [],
   itDirectionId?: number,
-  source?: "it" | "mandatory" | "qualification"
+  source?: ContentSource
 ) {
   if (!id) return;
+
+  if (source === "retraining") {
+    const lessonIds = new Set(lessons.map((item) => item.id).filter((item) => item > 0));
+    const nested = await getRetrainingModuleLessons(id).catch(() => []);
+    for (const item of nested) lessonIds.add(item.id);
+    for (const lessonId of lessonIds) {
+      await goneOrOk(() => forceDeleteLesson(lessonId, null, "retraining"));
+    }
+    try {
+      await deleteRetrainingModule(id);
+      return;
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return;
+      throw error instanceof ApiError ? error : new ApiError(400, "Modul o'chirilmadi");
+    }
+  }
 
   const isMandatory = source === "mandatory";
 
@@ -239,6 +273,17 @@ export async function forceDeleteItDirection(direction: ItDirection) {
 }
 
 export async function forceDeleteDirection(direction: QualificationDirection) {
+  if (isRetrainingSource(direction.source)) {
+    const nested = direction.modules?.length
+      ? direction.modules
+      : await getRetrainingDirectionModules(direction.id).catch(() => []);
+    for (const mod of nested) {
+      await goneOrOk(() => forceDeleteModule(mod.id, mod.lessons ?? [], undefined, "retraining"));
+    }
+    await deleteRetrainingDirection(direction.id);
+    return;
+  }
+
   if (isMandatorySource(direction.source)) {
     const nested =
       direction.modules?.length

@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/notifications";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import { studentApiErrorMessage } from "@/lib/learning/student-errors";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 
 type NotificationsContextValue = {
   items: Notification[];
@@ -46,6 +47,7 @@ const EMPTY: NotificationListState = {
 };
 
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
+  const { notificationsApi } = useStudentProgramPaths();
   const [state, setState] = useState<NotificationListState>(EMPTY);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -61,8 +63,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     if (!silent) setLoading(true);
     try {
       const [listResult, countResult] = await Promise.allSettled([
-        getNotifications({ page: nextPage, per_page: NOTIFICATIONS_PER_PAGE }),
-        getUnreadCount(),
+        getNotifications({ page: nextPage, per_page: NOTIFICATIONS_PER_PAGE }, notificationsApi),
+        getUnreadCount(notificationsApi),
       ]);
       if (seq !== requestSeq.current) return;
 
@@ -86,7 +88,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     } finally {
       if (seq === requestSeq.current) setLoading(false);
     }
-  }, [page]);
+  }, [page, notificationsApi]);
 
   useEffect(() => {
     void refresh(false, page);
@@ -96,7 +98,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
   const syncUnread = useCallback(async () => {
     try {
-      const unread = await getUnreadCount();
+      const unread = await getUnreadCount(notificationsApi);
       setState((prev) => ({ ...prev, unread }));
     } catch {
       setState((prev) => ({
@@ -104,14 +106,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         unread: prev.items.filter((item) => !item.read).length,
       }));
     }
-  }, []);
+  }, [notificationsApi]);
 
   const markRead = useCallback(async (id: string) => {
     if (inflightRead.current.has(id)) return;
     inflightRead.current.add(id);
     setState((prev) => applyNotificationMutation(prev, { id, read: true }));
     try {
-      const payload = await markNotificationRead(id);
+      const payload = await markNotificationRead(id, notificationsApi);
       setState((prev) => applyNotificationMutation(prev, payload ?? { id, read: true }));
       await syncUnread();
     } catch (err) {
@@ -120,14 +122,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     } finally {
       inflightRead.current.delete(id);
     }
-  }, [refresh, syncUnread]);
+  }, [refresh, syncUnread, notificationsApi]);
 
   const markAllRead = useCallback(async () => {
     if (inflightAll.current) return;
     inflightAll.current = true;
     setState((prev) => applyNotificationMutation(prev, { unread: 0 }));
     try {
-      const payload = await markAllNotificationsRead();
+      const payload = await markAllNotificationsRead(notificationsApi);
       setState((prev) => applyNotificationMutation(prev, payload ?? { unread: 0 }));
       await syncUnread();
       toast.success("Barcha bildirishnomalar o'qilgan deb belgilandi.");
@@ -137,14 +139,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     } finally {
       inflightAll.current = false;
     }
-  }, [refresh, syncUnread]);
+  }, [refresh, syncUnread, notificationsApi]);
 
   const remove = useCallback(async (id: string) => {
     if (inflightDelete.current.has(id)) return;
     inflightDelete.current.add(id);
     setState((prev) => applyNotificationMutation(prev, { deleted: true, id }));
     try {
-      const payload = await deleteNotification(id);
+      const payload = await deleteNotification(id, notificationsApi);
       setState((prev) => applyNotificationMutation(prev, payload ?? { deleted: true, id }));
       await syncUnread();
       toast.success("Xabar o'chirildi.");
@@ -154,7 +156,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     } finally {
       inflightDelete.current.delete(id);
     }
-  }, [refresh, syncUnread]);
+  }, [refresh, syncUnread, notificationsApi]);
 
   const removeAll = useCallback(async () => {
     if (inflightClear.current) return;
@@ -167,7 +169,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       total_pages: 1,
     }));
     try {
-      await deleteAllNotifications();
+      await deleteAllNotifications(notificationsApi);
       await syncUnread();
       toast.success("Barcha xabarlar o'chirildi.");
     } catch (err) {
@@ -176,7 +178,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     } finally {
       inflightClear.current = false;
     }
-  }, [refresh, syncUnread]);
+  }, [refresh, syncUnread, notificationsApi]);
 
   const silentRefresh = useCallback(() => refresh(true), [refresh]);
   const reload = useCallback(() => refresh(false), [refresh]);

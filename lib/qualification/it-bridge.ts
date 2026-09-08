@@ -26,6 +26,15 @@ export function isMandatorySource(source?: ContentSource) {
   return source === "mandatory";
 }
 
+export function isRetrainingSource(source?: ContentSource) {
+  return source === "retraining";
+}
+
+/** Yo'nalish daraxti umumiy `/api/v1/admin/qualification-directions` snapshotiga tegishlimi. */
+export function usesQualificationSnapshot(source?: ContentSource) {
+  return !isMandatorySource(source) && !isRetrainingSource(source);
+}
+
 export function wizardDirectionId(direction: QualificationDirection, qualModule?: QualificationModule) {
   if (isItSource(qualModule?.source) || isItSource(direction.source)) {
     return direction.itId ?? direction.id;
@@ -36,6 +45,7 @@ export function wizardDirectionId(direction: QualificationDirection, qualModule?
 export function wizardSource(direction: QualificationDirection, qualModule?: QualificationModule): ContentSource {
   if (isItSource(qualModule?.source) || isItSource(direction.source)) return "it";
   if (isMandatorySource(qualModule?.source) || isMandatorySource(direction.source)) return "mandatory";
+  if (isRetrainingSource(qualModule?.source) || isRetrainingSource(direction.source)) return "retraining";
   return "qualification";
 }
 

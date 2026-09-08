@@ -59,14 +59,18 @@ export function launchFromSearch(search: { get: (key: string) => string | null }
   const source = search.get("source");
   const directionId = Number(search.get("directionId") ?? "");
   const hasDirection = Number.isInteger(directionId) && directionId > 0;
-  if (!hasDirection && source !== "mandatory") return null;
+  // Majburiy blog / qayta tayyorlash panellari yo'nalishsiz ham 1-bosqichdan boshlanadi.
+  if (!hasDirection && source !== "mandatory" && source !== "retraining") return null;
   const step = Number(search.get("step") ?? "");
   const moduleId = Number(search.get("moduleId") ?? "");
   const moduleNumber = Number(search.get("moduleNumber") ?? "");
   const lessonId = Number(search.get("lessonId") ?? "");
   const lessonNumber = Number(search.get("lessonNumber") ?? "");
   const lessonType = search.get("lessonType");
-  const parsedSource = source === "it" ? "it" : source === "mandatory" ? "mandatory" : source === "qualification" ? "qualification" : undefined;
+  const parsedSource =
+    source === "it" || source === "mandatory" || source === "retraining" || source === "qualification"
+      ? (source as ContentSource)
+      : undefined;
   return {
     directionId: hasDirection ? directionId : undefined,
     source: parsedSource,

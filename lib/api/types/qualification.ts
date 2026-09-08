@@ -10,7 +10,7 @@ export type QualificationMaterialType =
 
 export type QualificationPublishStatus = "DRAFT" | "PUBLISHED" | "INACTIVE" | "ARCHIVED";
 
-export type ContentSource = "qualification" | "it" | "mandatory";
+export type ContentSource = "qualification" | "it" | "mandatory" | "retraining";
 
 export type QualificationDirection = {
   id: number;

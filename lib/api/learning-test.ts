@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { getAuthToken } from "@/lib/auth/session";
 import { withLearningAccessRetry } from "@/lib/api/learning-access";
+import { LEARNING_API_PREFIX, learningApiPath } from "@/lib/api/student-api";
 import { parsePositiveInt, asList, unwrapApiPayload } from "@/lib/api/unwrap";
 
 function asRecord(data: unknown): Record<string, unknown> {
@@ -684,12 +685,15 @@ function logStudentTestAuth(lessonId: number) {
  * 401/403/5xx — ApiError throw (bo'sh array emas).
  * 404 yoki 200 + bo'sh — [].
  */
-export async function fetchLessonTestSummaries(lessonId: number): Promise<LessonTestSummary[]> {
+export async function fetchLessonTestSummaries(
+  lessonId: number,
+  prefix: string = LEARNING_API_PREFIX.malaka
+): Promise<LessonTestSummary[]> {
   logStudentTestAuth(lessonId);
 
   try {
     const data = await withLearningAccessRetry(() =>
-      apiRequest<unknown>(`/learning/lessons/${lessonId}/tests`)
+      apiRequest<unknown>(learningApiPath(prefix, `/lessons/${lessonId}/tests`))
     );
     const tests = normalizeTestSummaries(data, lessonId);
     console.log("STUDENT LESSON TESTS OK:", {
@@ -714,19 +718,23 @@ export async function fetchLessonTestSummaries(lessonId: number): Promise<Lesson
 }
 
 /** GET /learning/lessons/{id}/tests → tests[0].id (yoki null agar yo'q) */
-export async function fetchLessonTestId(lessonId: number): Promise<number | null> {
-  const list = await fetchLessonTestSummaries(lessonId);
+export async function fetchLessonTestId(
+  lessonId: number,
+  prefix: string = LEARNING_API_PREFIX.malaka
+): Promise<number | null> {
+  const list = await fetchLessonTestSummaries(lessonId, prefix);
   return list[0]?.id ?? null;
 }
 
 /** GET /learning/tests/{testId} */
 export async function fetchTestByTestId(
   testId: number,
-  lessonId?: number
+  lessonId?: number,
+  prefix: string = LEARNING_API_PREFIX.malaka
 ): Promise<LessonTestData | null> {
   try {
     const data = await withLearningAccessRetry(() =>
-      apiRequest<unknown>(`/learning/tests/${testId}`)
+      apiRequest<unknown>(learningApiPath(prefix, `/tests/${testId}`))
     );
     return asTestData(data, lessonId);
   } catch (err) {
@@ -744,25 +752,26 @@ export async function fetchTestByTestId(
  */
 export async function fetchLessonTest(
   lessonId: number,
-  preloadedTestId?: number
+  preloadedTestId?: number,
+  prefix: string = LEARNING_API_PREFIX.malaka
 ): Promise<LessonTestData | null> {
   if (preloadedTestId) {
-    const test = await fetchTestByTestId(preloadedTestId, lessonId);
+    const test = await fetchTestByTestId(preloadedTestId, lessonId, prefix);
     if (test) return test;
   }
 
-  const testId = await fetchLessonTestId(lessonId);
+  const testId = await fetchLessonTestId(lessonId, prefix);
   if (!testId) return null;
 
-  return fetchTestByTestId(testId, lessonId);
+  return fetchTestByTestId(testId, lessonId, prefix);
 }
 
 export async function submitLessonTest(
   testId: number,
   lessonId: number,
-  answers: TestSubmitAnswer[]
+  answers: TestSubmitAnswer[],
+  prefix: string = LEARNING_API_PREFIX.malaka
 ): Promise<LessonTestResult> {
-  // POST /learning/tests/{id}/submit — faqat student learning API
   const body = JSON.stringify({
     answers: answers.map((a) => ({
       question_id: a.question_id,
@@ -772,7 +781,7 @@ export async function submitLessonTest(
   });
 
   try {
-    const data = await apiRequest<unknown>(`/learning/tests/${testId}/submit`, {
+    const data = await apiRequest<unknown>(learningApiPath(prefix, `/tests/${testId}/submit`), {
       method: "POST",
       body,
     });

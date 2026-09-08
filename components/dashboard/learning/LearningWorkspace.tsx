@@ -30,6 +30,7 @@ import {
 import { isAttemptsExhausted } from "@/lib/api/learning-test";
 import { ensureLearningTree, flattenLearningLessons } from "@/lib/learning/workspace-tree";
 import { cn } from "@/lib/cn";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 
 function moduleLessons(module: LearningModule): LearningLessonSummary[] {
   return module.lessons ?? module.items ?? [];
@@ -63,12 +64,15 @@ export default function LearningWorkspace({
   banner,
   empty,
   courseHref,
-  backHref = "/dashboard/my-courses",
+  backHref,
   pane = "outline",
   onOpenLesson,
   onComplete,
   onTestPassed,
 }: LearningWorkspaceProps) {
+  const paths = useStudentProgramPaths();
+  const resolvedBackHref = backHref ?? (paths.kind === "retraining" ? paths.learning : paths.myCourses);
+  const backLabel = paths.kind === "retraining" ? "← O'quv jarayoni" : "← Mening yo'nalishim";
   const tree = useMemo(() => ensureLearningTree(course), [course]);
   const allLessons = useMemo(() => flattenLearningLessons(tree.modules ?? []), [tree]);
   const [openModules, setOpenModules] = useState<number[]>([]);
@@ -129,7 +133,7 @@ export default function LearningWorkspace({
       writeMaterialProgress(lesson.id, [...next]);
       return next;
     });
-    await completeLessonMaterial(lesson.id, opts);
+    await completeLessonMaterial(lesson.id, opts, paths.learningApi);
   };
 
   const prevId =
@@ -160,8 +164,8 @@ export default function LearningWorkspace({
 
   const outline = (
     <aside className="min-w-0">
-      <Link href={backHref} className="mb-3 inline-flex min-h-11 items-center text-sm font-medium text-[#2563EB] lg:hidden">
-        ← Mening yo&apos;nalishim
+      <Link href={resolvedBackHref} className="mb-3 inline-flex min-h-11 items-center text-sm font-medium text-[#2563EB] lg:hidden">
+        {backLabel}
       </Link>
       <h2 className="break-words font-bold text-[#0C2340]">{tree.title || "Kurs tarkibi"}</h2>
       <p className="mt-1 text-sm text-[#64748B]">Jarayon: {tree.progress_percent ?? 0}%</p>

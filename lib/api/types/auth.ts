@@ -7,6 +7,8 @@ export type UserResponse = {
   phone_number: string;
   nickname?: string;
   role: string;
+  /** Yangi register; eski userlarda bo'lmasligi mumkin. */
+  program_type?: "MALAKA_OSHIRISH" | "QAYTA_TAYYORLASH" | string | null;
 };
 
 export type AuthResponse = {
@@ -31,6 +33,8 @@ export type RegisterRequest = {
   password: string;
   password_confirm: string;
   password_plain?: string;
+  program_type?: "MALAKA_OSHIRISH" | "QAYTA_TAYYORLASH";
+  retraining_type?: "UMUMIY" | "KASBIY" | "PEDAGOGIK";
 };
 
 export type ForgotPasswordRequest = {

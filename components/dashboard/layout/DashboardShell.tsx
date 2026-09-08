@@ -55,9 +55,11 @@ function DashboardShellInner({
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isCoursesCatalog = pathname === "/dashboard/courses";
+  const isCoursesCatalog = pathname === "/dashboard/courses" || pathname === "/retraining/courses";
   const isMyDirection =
-    pathname === "/dashboard/my-courses" || pathname.startsWith("/dashboard/my-direction");
+    pathname === "/dashboard/my-courses" ||
+    pathname.startsWith("/dashboard/my-direction") ||
+    pathname === "/retraining/my-courses";
 
   useLockBodyScroll(mobileOpen);
   useEscapeKey(mobileOpen, () => setMobileOpen(false));

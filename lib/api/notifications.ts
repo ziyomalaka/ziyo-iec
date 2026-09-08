@@ -447,43 +447,46 @@ export function notificationErrorMessage(error: unknown, fallback: string): stri
   }
 }
 
-export async function getNotifications(params: {
-  page?: number;
-  per_page?: number;
-} = {}): Promise<NotificationListState> {
+export async function getNotifications(
+  params: {
+    page?: number;
+    per_page?: number;
+  } = {},
+  prefix: string = "/notifications"
+): Promise<NotificationListState> {
   const page = params.page ?? 1;
   const per_page = params.per_page ?? NOTIFICATIONS_PER_PAGE;
   const data = await apiRequest<unknown>(
-    `/notifications${toQuery({ page, per_page })}`
+    `${prefix}${toQuery({ page, per_page })}`
   );
   return parseNotificationList(data, { page, per_page });
 }
 
-export async function getUnreadCount(): Promise<number> {
-  const data = await apiRequest<unknown>("/notifications/unread-count");
+export async function getUnreadCount(prefix: string = "/notifications"): Promise<number> {
+  const data = await apiRequest<unknown>(`${prefix}/unread-count`);
   return parseUnreadCount(data);
 }
 
-export async function markNotificationRead(id: string): Promise<unknown> {
-  return apiRequest<unknown>(`/notifications/${encodeURIComponent(id)}/read`, {
+export async function markNotificationRead(id: string, prefix: string = "/notifications"): Promise<unknown> {
+  return apiRequest<unknown>(`${prefix}/${encodeURIComponent(id)}/read`, {
     method: "PUT",
   });
 }
 
-export async function markAllNotificationsRead(): Promise<unknown> {
-  return apiRequest<unknown>("/notifications/read-all", {
+export async function markAllNotificationsRead(prefix: string = "/notifications"): Promise<unknown> {
+  return apiRequest<unknown>(`${prefix}/read-all`, {
     method: "PUT",
   });
 }
 
-export async function deleteNotification(id: string): Promise<unknown> {
-  return apiRequest<unknown>(`/notifications/${encodeURIComponent(id)}`, {
+export async function deleteNotification(id: string, prefix: string = "/notifications"): Promise<unknown> {
+  return apiRequest<unknown>(`${prefix}/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
 
-export async function deleteAllNotifications(): Promise<unknown> {
-  return apiRequest<unknown>("/notifications", {
+export async function deleteAllNotifications(prefix: string = "/notifications"): Promise<unknown> {
+  return apiRequest<unknown>(prefix, {
     method: "DELETE",
   });
 }

@@ -40,11 +40,11 @@ export default function LoginLanguageSwitcher() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-white hover:text-primary"
+        className="flex max-w-[min(100%,11.5rem)] items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-white hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 sm:max-w-none sm:px-3"
         aria-label={t("language")}
       >
-        <Globe className="h-4 w-4" />
-        {t(localeFullKeys[locale])}
+        <Globe className="h-4 w-4 shrink-0" />
+        <span className="truncate">{t(localeFullKeys[locale])}</span>
         <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
       </button>
       {open && (

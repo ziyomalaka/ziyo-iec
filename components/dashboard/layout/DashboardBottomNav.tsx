@@ -3,12 +3,16 @@
 import { Link, usePathname } from "@/i18n/navigation";
 import { dashboardLabels } from "@/lib/dashboard/labels";
 import { dashboardBottomNavItems, isDashboardNavActive } from "@/lib/dashboard/navigation";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
+import { retrainingMenuLabels, retrainingMenuShort } from "@/lib/retraining/navigation";
 import { cn } from "@/lib/cn";
 
 const shortLabels = dashboardLabels.menuShort;
 
 export default function DashboardBottomNav() {
   const pathname = usePathname();
+  const { kind, bottomNavItems } = useStudentProgramPaths();
+  const items = bottomNavItems ?? dashboardBottomNavItems;
 
   return (
     <nav
@@ -16,10 +20,17 @@ export default function DashboardBottomNav() {
       aria-label="Asosiy bo'limlar"
     >
       <ul className="grid h-16 grid-cols-5">
-        {dashboardBottomNavItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           const active = isDashboardNavActive(pathname, item);
-          const short = shortLabels[item.labelKey as keyof typeof shortLabels];
+          const short =
+            kind === "retraining"
+              ? retrainingMenuShort[item.labelKey] ?? retrainingMenuLabels[item.labelKey]
+              : shortLabels[item.labelKey as keyof typeof shortLabels];
+          const aria =
+            kind === "retraining"
+              ? retrainingMenuLabels[item.labelKey] ?? dashboardLabels.menu[item.labelKey]
+              : dashboardLabels.menu[item.labelKey];
           return (
             <li key={item.href}>
               <Link
@@ -29,7 +40,7 @@ export default function DashboardBottomNav() {
                   active ? "text-[#0756F5]" : "text-[#64748B]"
                 )}
                 aria-current={active ? "page" : undefined}
-                aria-label={dashboardLabels.menu[item.labelKey]}
+                aria-label={aria}
               >
                 <Icon className="h-5 w-5 shrink-0" strokeWidth={active ? 2.2 : 1.75} />
                 <span className="max-w-full truncate text-[10px] font-semibold leading-tight">

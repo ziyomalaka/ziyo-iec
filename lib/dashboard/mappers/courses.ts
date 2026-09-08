@@ -69,6 +69,10 @@ export function mapCourseDetail(course: CourseDetailResponse): CourseCatalogItem
   return {
     ...base,
     description: course.description ?? "",
+    goal: course.goal ?? base.goal,
+    requirements: course.requirements,
+    admission: course.admission,
+    format: course.study_form || base.format,
     syllabus: modules.map((module) => ({
       id: String(module.id),
       title: module.title,

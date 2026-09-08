@@ -11,6 +11,7 @@ import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { getAuthToken, getAuthUser } from "@/lib/auth/session";
 import type { LessonTestData, LessonTestResult } from "@/lib/api/learning-test";
+import { LEARNING_API_PREFIX, learningApiPath } from "@/lib/api/student-api";
 import { asList, parsePositiveInt, unwrapApiPayload } from "@/lib/api/unwrap";
 
 function storageUserKey() {
@@ -22,14 +23,16 @@ function matProgressKey(lessonId: number) {
   return `zm_mat_progress_${storageUserKey()}_${lessonId}`;
 }
 
-function resultsKey() {
-  return `zm_test_results_${storageUserKey()}`;
+function resultsKey(scope: "malaka" | "retraining" = "malaka") {
+  const user = storageUserKey();
+  return scope === "retraining" ? `zm_test_results_retraining_${user}` : `zm_test_results_${user}`;
 }
 
 export type StoredTestResultRow = {
   id: string;
   lessonId: number;
   testId: number;
+  courseId?: number;
   testTitle?: string;
   courseTitle?: string;
   moduleTitle?: string;
@@ -75,7 +78,8 @@ export function writeMaterialProgress(lessonId: number, completed: string[]) {
  */
 export async function completeLessonMaterial(
   lessonId: number,
-  opts: { key: string; materialId?: number }
+  opts: { key: string; materialId?: number },
+  prefix: string = LEARNING_API_PREFIX.malaka
 ): Promise<{ ok: true; via: "api" | "local" }> {
   const current = readMaterialProgress(lessonId);
   const next = [...new Set([...current, opts.key])];
@@ -83,7 +87,7 @@ export async function completeLessonMaterial(
 
   if (opts.materialId && getAuthToken()) {
     try {
-      await apiRequest(`/learning/lessons/${lessonId}/materials/${opts.materialId}/complete`, {
+      await apiRequest(learningApiPath(prefix, `/lessons/${lessonId}/materials/${opts.materialId}/complete`), {
         method: "POST",
         body: JSON.stringify({}),
       });
@@ -92,7 +96,6 @@ export async function completeLessonMaterial(
       if (err instanceof ApiError && (err.status === 404 || err.status === 405)) {
         return { ok: true, via: "local" };
       }
-      // Boshqa xato — local saqlangan; UI davom etadi
       return { ok: true, via: "local" };
     }
   }
@@ -100,7 +103,10 @@ export async function completeLessonMaterial(
   return { ok: true, via: "local" };
 }
 
-export function appendLocalTestResult(row: Omit<StoredTestResultRow, "id" | "date"> & { id?: string; date?: string }) {
+export function appendLocalTestResult(
+  row: Omit<StoredTestResultRow, "id" | "date"> & { id?: string; date?: string },
+  scope: "malaka" | "retraining" = "malaka"
+) {
   if (typeof window === "undefined") return;
   const item: StoredTestResultRow = {
     id: row.id ?? `${row.testId}-${row.attempt ?? 0}-${Date.now()}`,
@@ -119,18 +125,18 @@ export function appendLocalTestResult(row: Omit<StoredTestResultRow, "id" | "dat
     restudy_required: row.restudy_required,
   };
   try {
-    const prev = readLocalTestResults();
+    const prev = readLocalTestResults(scope);
     const next = [item, ...prev.filter((r) => r.id !== item.id)].slice(0, 200);
-    localStorage.setItem(resultsKey(), JSON.stringify(next));
+    localStorage.setItem(resultsKey(scope), JSON.stringify(next));
   } catch {
     /* ignore */
   }
 }
 
-export function readLocalTestResults(): StoredTestResultRow[] {
+export function readLocalTestResults(scope: "malaka" | "retraining" = "malaka"): StoredTestResultRow[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(resultsKey());
+    const raw = localStorage.getItem(resultsKey(scope));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? (parsed as StoredTestResultRow[]) : [];
@@ -145,27 +151,39 @@ function asRecord(data: unknown): Record<string, unknown> {
     : {};
 }
 
-function mapRemoteResult(item: unknown): StoredTestResultRow | null {
+export function mapRemoteResult(item: unknown): StoredTestResultRow | null {
   const row = asRecord(item);
   const testId =
     parsePositiveInt(row.test_id) ??
     parsePositiveInt(row.testId) ??
-    parsePositiveInt(asRecord(row.test).id);
+    parsePositiveInt(asRecord(row.test).id) ??
+    0;
   const lessonId =
     parsePositiveInt(row.lesson_id) ??
     parsePositiveInt(row.lessonId) ??
     parsePositiveInt(asRecord(row.lesson).id) ??
     0;
-  if (!testId) return null;
+  if (!testId && !lessonId && !parsePositiveInt(row.id)) return null;
   const passed =
     row.passed === true ||
     row.is_passed === true ||
     String(row.status ?? "").toLowerCase() === "passed" ||
     String(row.status ?? "").toLowerCase() === "success";
+  const earned = parsePositiveInt(row.earned_points);
+  const totalPoints = parsePositiveInt(row.total_points);
+  const correct = parsePositiveInt(row.correct_count);
+  const totalQuestions = parsePositiveInt(row.total_questions);
+  const ratioPct =
+    earned != null && totalPoints
+      ? Math.round((earned / totalPoints) * 100)
+      : correct != null && totalQuestions
+        ? Math.round((correct / totalQuestions) * 100)
+        : undefined;
   return {
-    id: String(row.id ?? `${testId}-${row.attempt ?? row.attempt_number ?? ""}`),
+    id: String(row.id ?? `${testId || lessonId}-${row.attempt ?? row.attempt_number ?? row.cycle ?? ""}`),
     lessonId,
     testId,
+    courseId: parsePositiveInt(row.course_id) ?? parsePositiveInt(row.courseId) ?? undefined,
     testTitle:
       (typeof row.test_title === "string" && row.test_title) ||
       (typeof row.title === "string" && row.title) ||
@@ -176,9 +194,17 @@ function mapRemoteResult(item: unknown): StoredTestResultRow | null {
       undefined,
     moduleTitle: typeof row.module_title === "string" ? row.module_title : undefined,
     lessonTitle: typeof row.lesson_title === "string" ? row.lesson_title : undefined,
-    attempt: parsePositiveInt(row.attempt) ?? parsePositiveInt(row.attempt_number) ?? undefined,
-    percentage: parsePositiveInt(row.percentage) ?? parsePositiveInt(row.percent) ?? undefined,
-    score: parsePositiveInt(row.score) ?? undefined,
+    attempt:
+      parsePositiveInt(row.attempt) ??
+      parsePositiveInt(row.attempt_number) ??
+      parsePositiveInt(row.cycle) ??
+      undefined,
+    percentage:
+      parsePositiveInt(row.percentage) ??
+      parsePositiveInt(row.percent) ??
+      ratioPct ??
+      undefined,
+    score: parsePositiveInt(row.score) ?? earned ?? undefined,
     passed,
     mastery_status: typeof row.mastery_status === "string" ? row.mastery_status : undefined,
     date:
@@ -189,18 +215,10 @@ function mapRemoteResult(item: unknown): StoredTestResultRow | null {
   };
 }
 
-/** Natijalarim — backend bo'lsa undan, aks holda local submit tarixi */
-export async function fetchMyTestResults(): Promise<{
-  items: StoredTestResultRow[];
-  source: "api" | "local";
-}> {
-  const local = readLocalTestResults();
-  const paths = [
-    "/learning/results",
-    "/learning/test-attempts",
-    "/learning/attempts",
-    "/profile/test-results",
-  ];
+async function fetchResultsFromPaths(paths: string[], local: StoredTestResultRow[]) {
+  const byId = new Map<string, StoredTestResultRow>();
+  for (const row of local) byId.set(row.id, row);
+  let source: "api" | "local" = "local";
 
   for (const path of paths) {
     try {
@@ -208,14 +226,8 @@ export async function fetchMyTestResults(): Promise<{
       const list = asList<unknown>(unwrapApiPayload(data), ["items", "results", "attempts", "data"]);
       const mapped = list.map(mapRemoteResult).filter((r): r is StoredTestResultRow => r !== null);
       if (mapped.length || Array.isArray(unwrapApiPayload(data))) {
-        // API + local merge (API ustun)
-        const byId = new Map<string, StoredTestResultRow>();
-        for (const row of local) byId.set(row.id, row);
+        source = "api";
         for (const row of mapped) byId.set(row.id, row);
-        return {
-          items: [...byId.values()].sort((a, b) => b.date.localeCompare(a.date)),
-          source: "api",
-        };
       }
     } catch (err) {
       if (err instanceof ApiError && (err.status === 404 || err.status === 405)) continue;
@@ -223,7 +235,38 @@ export async function fetchMyTestResults(): Promise<{
     }
   }
 
-  return { items: local, source: "local" };
+  return {
+    items: [...byId.values()].sort((a, b) => b.date.localeCompare(a.date)),
+    source,
+  };
+}
+
+/** Natijalarim — backend bo'lsa undan, aks holda local submit tarixi */
+export async function fetchMyTestResults(scope: "malaka" | "retraining" = "malaka"): Promise<{
+  items: StoredTestResultRow[];
+  source: "api" | "local";
+}> {
+  const local = readLocalTestResults(scope);
+  if (scope === "retraining") {
+    return fetchResultsFromPaths(
+      [
+        "/retraining/test-attempts?page=1&per_page=100",
+        "/retraining/results?page=1&per_page=100",
+        "/retraining/attempts?page=1&per_page=100",
+      ],
+      local
+    );
+  }
+
+  return fetchResultsFromPaths(
+    [
+      "/learning/results",
+      "/learning/test-attempts",
+      "/learning/attempts",
+      "/profile/test-results",
+    ],
+    local
+  );
 }
 
 export function recordSubmitForResults(opts: {
@@ -234,21 +277,25 @@ export function recordSubmitForResults(opts: {
   moduleTitle?: string;
   lessonTitle?: string;
   result: LessonTestResult;
+  scope?: "malaka" | "retraining";
 }) {
-  appendLocalTestResult({
-    lessonId: opts.lessonId,
-    testId: opts.testId,
-    testTitle: opts.testTitle,
-    courseTitle: opts.courseTitle,
-    moduleTitle: opts.moduleTitle,
-    lessonTitle: opts.lessonTitle,
-    attempt: opts.result.attempt,
-    percentage: opts.result.percentage ?? opts.result.score,
-    score: opts.result.score,
-    passed: opts.result.passed,
-    mastery_status: opts.result.mastery_status,
-    restudy_required: opts.result.restudy_required,
-  });
+  appendLocalTestResult(
+    {
+      lessonId: opts.lessonId,
+      testId: opts.testId,
+      testTitle: opts.testTitle,
+      courseTitle: opts.courseTitle,
+      moduleTitle: opts.moduleTitle,
+      lessonTitle: opts.lessonTitle,
+      attempt: opts.result.attempt,
+      percentage: opts.result.percentage ?? opts.result.score,
+      score: opts.result.score,
+      passed: opts.result.passed,
+      mastery_status: opts.result.mastery_status,
+      restudy_required: opts.result.restudy_required,
+    },
+    opts.scope ?? "malaka"
+  );
 }
 
 export type PersistedLessonTestAttempt = {

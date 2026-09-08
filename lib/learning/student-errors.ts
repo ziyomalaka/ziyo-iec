@@ -6,6 +6,7 @@ export function studentApiErrorMessage(
 ): string {
   if (err instanceof ApiError) {
     if (err.status === 401) return "Tizimga qayta kiring.";
+    if (err.status === 400 || err.status === 422) return err.message || "Noto'g'ri ma'lumot.";
     if (err.status === 403) {
       if (kind === "test") return "Ushbu testga kirishga ruxsat yo'q.";
       if (kind === "lesson") return "Ushbu darsga kirishga ruxsat yo'q.";

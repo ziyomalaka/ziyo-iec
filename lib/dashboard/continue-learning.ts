@@ -33,7 +33,10 @@ export function lessonProgressOf(course: LearningCourseResponse) {
   return { lessons, totalLessons, completedLessons, progressPercent };
 }
 
-export function continueFromCourse(course: LearningCourseResponse): StudentContinueState {
+export function continueFromCourse(
+  course: LearningCourseResponse,
+  learningBase = "/dashboard/learning"
+): StudentContinueState {
   const { lessons, totalLessons, completedLessons, progressPercent } = lessonProgressOf(course);
   const currentId = firstOpenLessonId(course);
   const current =
@@ -41,8 +44,8 @@ export function continueFromCourse(course: LearningCourseResponse): StudentConti
     lessons.find((item) => item.id === course.current_lesson_id) ??
     null;
   const href = current?.id
-    ? `/dashboard/learning/${course.id}/lesson/${current.id}`
-    : `/dashboard/learning/${course.id}`;
+    ? `${learningBase}/${course.id}/lesson/${current.id}`
+    : `${learningBase}/${course.id}`;
   return {
     courseId: course.id,
     courseTitle: course.title,

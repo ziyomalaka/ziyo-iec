@@ -39,6 +39,8 @@ export function register(payload: RegisterRequest) {
         phone_number: payload.phone_number,
         password: payload.password,
         password_confirm: payload.password_confirm,
+        ...(payload.program_type ? { program_type: payload.program_type } : {}),
+        ...(payload.retraining_type ? { retraining_type: payload.retraining_type } : {}),
       }),
     },
     false
