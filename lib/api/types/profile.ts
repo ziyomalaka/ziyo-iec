@@ -29,6 +29,7 @@ export type ProfileResponse = {
   role?: string;
   /** Ta'lim turi manbasi: MALAKA_OSHIRISH | QAYTA_TAYYORLASH. Eski userlarda bo'sh bo'lishi mumkin. */
   program_type?: string | null;
+  retraining_type?: string | null;
 };
 
 export type UpdateProfileRequest = {
@@ -47,6 +48,7 @@ export type UpdateProfileRequest = {
   field_of_study?: string;
   avatar_url?: string;
   program_type?: string;
+  retraining_type?: string | null;
 };
 
 export type ChangePasswordRequest = {

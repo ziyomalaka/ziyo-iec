@@ -1,5 +1,6 @@
 import type { CourseCatalogItem, InstitutionType } from "@/lib/dashboard/types";
 import type { QualificationDirection, QualificationModule } from "@/lib/api/types/qualification";
+import { resolveMediaUrl } from "@/lib/api/media";
 import { OLIY_DIRECTIONS, canonicalDirectionTitleKey } from "@/lib/qualification/oliy-directions";
 import { isLessonListedForStudent, isModuleListedForStudent, isVisibleToStudent } from "@/lib/publish-status";
 import {
@@ -164,8 +165,9 @@ export function overlayEducationCourseWithPublished(
   const modules = listedModules(match);
   const categoryName = match.category_name || course.categoryName;
   const institution = classifyEducationLevel(match.category_name) ?? course.institution;
+  const thumbnailUrl = resolveMediaUrl(match.thumbnail_url) || course.thumbnailUrl;
   if (!modules.length) {
-    return { ...course, categoryName, institution };
+    return { ...course, categoryName, institution, thumbnailUrl };
   }
   const syllabus = modules.map((module) => ({
     id: String(module.id),
@@ -186,6 +188,7 @@ export function overlayEducationCourseWithPublished(
     lessonsCount: syllabus.reduce((sum, module) => sum + module.lessons.length, 0),
     categoryName,
     institution,
+    thumbnailUrl,
     syllabus,
   };
 }

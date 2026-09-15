@@ -13,6 +13,7 @@ import EmptyState from "@/components/dashboard/ui/EmptyState";
 import ErrorState from "@/components/dashboard/ui/ErrorState";
 import LoadingState from "@/components/dashboard/ui/LoadingState";
 import NotificationItem from "@/components/dashboard/ui/NotificationItem";
+import SupervisorContactCard from "@/components/dashboard/SupervisorContactCard";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 
@@ -58,39 +59,38 @@ export default function DashboardHomeView() {
 
   return (
     <div className="min-w-0 space-y-5">
-      <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
-        <h2 className="break-words text-xl font-bold text-[#0C2340] sm:text-2xl">
+      <section className="card card-padding">
+        <h2 className="break-words text-xl font-bold text-primary-dark sm:text-2xl">
           Xush kelibsiz{firstName ? `, ${firstName}` : ""}!
         </h2>
-        <p className="mt-1 text-sm text-[#64748B]">Malaka oshirish jarayoningizni shu yerdan davom ettirasiz.</p>
+        <p className="mt-1 text-sm text-muted">Malaka oshirish jarayoningizni shu yerdan davom ettirasiz.</p>
       </section>
 
+      <SupervisorContactCard />
+
       {continueState ? (
-        <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
-          <p className="text-xs font-semibold tracking-wide text-[#64748B] uppercase">Faol yo'nalish</p>
-          <h3 className="mt-1 break-words text-lg font-bold text-[#0C2340]">{continueState.courseTitle}</h3>
-          <p className="mt-3 text-xs font-medium text-[#64748B]">Umumiy o'quv progress</p>
+        <section className="card card-padding">
+          <p className="text-xs font-semibold tracking-wide text-muted uppercase">Faol yo'nalish</p>
+          <h3 className="mt-1 break-words text-lg font-bold text-primary-dark">{continueState.courseTitle}</h3>
+          <p className="mt-3 text-xs font-medium text-muted">Umumiy o'quv progress</p>
           <div className="mt-2 flex items-center gap-3">
-            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[#E8EDF5]">
+            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-border">
               <div
-                className="h-full rounded-full bg-[#0756F5]"
+                className="h-full rounded-full bg-primary"
                 style={{ width: `${continueState.progressPercent}%` }}
               />
             </div>
-            <span className="shrink-0 text-sm font-bold text-[#0C2340]">{continueState.progressPercent}%</span>
+            <span className="shrink-0 text-sm font-bold text-primary-dark">{continueState.progressPercent}%</span>
           </div>
-          <p className="mt-2 text-xs text-[#64748B]">
+          <p className="mt-2 text-xs text-muted">
             {continueState.completedLessons} / {continueState.totalLessons || "—"} dars yakunlangan
             {continueState.moduleCount ? ` · ${continueState.moduleCount} modul` : ""}
           </p>
-          <p className="mt-4 text-xs font-semibold tracking-wide text-[#64748B] uppercase">Hozirgi dars</p>
-          <p className="mt-1 break-words text-sm font-semibold text-[#0C2340]">
+          <p className="mt-4 text-xs font-semibold tracking-wide text-muted uppercase">Hozirgi dars</p>
+          <p className="mt-1 break-words text-sm font-semibold text-primary-dark">
             {continueState.currentLessonTitle || "Darsni ochib davom eting"}
           </p>
-          <Link
-            href={continueState.href}
-            className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0756F5] text-sm font-semibold text-white"
-          >
+          <Link href={continueState.href} className="btn-primary mt-5 w-full">
             <PlayCircle className="h-5 w-5" strokeWidth={1.75} />
             Darsni davom ettirish
           </Link>
@@ -101,31 +101,28 @@ export default function DashboardHomeView() {
           title="Faol yo'nalish yo'q"
           description="Malaka oshirish yo'nalishiga ariza yuboring. Tasdiqlangach dars shu yerdan ochiladi."
           action={
-            <Link
-              href="/dashboard/courses"
-              className="inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
-            >
+            <Link href="/dashboard/courses" className="btn-primary-sm">
               Yo'nalishlarni ko'rish
             </Link>
           }
         />
       )}
 
-      <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
+      <section className="card card-padding">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-base font-bold text-[#0C2340]">So'nggi natija</h3>
-          <Link href="/dashboard/results" className="text-sm font-medium text-[#0756F5]">
+          <h3 className="text-base font-bold text-primary-dark">So'nggi natija</h3>
+          <Link href="/dashboard/results" className="text-sm font-semibold text-primary">
             Barchasi
           </Link>
         </div>
         {lastResult ? (
-          <div className="mt-3 rounded-xl border border-[#E8EDF5] p-4">
+          <div className="mt-3 rounded-2xl border border-border/70 bg-surface p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="break-words text-sm font-semibold text-[#0C2340]">
+                <p className="break-words text-sm font-semibold text-primary-dark">
                   {lastResult.lessonTitle || lastResult.testTitle || "Test"}
                 </p>
-                <p className="mt-1 text-xs text-[#64748B]">
+                <p className="mt-1 text-xs text-muted">
                   {lastResult.courseTitle ? `${lastResult.courseTitle} · ` : ""}
                   {lastResult.attempt ? `${lastResult.attempt}-urinish · ` : ""}
                   {formatDate(lastResult.date)}
@@ -135,36 +132,43 @@ export default function DashboardHomeView() {
                 {lastResult.passed ? "O'tdi" : "O'tmadi"}
               </DashboardBadge>
             </div>
-            <p className="mt-3 text-lg font-bold text-[#0C2340]">
+            <p className="mt-3 text-lg font-bold text-primary-dark">
               {lastResult.percentage != null || lastResult.score != null
                 ? `${lastResult.percentage ?? lastResult.score}%`
                 : "—"}
             </p>
           </div>
         ) : (
-          <p className="mt-3 text-sm text-[#64748B]">Hozircha test natijasi yo'q.</p>
+          <p className="mt-3 text-sm text-muted">Hozircha test natijasi yo'q.</p>
         )}
       </section>
 
-      <section className="rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
+      <section className="card card-padding">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-base font-bold text-[#0C2340]">O'qilmagan bildirishnomalar</h3>
-          <Link href="/dashboard/notifications" className="text-sm font-medium text-[#0756F5]">
+          <h3 className="text-base font-bold text-primary-dark">O'qilmagan bildirishnomalar</h3>
+          <Link href="/dashboard/notifications" className="text-sm font-semibold text-primary">
             Barchasi
           </Link>
         </div>
         {notificationsLoading ? (
-          <div className="mt-3 h-24 animate-pulse rounded-xl bg-[#E8EDF5]" />
+          <div className="mt-3 h-24 animate-pulse rounded-2xl bg-border" />
         ) : listError ? (
           <ErrorState message={listError} onRetry={() => void reload()} className="mt-3 py-8" />
         ) : unread.length === 0 ? (
-          <p className="mt-3 text-sm text-[#64748B]">
-            {unreadCount > 0 ? "O'qilmagan xabarlar boshqa sahifada." : "Yangi bildirishnoma yo'q."}
+          <p className="mt-3 text-sm text-muted">
+            {unreadCount != null && unreadCount > 0
+              ? "O'qilmagan xabarlar boshqa sahifada."
+              : "Yangi bildirishnoma yo'q."}
           </p>
         ) : (
           <div className="mt-3 space-y-3">
             {unread.map((item) => (
-              <NotificationItem key={item.id} notification={item} onMarkRead={markRead} />
+              <NotificationItem
+                key={item.id}
+                notification={item}
+                onMarkRead={markRead}
+                onReplied={() => void reload()}
+              />
             ))}
           </div>
         )}

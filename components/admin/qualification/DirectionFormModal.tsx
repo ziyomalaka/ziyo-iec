@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import DashboardModal from "@/components/dashboard/ui/DashboardModal";
+import FileUploader from "@/components/admin/qualification/wizard/FileUploader";
 import { getItCategories } from "@/lib/api/admin-it";
 import { ApiError, getApiFieldErrors } from "@/lib/api/errors";
+import { resolveMediaUrl } from "@/lib/api/media";
+import { uploadAdminFile } from "@/lib/api/qualification";
 import type { ItCategory } from "@/lib/api/types/admin";
 import type { QualificationDirection } from "@/lib/api/types/qualification";
 import { classifyEducationLevel, displayEducationCategoryName, educationLevels } from "@/lib/dashboard/education-level";
@@ -12,6 +15,8 @@ import { saveAdminDirection, type DirectionWritePayload } from "@/lib/qualificat
 import { directionCreateSchema } from "@/lib/qualification/schemas";
 
 const fieldClass = "mt-1 w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm";
+const DIRECTION_IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+const DIRECTION_IMAGE_MAX = 8 * 1024 * 1024;
 
 function normalizeDirectionStatus(value?: string) {
   const upper = (value || "PUBLISHED").toUpperCase();
@@ -62,6 +67,7 @@ export default function DirectionFormModal({
   const [durationHours, setDurationHours] = useState(editing?.duration_hours ? String(editing.duration_hours) : "");
   const [language, setLanguage] = useState(editing?.language || "uz");
   const [status, setStatus] = useState(normalizeDirectionStatus(editing?.status));
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [categories, setCategories] = useState<ItCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -74,6 +80,7 @@ export default function DirectionFormModal({
     setDurationHours(editing?.duration_hours ? String(editing.duration_hours) : "");
     setLanguage(editing?.language || "uz");
     setStatus(normalizeDirectionStatus(editing?.status));
+    setImageFile(null);
     setFieldErrors({});
     setLoadingCategories(true);
     getItCategories()
@@ -90,6 +97,17 @@ export default function DirectionFormModal({
       .finally(() => setLoadingCategories(false));
   }, [open, editing]);
 
+  const imagePreview = useMemo(() => {
+    if (imageFile) return URL.createObjectURL(imageFile);
+    return editing?.thumbnail_url ? resolveMediaUrl(editing.thumbnail_url) : "";
+  }, [imageFile, editing?.thumbnail_url]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   const onSubmit = async () => {
     const parsed = directionCreateSchema.safeParse({
       title,
@@ -105,9 +123,24 @@ export default function DirectionFormModal({
       toast.error(next.category_id || next.title || "Maydonlarni to'ldiring");
       return;
     }
+    if (!imageFile && !editing?.thumbnail_url) {
+      setFieldErrors((prev) => ({ ...prev, image: "Yo'nalish rasmini yuklang" }));
+      toast.error("Yo'nalish rasmini yuklang");
+      return;
+    }
     setSaving(true);
     setFieldErrors({});
     try {
+      let thumbnail_url = editing?.thumbnail_url;
+      let file_id = editing?.image_file_id;
+      if (imageFile) {
+        const uploaded = await uploadAdminFile(imageFile);
+        thumbnail_url = uploaded.url || uploaded.storage_path || thumbnail_url;
+        file_id = uploaded.id;
+        if (!thumbnail_url) {
+          throw new ApiError(500, "Rasm URL qaytmadi. Qayta urinib ko'ring.");
+        }
+      }
       const hours = Number(durationHours);
       const saved = await (save ?? saveAdminDirection)(
         {
@@ -117,6 +150,8 @@ export default function DirectionFormModal({
           duration_hours: Number.isFinite(hours) && hours > 0 ? hours : undefined,
           language,
           status,
+          thumbnail_url,
+          file_id,
         },
         editing && editing.id > 0 ? editing : null
       );
@@ -126,6 +161,7 @@ export default function DirectionFormModal({
         ...saved,
         category_id: saved.category_id ?? parsed.data.category_id,
         category_name: saved.category_name || (selected ? categoryLabel(selected) : undefined),
+        thumbnail_url: saved.thumbnail_url || thumbnail_url,
       });
     } catch (error) {
       setFieldErrors(getApiFieldErrors(error));
@@ -172,6 +208,34 @@ export default function DirectionFormModal({
           <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldClass} />
           {fieldErrors.title ? <p className="mt-1 text-sm text-red-600">{fieldErrors.title}</p> : null}
         </label>
+        <div>
+          <FileUploader
+            label="Yo'nalish rasmi *"
+            accept={DIRECTION_IMAGE_ACCEPT}
+            maxSize={DIRECTION_IMAGE_MAX}
+            value={imageFile}
+            fileName={editing?.thumbnail_url ? "Joriy rasm" : undefined}
+            disabled={saving}
+            hint="JPG, PNG yoki WEBP. Mijoz yo'nalish kartasida ko'rinadi."
+            onChange={(file) => {
+              setImageFile(file);
+              setFieldErrors((prev) => {
+                if (!prev.image) return prev;
+                const next = { ...prev };
+                delete next.image;
+                return next;
+              });
+            }}
+          />
+          {fieldErrors.image ? <p className="mt-1 text-sm text-red-600">{fieldErrors.image}</p> : null}
+          {imagePreview ? (
+            <img
+              src={imagePreview}
+              alt=""
+              className="mt-3 h-36 w-full rounded-xl border border-[#E8EDF5] object-cover"
+            />
+          ) : null}
+        </div>
         <label className="block text-sm" htmlFor="direction-category">
           Qaysi bo'lim? *
           <select

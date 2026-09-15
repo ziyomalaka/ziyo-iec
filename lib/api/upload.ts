@@ -10,21 +10,33 @@ export type UploadOptions = {
   headers?: Record<string, string>;
 };
 
-/** Katta fayl upload /backend proxy orqali ketmasin — to'g'ridan-to'g'ri backend. */
+/** Avval to'g'ridan-to'g'ri backend; CORS/ngrok yiqilsa same-origin `/backend` proxy. */
 export const UPLOAD_API_URL = (
   process.env.NEXT_PUBLIC_API_URL ??
   process.env.API_URL ??
   "https://hassle-conceded-washtub.ngrok-free.dev"
 ).replace(/\/$/, "");
 
-export async function apiUpload<T>(path: string, formData: FormData, options: UploadOptions = {}): Promise<T> {
-  const token = getAuthToken();
-  const url = `${UPLOAD_API_URL}${path.startsWith("/") ? path : `/${path}`}`;
-
-  if (url.includes("/backend/") || url.endsWith("/backend")) {
-    throw new ApiError(500, "Fayl yuklash proxy orqali emas, to'g'ridan-to'g'ri backend URL ishlatiladi");
+function uploadTarget(path: string, viaProxy: boolean) {
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  if (viaProxy) {
+    if (typeof window === "undefined") {
+      throw new ApiError(500, "Fayl yuklash faqat brauzerda ishlaydi");
+    }
+    return `${window.location.origin}/backend${suffix}`;
   }
+  return `${UPLOAD_API_URL}${suffix}`;
+}
 
+function shouldRetryUploadViaProxy(error: unknown) {
+  if (!(error instanceof ApiError)) return true;
+  if (error.status === 0 || error.status === 403 || error.status === 502 || error.status === 503) return true;
+  const text = `${error.message} ${error.raw ?? ""}`.toLowerCase();
+  return text.includes("ngrok") || text.includes("<html") || text.includes("<!doctype");
+}
+
+function sendFormUpload<T>(url: string, formData: FormData, options: UploadOptions = {}): Promise<T> {
+  const token = getAuthToken();
   return new Promise<T>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(options.method ?? "POST", url);
@@ -79,6 +91,18 @@ export async function apiUpload<T>(path: string, formData: FormData, options: Up
 
     xhr.send(formData);
   });
+}
+
+export async function apiUpload<T>(path: string, formData: FormData, options: UploadOptions = {}): Promise<T> {
+  try {
+    return await sendFormUpload<T>(uploadTarget(path, false), formData, options);
+  } catch (error) {
+    if (!shouldRetryUploadViaProxy(error)) throw error;
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[apiUpload] direct upload failed, retry via /backend", error);
+    }
+    return sendFormUpload<T>(uploadTarget(path, true), formData, options);
+  }
 }
 
 function uploadErrorMessage(raw: string, status: number) {

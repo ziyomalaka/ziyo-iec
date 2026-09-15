@@ -92,10 +92,32 @@ export function listRequiredMaterials(lesson: LearningLessonDetail): RequiredLes
     }
   }
 
+  for (const item of lesson.materials ?? []) {
+    if (materialKind(item) === "test") continue;
+    const id = item.id;
+    const raw = String(item.material_type || item.type || "").toLowerCase();
+    const key = id ? `material:${id}` : `material:${lesson.id}:${raw || item.title || "x"}`;
+    if (seen.has(key)) continue;
+    const kind = materialKind(item);
+    const mapped: RequiredLessonMaterial["kind"] =
+      kind === "video" || kind === "presentation" || kind === "lecture" || kind === "seminar" || kind === "laboratory"
+        ? kind
+        : "lecture";
+    push({
+      key,
+      kind: mapped,
+      label: raw.includes("mustaqil") ? "Mustaqil ish" : KIND_LABEL[mapped] ?? mapped,
+      title: item.title || KIND_LABEL[mapped] || mapped,
+      materialId: id,
+    });
+  }
+
   // Tartib: video → presentation → lecture → seminar → laboratory
-  return out.sort(
-    (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)
-  );
+  return out.sort((a, b) => {
+    const ai = KIND_ORDER.indexOf(a.kind);
+    const bi = KIND_ORDER.indexOf(b.kind);
+    return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+  });
 }
 
 function pickContent(item: LearningMaterial) {

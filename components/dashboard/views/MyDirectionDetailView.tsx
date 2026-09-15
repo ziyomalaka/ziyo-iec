@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { CalendarDays, Clock3, Languages, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -26,7 +25,8 @@ export default function MyDirectionDetailView({ direction }: { direction: MyDire
       <article className="rounded-[10px] border border-[#E0E7F1] bg-white p-6">
         <div className="flex flex-col gap-6 md:flex-row">
           <div className="relative h-[180px] w-full overflow-hidden rounded-[8px] md:w-[260px]">
-            <Image src={direction.image} alt={direction.title} fill className="object-cover" sizes="260px" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={direction.image} alt={direction.title} className="absolute inset-0 h-full w-full object-cover" />
             <span className={cn("absolute top-2 left-2 rounded px-2 py-0.5 text-[11px] font-semibold text-white", direction.badgeClass)}>
               {direction.category}
             </span>

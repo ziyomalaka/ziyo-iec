@@ -1,17 +1,19 @@
 /**
  * Dars material progress + Natijalarim cache.
  *
- * Backendda material complete / results endpoint hali Swaggerda yo'q.
- * - Complete: POST /learning/lessons/{lessonId}/materials/{id}/complete uriniladi;
- *   404 bo'lsa local (user+lesson) saqlanadi — progress yo'qolmasin.
- * - Natijalar: submitdan keyin local tarix + GET /learning/results (agar chiqsa).
+ * Malaka: POST /learning/lessons/{lessonId}/materials/{id}/complete (mavjud bo'lsa).
+ * Retraining: material-level complete endpoint YO'Q — faqat local UI holat.
+ * Retraining dars yakuni: POST /retraining/learning/lessons/{lessonId}/complete.
  */
 
 import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { getAuthToken, getAuthUser } from "@/lib/auth/session";
 import type { LessonTestData, LessonTestResult } from "@/lib/api/learning-test";
+import { completeLearningLesson } from "@/lib/api/learning";
 import { LEARNING_API_PREFIX, learningApiPath } from "@/lib/api/student-api";
+import { withRetrainingScope } from "@/lib/api/retraining-query";
+import type { RetrainingType } from "@/lib/retraining/kind";
 import { asList, parsePositiveInt, unwrapApiPayload } from "@/lib/api/unwrap";
 
 function storageUserKey() {
@@ -74,23 +76,33 @@ export function writeMaterialProgress(lessonId: number, completed: string[]) {
 
 /**
  * Materialni tugatish.
- * Backend endpoint mavjud bo'lsa — chaqiriladi; yo'q bo'lsa local saqlanadi.
+ * Retrainingda `/materials/{id}/complete` chaqirilmaydi — endpoint yo'q.
+ * Malakada backend endpoint mavjud bo'lsa chaqiriladi; yo'q bo'lsa local saqlanadi.
  */
 export async function completeLessonMaterial(
   lessonId: number,
   opts: { key: string; materialId?: number },
-  prefix: string = LEARNING_API_PREFIX.malaka
+  prefix: string = LEARNING_API_PREFIX.malaka,
+  retrainingType?: RetrainingType | null
 ): Promise<{ ok: true; via: "api" | "local" }> {
   const current = readMaterialProgress(lessonId);
   const next = [...new Set([...current, opts.key])];
   writeMaterialProgress(lessonId, next);
 
+  const isRetraining = prefix.includes("/retraining");
+  if (isRetraining) {
+    return { ok: true, via: "local" };
+  }
+
   if (opts.materialId && getAuthToken()) {
     try {
-      await apiRequest(learningApiPath(prefix, `/lessons/${lessonId}/materials/${opts.materialId}/complete`), {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
+      await apiRequest(
+        learningApiPath(prefix, `/lessons/${lessonId}/materials/${opts.materialId}/complete`, retrainingType),
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+        }
+      );
       return { ok: true, via: "api" };
     } catch (err) {
       if (err instanceof ApiError && (err.status === 404 || err.status === 405)) {
@@ -101,6 +113,18 @@ export async function completeLessonMaterial(
   }
 
   return { ok: true, via: "local" };
+}
+
+/**
+ * Retraining dars yakuni.
+ * POST /retraining/learning/lessons/{lessonId}/complete
+ * Material-level complete ishlatilmaydi.
+ */
+export async function completeRetrainingLesson(
+  lessonId: number,
+  retrainingType?: RetrainingType | null
+) {
+  return completeLearningLesson(lessonId, false, LEARNING_API_PREFIX.retraining, retrainingType);
 }
 
 export function appendLocalTestResult(
@@ -242,20 +266,24 @@ async function fetchResultsFromPaths(paths: string[], local: StoredTestResultRow
 }
 
 /** Natijalarim — backend bo'lsa undan, aks holda local submit tarixi */
-export async function fetchMyTestResults(scope: "malaka" | "retraining" = "malaka"): Promise<{
+export async function fetchMyTestResults(
+  scope: "malaka" | "retraining" = "malaka",
+  retrainingType?: RetrainingType | null
+): Promise<{
   items: StoredTestResultRow[];
   source: "api" | "local";
 }> {
   const local = readLocalTestResults(scope);
   if (scope === "retraining") {
-    return fetchResultsFromPaths(
-      [
-        "/retraining/test-attempts?page=1&per_page=100",
-        "/retraining/results?page=1&per_page=100",
-        "/retraining/attempts?page=1&per_page=100",
-      ],
-      local
-    );
+    if (!retrainingType) {
+      return { items: [], source: "api" };
+    }
+    const paths = [
+      "/retraining/test-attempts?page=1&per_page=100",
+      "/retraining/results?page=1&per_page=100",
+      "/retraining/attempts?page=1&per_page=100",
+    ].map((path) => withRetrainingScope(path, { retrainingType }));
+    return fetchResultsFromPaths(paths, local);
   }
 
   return fetchResultsFromPaths(

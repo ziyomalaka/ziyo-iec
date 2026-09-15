@@ -19,7 +19,11 @@ export function studentApiErrorMessage(
       if (kind === "material") return "Material mavjud emas.";
       return "Ma'lumot topilmadi.";
     }
-    if (err.status === 502 || err.status === 503) return "Server vaqtincha javob bermayapti.";
+    if (err.status === 502 || err.status === 503) {
+      return kind === "generic"
+        ? "Bildirishnomalar vaqtincha mavjud emas."
+        : "Server vaqtincha javob bermayapti.";
+    }
     if (err.status >= 500) return "Serverda xatolik yuz berdi.";
     return err.message || "Yuklashda muammo yuz berdi.";
   }

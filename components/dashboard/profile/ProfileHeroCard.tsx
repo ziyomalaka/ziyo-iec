@@ -36,7 +36,7 @@ export default function ProfileHeroCard({ profile, onEdit, onAvatarClick }: Prof
   const initials = `${profile.firstName[0] ?? ""}${profile.lastName[0] ?? ""}`.toUpperCase();
 
   return (
-    <div className="w-full rounded-[10px] border border-[#DFE7F2] bg-white p-4 shadow-[0_1px_3px_rgba(20,40,80,.03)] sm:p-5">
+    <div className="w-full rounded-2xl border border-border/60 bg-white p-4 shadow-[0_4px_24px_-4px_rgba(15,35,64,0.08)] sm:p-5">
       <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
           <div className="relative shrink-0">

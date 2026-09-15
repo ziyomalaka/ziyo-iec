@@ -1,5 +1,8 @@
 /** Student dasturlarining backend prefikslari. Malaka — mavjud /learning; qayta tayyorlash — /retraining/*. */
 
+import { ApiError } from "@/lib/api/errors";
+import type { RetrainingType } from "@/lib/retraining/kind";
+
 export const LEARNING_API_PREFIX = {
   malaka: "/learning",
   retraining: "/retraining/learning",
@@ -23,13 +26,20 @@ export const APPLICATIONS_API_PREFIX = {
 export type LearningApiPrefix = (typeof LEARNING_API_PREFIX)[keyof typeof LEARNING_API_PREFIX];
 export type NotificationsApiPrefix = (typeof NOTIFICATIONS_API_PREFIX)[keyof typeof NOTIFICATIONS_API_PREFIX];
 
-export function learningApiPath(prefix: string, rest: string) {
+export function learningApiPath(prefix: string, rest: string, retrainingType?: RetrainingType | null) {
   const base = (prefix || LEARNING_API_PREFIX.malaka).replace(/\/$/, "");
-  return `${base}${rest.startsWith("/") ? rest : `/${rest}`}`;
+  const path = `${base}${rest.startsWith("/") ? rest : `/${rest}`}`;
+  if (base.includes("/retraining/") && !retrainingType) {
+    throw new ApiError(400, "Qayta tayyorlash turi tanlanmagan");
+  }
+  return path;
 }
 
-export function notificationsApiPath(prefix: string, rest = "") {
+export function notificationsApiPath(prefix: string, rest = "", _retrainingType?: RetrainingType | null) {
   const base = (prefix || NOTIFICATIONS_API_PREFIX.malaka).replace(/\/$/, "");
-  if (!rest) return base;
-  return `${base}${rest.startsWith("/") ? rest : `/${rest}`}`;
+  if (rest) {
+    if (rest.startsWith("?")) return `${base}${rest}`;
+    return `${base}${rest.startsWith("/") ? rest : `/${rest}`}`;
+  }
+  return base;
 }

@@ -53,7 +53,9 @@ next-env.d.ts
 
 # local dumps (swagger, QA, scratch)
 _swagger.json
+_swagger-live-fresh.json
 swagger-live.json
+swagger-temp.json
 qa-report-static.json
 _tmp_*
 *.local.json

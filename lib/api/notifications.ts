@@ -1,21 +1,34 @@
 /**
- * Bildirishnomalar — Swagger /notifications
+ * Bildirishnomalar
  *
- * GET    /notifications?page=&per_page=
+ * Umumiy inbox (user + nazoratchi, bir xil API):
+ * GET    /notifications
  * GET    /notifications/unread-count
  * PUT    /notifications/{id}/read
  * PUT    /notifications/read-all
- * DELETE /notifications/{id}
  * DELETE /notifications
+ * DELETE /notifications/{id}
  * POST   /notifications/to-admin          { title, message }
+ *
+ * Qayta tayyorlash aliaslari:
+ * GET    /retraining/notifications
+ * GET    /retraining/notifications/unread-count
+ * PUT    /retraining/notifications/{id}/read
+ * PUT    /retraining/notifications/read-all
+ * POST   /retraining/notifications/to-admin  { title, message, course_id }
+ *
+ * Nazoratchi javobi:
  * POST   /admin/supervisor/notifications  { user_id, title, message }
  */
 
 import { toQuery } from "@/lib/admin/query";
 import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
+import { notificationsApiPath } from "@/lib/api/student-api";
 import { unwrapApiPayload } from "@/lib/api/unwrap";
 import type { Notification } from "@/lib/dashboard/types";
+import { RETRAINING_TYPE_META, normalizeRetrainingType, type RetrainingType } from "@/lib/retraining/kind";
+import { getAuthUser } from "@/lib/auth/session";
 
 export const NOTIFICATIONS_PER_PAGE = 20;
 
@@ -40,6 +53,14 @@ export type NotificationListState = {
 };
 
 const CREATE_PATH = "/admin/supervisor/notifications";
+const SHARED_INBOX_PREFIX = "/notifications";
+
+/** Retraining aliasda DELETE va POST /to-admin yo'q — umumiy /notifications. */
+function sharedInboxPrefix(prefix: string) {
+  const base = (prefix || SHARED_INBOX_PREFIX).replace(/\/$/, "");
+  if (base === "/retraining/notifications") return SHARED_INBOX_PREFIX;
+  return base;
+}
 
 function asRecord(data: unknown): Record<string, unknown> {
   return data && typeof data === "object" && !Array.isArray(data)
@@ -116,16 +137,22 @@ function isReadFromRow(src: Record<string, unknown>): boolean {
   return false;
 }
 
-function pickSender(src: Record<string, unknown>): { senderId?: number; senderName?: string } {
+function pickSender(src: Record<string, unknown>, text = ""): { senderId?: number; senderName?: string } {
   const senderId =
     parseNonNegativeInt(src.sender_id) ??
     parseNonNegativeInt(src.senderId) ??
+    parseNonNegativeInt(src.user_id) ??
+    parseNonNegativeInt(src.userId) ??
+    parseNonNegativeInt(src.client_id) ??
+    parseNonNegativeInt(src.clientId) ??
+    parseNonNegativeInt(src.from_user_id) ??
     parseNonNegativeInt(src.admin_id) ??
     parseNonNegativeInt(src.from_id);
-  const senderName = pickText(
+  let senderName = pickText(
     src.sender_name,
     src.senderName,
     src.from_name,
+    src.client_name,
     src.admin_name,
     src.full_name,
     src.fullName,
@@ -134,6 +161,10 @@ function pickSender(src: Record<string, unknown>): { senderId?: number; senderNa
     src.email,
     src.from_email
   );
+  if (!senderName) {
+    const fromLine = text.match(/Kimdan:\s*(.+)/i);
+    if (fromLine?.[1]) senderName = fromLine[1].trim();
+  }
   return {
     senderId,
     senderName: senderName || (senderId != null ? `Mijoz #${senderId}` : undefined),
@@ -147,19 +178,16 @@ export function asNotification(item: unknown): Notification | null {
   const id = entityId(src);
   if (!id) return null;
 
-  const { senderId, senderName } = pickSender(src);
-  const fromAdmin =
-    senderId == null ||
-    senderId > 0 ||
-    Boolean(senderName) ||
-    String(src.source ?? src.origin ?? src.from ?? "").toLowerCase().includes("admin") ||
-    String(src.source ?? src.origin ?? src.from ?? "").toLowerCase().includes("supervisor") ||
-    String(src.source ?? src.origin ?? src.from ?? "").toLowerCase().includes("nazorat");
+  const text = pickText(src.text, src.body, src.message, src.content, src.description);
+  const { senderId, senderName } = pickSender(src, text);
+  const fromAdmin = String(src.source ?? src.origin ?? src.from ?? src.sender_role ?? "")
+    .toLowerCase()
+    .match(/admin|supervisor|nazorat|staff/) != null;
 
   return {
     id,
     title: pickText(src.title, src.subject, src.heading) || "Bildirishnoma",
-    text: pickText(src.text, src.body, src.message, src.content, src.description),
+    text,
     date: pickText(src.date, src.created_at, src.createdAt, src.sent_at) || new Date().toISOString(),
     read: isReadFromRow(src),
     category: asCategory(src.category ?? src.type ?? src.kind),
@@ -194,39 +222,52 @@ const LIST_KEYS = [
 ] as const;
 
 function asItemArray(value: unknown): unknown[] | null {
-  if (Array.isArray(value)) return value;
-  if (value && typeof value === "object") {
-    const vals = Object.values(value as Record<string, unknown>);
-    if (vals.length && vals.every((item) => item && typeof item === "object")) {
-      return vals;
+  return Array.isArray(value) ? value : null;
+}
+
+function looksLikeNotification(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return Boolean(
+    row.id ??
+      row.ID ??
+      row.title ??
+      row.subject ??
+      row.message ??
+      row.text ??
+      row.body ??
+      row.sender_id ??
+      row.senderId
+  );
+}
+
+function findNotificationRows(raw: unknown, depth = 0): unknown[] {
+  if (depth > 6 || raw == null) return [];
+  if (Array.isArray(raw)) {
+    if (raw.some(looksLikeNotification)) return raw;
+    for (const item of raw) {
+      const nested = findNotificationRows(item, depth + 1);
+      if (nested.length) return nested;
     }
+    return [];
   }
-  return null;
+  if (typeof raw !== "object") return [];
+  const obj = raw as Record<string, unknown>;
+  for (const key of LIST_KEYS) {
+    const nested = findNotificationRows(obj[key], depth + 1);
+    if (nested.length) return nested;
+  }
+  for (const key of ["data", "result", "payload", "notification", "item"]) {
+    const nested = findNotificationRows(obj[key], depth + 1);
+    if (nested.length) return nested;
+  }
+  if (looksLikeNotification(obj)) return [obj];
+  return [];
 }
 
 function extractListIfPresent(raw: unknown): unknown[] | null {
-  if (Array.isArray(raw)) return raw;
-  const obj = asRecord(raw);
-  const found: unknown[][] = [];
-
-  const push = (value: unknown) => {
-    const list = asItemArray(value);
-    if (list) found.push(list);
-  };
-
-  for (const key of LIST_KEYS) push(obj[key]);
-  push(obj.data);
-  push(obj.result);
-  push(obj.payload);
-
-  const nested = asRecord(obj.data);
-  for (const key of LIST_KEYS) push(nested[key]);
-  const nestedResult = asRecord(obj.result);
-  for (const key of LIST_KEYS) push(nestedResult[key]);
-
-  const nonEmpty = found.find((list) => list.length > 0);
-  if (nonEmpty) return nonEmpty;
-  return found[0] ?? null;
+  const found = findNotificationRows(raw);
+  return found.length ? found : null;
 }
 
 function paginationFrom(
@@ -271,7 +312,7 @@ function mapListItems(listRaw: unknown[]): Notification[] {
       const title = pickText(src.title, src.subject, src.heading);
       const text = pickText(src.text, src.body, src.message, src.content, src.description);
       if (!title && !text) return null;
-      const { senderId, senderName } = pickSender(src);
+      const { senderId, senderName } = pickSender(src, text);
       return {
         id: `tmp-${index}-${pickText(src.created_at, src.createdAt, src.sent_at, title, text).slice(0, 40)}`,
         title: title || "Bildirishnoma",
@@ -281,7 +322,7 @@ function mapListItems(listRaw: unknown[]): Notification[] {
         category: asCategory(src.category ?? src.type ?? src.kind),
         senderId,
         senderName,
-        fromAdmin: senderId == null || senderId > 0 || Boolean(senderName),
+        fromAdmin: false,
       } satisfies Notification;
     })
     .filter((item): item is Notification => item !== null);
@@ -441,7 +482,7 @@ export function notificationErrorMessage(error: unknown, fallback: string): stri
       return "Server xatosi";
     case 502:
     case 503:
-      return "Backend/server vaqtincha ishlamayapti";
+      return "Bildirishnomalar vaqtincha mavjud emas.";
     default:
       return error.message || fallback;
   }
@@ -452,41 +493,63 @@ export async function getNotifications(
     page?: number;
     per_page?: number;
   } = {},
-  prefix: string = "/notifications"
+  prefix: string = "/notifications",
+  retrainingType?: RetrainingType | null
 ): Promise<NotificationListState> {
   const page = params.page ?? 1;
   const per_page = params.per_page ?? NOTIFICATIONS_PER_PAGE;
   const data = await apiRequest<unknown>(
-    `${prefix}${toQuery({ page, per_page })}`
+    notificationsApiPath(prefix, toQuery({ page, per_page }), retrainingType)
   );
   return parseNotificationList(data, { page, per_page });
 }
 
-export async function getUnreadCount(prefix: string = "/notifications"): Promise<number> {
-  const data = await apiRequest<unknown>(`${prefix}/unread-count`);
+export async function getUnreadCount(
+  prefix: string = "/notifications",
+  retrainingType?: RetrainingType | null
+): Promise<number> {
+  const data = await apiRequest<unknown>(
+    notificationsApiPath(prefix, "/unread-count", retrainingType)
+  );
   return parseUnreadCount(data);
 }
 
-export async function markNotificationRead(id: string, prefix: string = "/notifications"): Promise<unknown> {
-  return apiRequest<unknown>(`${prefix}/${encodeURIComponent(id)}/read`, {
+export async function markNotificationRead(
+  id: string,
+  prefix: string = "/notifications",
+  retrainingType?: RetrainingType | null
+): Promise<unknown> {
+  return apiRequest<unknown>(
+    notificationsApiPath(prefix, `/${encodeURIComponent(id)}/read`, retrainingType),
+    { method: "PUT" }
+  );
+}
+
+export async function markAllNotificationsRead(
+  prefix: string = "/notifications",
+  retrainingType?: RetrainingType | null
+): Promise<unknown> {
+  return apiRequest<unknown>(notificationsApiPath(prefix, "/read-all", retrainingType), {
     method: "PUT",
   });
 }
 
-export async function markAllNotificationsRead(prefix: string = "/notifications"): Promise<unknown> {
-  return apiRequest<unknown>(`${prefix}/read-all`, {
-    method: "PUT",
-  });
+export async function deleteNotification(
+  id: string,
+  prefix: string = "/notifications",
+  retrainingType?: RetrainingType | null
+): Promise<unknown> {
+  return apiRequest<unknown>(
+    notificationsApiPath(sharedInboxPrefix(prefix), `/${encodeURIComponent(id)}`, retrainingType),
+    { method: "DELETE" }
+  );
 }
 
-export async function deleteNotification(id: string, prefix: string = "/notifications"): Promise<unknown> {
-  return apiRequest<unknown>(`${prefix}/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
-}
-
-export async function deleteAllNotifications(prefix: string = "/notifications"): Promise<unknown> {
-  return apiRequest<unknown>(prefix, {
+export async function deleteAllNotifications(
+  prefix: string = "/notifications",
+  retrainingType?: RetrainingType | null
+): Promise<unknown> {
+  return apiRequest<unknown>(notificationsApiPath(sharedInboxPrefix(prefix), "", retrainingType), {
     method: "DELETE",
   });
 }
@@ -504,17 +567,90 @@ export async function createNotification(
   });
 }
 
+async function resolveRetrainingCourseId(): Promise<number | undefined> {
+  for (const path of ["/retraining/my-courses", "/retraining/applications"]) {
+    try {
+      const data = await apiRequest<unknown>(path, { skipAuthRedirect: true });
+      const inner = unwrapApiPayload(data);
+      const row = asRecord(inner);
+      const rows = Array.isArray(inner)
+        ? inner
+        : Array.isArray(row.items)
+          ? row.items
+          : Array.isArray(row.courses)
+            ? row.courses
+            : Array.isArray(row.applications)
+              ? row.applications
+              : [];
+      for (const item of rows) {
+        const id = parseNonNegativeInt(asRecord(item).course_id);
+        if (id) return id;
+      }
+    } catch {
+      /* keyingi manba */
+    }
+  }
+  return undefined;
+}
+
 export async function sendNotificationToAdmin(
-  payload: SendToAdminPayload
+  payload: SendToAdminPayload,
+  prefix: string = "/notifications",
+  retrainingType?: RetrainingType | null
 ): Promise<{ count: number; items: Notification[] }> {
-  const data = await apiRequest<unknown>("/notifications/to-admin", {
-    method: "POST",
-    body: JSON.stringify({
-      title: payload.title,
-      message: payload.message,
+  const title = payload.title.trim();
+  const message = payload.message.trim();
+  const inboxMessage = formatToAdminMessage(message, getAuthUser());
+  const panel = normalizeRetrainingType(retrainingType);
+  const panelLabel = panel ? RETRAINING_TYPE_META[panel].badge : "";
+  const subject = panelLabel ? `${title} · ${panelLabel}` : title;
+  const retrainingInbox = prefix.replace(/\/$/, "") === "/retraining/notifications";
+
+  const jobs: Array<Promise<unknown>> = [
+    apiRequest<unknown>(notificationsApiPath(SHARED_INBOX_PREFIX, "/to-admin", retrainingType), {
+      method: "POST",
+      body: JSON.stringify({ title: subject, message: inboxMessage }),
     }),
-  });
-  return parseSendToAdminResponse(data);
+    apiRequest<unknown>("/appeals", {
+      method: "POST",
+      body: JSON.stringify({ subject, title: subject, message }),
+    }),
+  ];
+
+  if (retrainingInbox) {
+    jobs.push(
+      (async () => {
+        const courseId = await resolveRetrainingCourseId();
+        if (!courseId) return null;
+        return apiRequest<unknown>("/retraining/notifications/to-admin", {
+          method: "POST",
+          suppressErrorLog: true,
+          body: JSON.stringify({ title: subject, message: inboxMessage, course_id: courseId }),
+        });
+      })()
+    );
+  }
+
+  const [inbox, appeal, retraining] = await Promise.allSettled(jobs);
+
+  const inboxOk = inbox.status === "fulfilled";
+  const appealOk = appeal.status === "fulfilled";
+  const retrainingOk = retraining?.status === "fulfilled" && Boolean(retraining.value);
+  if (!inboxOk && !appealOk && !retrainingOk) {
+    throw inbox.status === "rejected" ? inbox.reason : appeal.status === "rejected" ? appeal.reason : new ApiError(400, "Xabar yuborilmadi");
+  }
+
+  const parsed = inbox.status === "fulfilled" ? parseSendToAdminResponse(inbox.value) : { count: 0, items: [] };
+  const retrainingParsed =
+    retraining?.status === "fulfilled" && retraining.value
+      ? parseSendToAdminResponse(retraining.value)
+      : { count: 0, items: [] };
+  const delivered = Math.max(
+    parsed.count,
+    retrainingParsed.count,
+    appeal.status === "fulfilled" ? 1 : 0
+  );
+  return { count: delivered, items: parsed.items.length ? parsed.items : retrainingParsed.items };
 }
 
 export function formatToAdminMessage(message: string, user: {

@@ -57,6 +57,8 @@ export function VideoMaterialForm({ value, onChange, disabled, onRetryUpload }: 
         fileSize={value.fileSize}
         onChange={(file) => void onFile(file)}
         disabled={disabled}
+        accept="video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.mpeg,.mpg,.3gp,.wmv,.flv"
+        hint="mp4, webm, mov, mkv va boshqa video"
       />
       <label className="block text-sm">
         Tavsif
@@ -85,6 +87,8 @@ export function PresentationMaterialForm({ value, onChange, disabled, onRetryUpl
           patch(value, onChange, { file, fileName: file?.name, fileSize: file?.size })
         }
         disabled={disabled}
+        accept=".pdf,.doc,.docx,.ppt,.pptx"
+        hint="pdf, doc, docx, ppt, pptx"
       />
       <UploadStatus value={value} onRetry={onRetryUpload} />
     </section>
@@ -232,8 +236,8 @@ export function TestMaterialForm({ value, onChange, disabled, lessonId, source }
     console.log("ADMIN TEST SAVE source:", source ?? "qualification");
     setSaving(true);
     try {
-      const isItSource = source === "it";
-      const result = isItSource
+      const useAdminItTests = source === "it" || source === "retraining";
+      const result = useAdminItTests
         ? await createItLessonTestWithQuestions(lessonId, { ...value, questions })
         : await createLessonTest(lessonId, { ...value, questions });
       console.log("ADMIN TEST SAVE result:", result);
@@ -555,7 +559,7 @@ function UploadStatus({ value, onRetry }: { value: MaterialFormData; onRetry?: (
     return (
       <div className="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
         <span>✕ {value.uploadError}</span>
-        {onRetry ? (
+        {onRetry && value.uploadRetryable !== false ? (
           <button type="button" onClick={onRetry} className="font-medium">
             Qayta yuklash
           </button>

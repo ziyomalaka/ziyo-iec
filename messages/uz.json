@@ -1295,7 +1295,8 @@
         "successTitle": "Muvaffaqiyatli kirildi!",
         "successDescription": "Bosh sahifaga yo'naltirilmoqda...",
         "errorTitle": "Kirish amalga oshmadi",
-        "errorDescription": "Email yoki parol noto'g'ri. Qayta urinib ko'ring."
+        "errorDescription": "Email yoki parol noto'g'ri. Qayta urinib ko'ring.",
+        "unavailableDescription": "Server vaqtincha mavjud emas. Qayta urinib ko'ring."
       }
     },
     "footer": {
@@ -1395,6 +1396,22 @@
         "successDescription": "Endi yangi parol bilan kirishingiz mumkin.",
         "errorTitle": "Parol yangilanmadi",
         "errorDescription": "Kod yoki ma'lumotlarni tekshirib, qayta urinib ko'ring."
+      }
+    },
+    "selectRetrainingType": {
+      "eyebrow": "Qayta tayyorlash",
+      "title": "Qayta tayyorlash turini tanlang",
+      "subtitle": "O‘zingizga mos yo‘nalishni tanlang.",
+      "label": "Qayta tayyorlash turi",
+      "choose": "Tanlash",
+      "continue": "Davom etish",
+      "submitting": "Saqlanmoqda...",
+      "signOut": "Boshqa akkaunt bilan kirish",
+      "toast": {
+        "successTitle": "Qayta tayyorlash turi saqlandi",
+        "successDescription": "Tegishli panelga o'tkazamiz.",
+        "errorTitle": "Saqlanmadi",
+        "errorDescription": "Qayta tayyorlash turi saqlanmadi. Qayta urinib ko'ring."
       }
     },
     "selectProgram": {

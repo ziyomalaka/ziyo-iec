@@ -2,19 +2,21 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, PlayCircle } from "lucide-react";
-import { Link } from "@/i18n/navigation";
-import {
-  continueFromRetrainingMyCourse,
-  getRetrainingLearningCourse,
-  getRetrainingMyCourses,
-} from "@/lib/api/retraining";
+import { Link, useRouter } from "@/i18n/navigation";
+import { continueFromRetrainingMyCourse } from "@/lib/api/retraining";
 import type { RetrainingMyCourseItem } from "@/lib/api/types/retraining";
-import { continueFromCourse, lessonProgressOf } from "@/lib/dashboard/continue-learning";
+import { retrainingListMyCourses } from "@/lib/retraining/service";
 import EmptyState from "@/components/dashboard/ui/EmptyState";
 import ErrorState from "@/components/dashboard/ui/ErrorState";
 import LoadingState from "@/components/dashboard/ui/LoadingState";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import { formatDate } from "@/lib/dashboard/utils";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
+import { RETRAINING_SELECT_PATH } from "@/lib/auth/program";
+import {
+  isRetrainingTypeMissingError,
+  useRequireRetrainingType,
+} from "@/lib/retraining/use-require-type";
 
 type MyRetrainingCourse = {
   id: number;
@@ -29,8 +31,12 @@ type MyRetrainingCourse = {
   href: string;
 };
 
-function mapFromMyCourse(item: RetrainingMyCourseItem, currentLessonTitle = ""): MyRetrainingCourse {
-  const next = continueFromRetrainingMyCourse(item);
+function mapFromMyCourse(
+  item: RetrainingMyCourseItem,
+  currentLessonTitle = "",
+  learningBase = "/retraining/learning"
+): MyRetrainingCourse {
+  const next = continueFromRetrainingMyCourse(item, learningBase);
   const progress = Math.max(0, Math.min(100, item.progress_percent ?? 0));
   return {
     id: item.course_id,
@@ -47,6 +53,9 @@ function mapFromMyCourse(item: RetrainingMyCourseItem, currentLessonTitle = ""):
 }
 
 export default function RetrainingMyCoursesView() {
+  const paths = useStudentProgramPaths();
+  const router = useRouter();
+  const requireType = useRequireRetrainingType();
   const [items, setItems] = useState<MyRetrainingCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -54,35 +63,22 @@ export default function RetrainingMyCoursesView() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const enrolled = await getRetrainingMyCourses();
-      const cards = await Promise.all(
-        enrolled.map(async (item) => {
-          const learning = await getRetrainingLearningCourse(item.course_id, true).catch(() => null);
-          if (!learning) return mapFromMyCourse(item);
-          const progress = lessonProgressOf(learning);
-          const next = continueFromCourse(learning, "/retraining/learning");
-          return {
-            id: item.course_id,
-            title: learning.title || item.course_title,
-            startedAt: (item.enrolled_at ?? "").slice(0, 10),
-            statusLabel: progress.progressPercent >= 100 ? "Tugallangan" : "Faol",
-            moduleCount: learning.modules?.length ?? item.module_count ?? 0,
-            totalLessons: progress.totalLessons || item.total_lessons || 0,
-            completedLessons: progress.completedLessons || item.completed_lessons || 0,
-            progress: progress.progressPercent || item.progress_percent || 0,
-            currentLessonTitle: next.currentLessonTitle,
-            href: next.href,
-          } satisfies MyRetrainingCourse;
-        })
-      );
+      const type = await requireType();
+      if (!type) return;
+      const enrolled = await retrainingListMyCourses(type);
+      const cards = enrolled.map((item) => mapFromMyCourse(item, "", paths.learning));
       setItems(cards);
       setError(null);
     } catch (caught) {
+      if (isRetrainingTypeMissingError(caught)) {
+        router.replace(RETRAINING_SELECT_PATH);
+        return;
+      }
       if (!silent) setError(caught);
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [paths.learning, requireType, router]);
 
   useEffect(() => {
     void load(false);
@@ -98,11 +94,11 @@ export default function RetrainingMyCoursesView() {
       <div className="px-4 py-5 sm:px-6">
         <EmptyState
           icon={BookOpen}
-          title="Tasdiqlangan qayta tayyorlash kurslaringiz mavjud emas."
+          title="Tasdiqlangan kurslaringiz mavjud emas."
           description="Kursga ariza yuboring. Tasdiqlangach shu yerda ochiladi."
           action={
             <Link
-              href="/retraining/courses"
+              href={paths.courses}
               className="inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
             >
               Kurslarni ko&apos;rish

@@ -19,6 +19,7 @@ import {
 import ProfilePageIntro from "@/components/dashboard/profile/ProfilePageIntro";
 import ProfileSkeleton from "@/components/dashboard/profile/ProfileSkeleton";
 import ProfileHeroCard from "@/components/dashboard/profile/ProfileHeroCard";
+import SupervisorContactCard from "@/components/dashboard/SupervisorContactCard";
 import ProfileStatsRow from "@/components/dashboard/profile/ProfileStatsRow";
 import ProfilePersonalCard from "@/components/dashboard/profile/ProfilePersonalCard";
 import ProfileSecurityCard from "@/components/dashboard/profile/ProfileSecurityCard";
@@ -254,6 +255,10 @@ export default function ProfileView() {
         onEdit={openEdit}
         onAvatarClick={() => setAvatarOpen(true)}
       />
+
+      <div className="mt-[1.2%] w-full">
+        <SupervisorContactCard />
+      </div>
 
       <div className="mt-[1.2%] w-full">
         <ProfileStatsRow stats={stats} />

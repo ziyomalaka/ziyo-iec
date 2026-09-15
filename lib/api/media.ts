@@ -43,6 +43,7 @@ export function toSameOriginProxyUrl(path?: string) {
 
   if (value.startsWith("/media/")) return value;
   if (value.startsWith("/uploads/")) return value;
+  if (value.startsWith("/storage/")) return `${API_BASE}${value}`;
 
   if (!isDirectMediaUrl(value) || value.startsWith("blob:") || value.startsWith("data:")) return "";
 
@@ -51,6 +52,9 @@ export function toSameOriginProxyUrl(path?: string) {
     const pathName = url.pathname;
     if (pathName.startsWith("/media/") || pathName.startsWith("/uploads/")) {
       return `${pathName}${url.search}`;
+    }
+    if (pathName.startsWith("/storage/")) {
+      return `${API_BASE}${pathName}${url.search}`;
     }
     return "";
   } catch {
@@ -143,6 +147,7 @@ export function resolveMediaUrl(path?: string) {
 
   // /media/... — to'g'ridan-to'g'ri (same-origin proxy)
   if (trimmed.startsWith("/media/")) return trimmed;
+  if (trimmed.startsWith("/storage/")) return `${API_BASE}${trimmed}`;
 
   // Backend ba'zan relative `videos/files/...` yoki `media/videos/...` beradi
   if (/^videos\/files\//i.test(trimmed)) return `/media/${trimmed}`;

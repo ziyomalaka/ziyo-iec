@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, isAuthorizationError, isForceDeleteEligible } from "@/lib/api/errors";
 import {
   deleteItAssignment,
   deleteItDirection,
@@ -33,6 +33,7 @@ import {
   getRetrainingDirectionModules,
   getRetrainingModuleLessons,
 } from "@/lib/api/retraining-admin";
+import { isRetrainingPanel, panelFromRetrainingType, type RetrainingPanel } from "@/lib/retraining/admin-panels";
 import type { ContentSource, QualificationDirection, QualificationLesson } from "@/lib/api/types/qualification";
 import type { ItDirection, ItLesson, ItModule } from "@/lib/api/types/admin";
 import { isItSource, isMandatorySource, isRetrainingSource } from "@/lib/qualification/it-bridge";
@@ -42,6 +43,7 @@ async function goneOrOk(run: () => Promise<unknown>) {
     await run();
     return true;
   } catch (error) {
+    if (isAuthorizationError(error)) throw error;
     if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return true;
     return false;
   }
@@ -49,17 +51,25 @@ async function goneOrOk(run: () => Promise<unknown>) {
 
 async function deletePaths(paths: string[]) {
   for (const path of paths) {
-    if (await goneOrOk(() => apiRequest(path, { method: "DELETE" }))) return true;
-    const clean = path.split("?")[0];
-    if (
-      await goneOrOk(() =>
-        apiRequest(clean, {
-          method: "DELETE",
-          body: JSON.stringify({ force: true }),
-        })
-      )
-    ) {
+    try {
+      await apiRequest(path, { method: "DELETE" });
       return true;
+    } catch (error) {
+      if (isAuthorizationError(error)) throw error;
+      if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return true;
+      if (!isForceDeleteEligible(error)) continue;
+    }
+    const clean = path.split("?")[0];
+    if (path.includes("force=")) continue;
+    try {
+      await apiRequest(clean, {
+        method: "DELETE",
+        body: JSON.stringify({ force: true }),
+      });
+      return true;
+    } catch (error) {
+      if (isAuthorizationError(error)) throw error;
+      if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return true;
     }
   }
   return false;
@@ -153,14 +163,20 @@ export async function forceDeleteModule(
   id: number,
   lessons: QualificationLesson[] | { id: number }[] = [],
   itDirectionId?: number,
-  source?: ContentSource
+  source?: ContentSource,
+  retrainingPanel?: RetrainingPanel
 ) {
   if (!id) return;
 
   if (source === "retraining") {
     const lessonIds = new Set(lessons.map((item) => item.id).filter((item) => item > 0));
-    const nested = await getRetrainingModuleLessons(id).catch(() => []);
-    for (const item of nested) lessonIds.add(item.id);
+    if (!lessonIds.size && retrainingPanel) {
+      const nested = await getRetrainingModuleLessons(retrainingPanel, id).catch((error) => {
+        if (isAuthorizationError(error)) throw error;
+        return [];
+      });
+      for (const item of nested) lessonIds.add(item.id);
+    }
     for (const lessonId of lessonIds) {
       await goneOrOk(() => forceDeleteLesson(lessonId, null, "retraining"));
     }
@@ -274,13 +290,22 @@ export async function forceDeleteItDirection(direction: ItDirection) {
 
 export async function forceDeleteDirection(direction: QualificationDirection) {
   if (isRetrainingSource(direction.source)) {
+    const panel =
+      panelFromRetrainingType(direction.retraining_type) ??
+      (direction.retraining_panel && isRetrainingPanel(direction.retraining_panel)
+        ? direction.retraining_panel
+        : undefined);
+    if (!panel) throw new ApiError(400, "Qayta tayyorlash paneli aniqlanmadi (retraining_type kerak)");
     const nested = direction.modules?.length
       ? direction.modules
-      : await getRetrainingDirectionModules(direction.id).catch(() => []);
+      : await getRetrainingDirectionModules(panel, direction.id).catch((error) => {
+          if (isAuthorizationError(error)) throw error;
+          return [];
+        });
     for (const mod of nested) {
-      await goneOrOk(() => forceDeleteModule(mod.id, mod.lessons ?? [], undefined, "retraining"));
+      await goneOrOk(() => forceDeleteModule(mod.id, mod.lessons ?? [], undefined, "retraining", panel));
     }
-    await deleteRetrainingDirection(direction.id);
+    await deleteRetrainingDirection(panel, direction.id);
     return;
   }
 

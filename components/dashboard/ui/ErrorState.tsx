@@ -1,4 +1,5 @@
 import { AlertCircle } from "lucide-react";
+import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/cn";
 import { studentApiErrorMessage } from "@/lib/learning/student-errors";
 
@@ -11,6 +12,8 @@ type ErrorStateProps = {
 
 export default function ErrorState({ error, message, onRetry, className }: ErrorStateProps) {
   const text = message || studentApiErrorMessage(error, "generic");
+  const authDenied = error instanceof ApiError && (error.status === 401 || error.status === 403);
+  const retry = authDenied ? undefined : onRetry;
   return (
     <div
       className={cn(
@@ -22,10 +25,10 @@ export default function ErrorState({ error, message, onRetry, className }: Error
         <AlertCircle className="h-6 w-6" strokeWidth={1.75} />
       </div>
       <p className="text-sm font-semibold text-[#991B1B]">{text}</p>
-      {onRetry ? (
+      {retry ? (
         <button
           type="button"
-          onClick={onRetry}
+          onClick={retry}
           className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
         >
           Qayta urinish

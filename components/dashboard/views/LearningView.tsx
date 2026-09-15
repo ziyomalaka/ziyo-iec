@@ -16,6 +16,7 @@ import {
   isAlreadyEnrolledError,
   isLearnForbiddenError,
 } from "@/lib/api/learning";
+import { completeRetrainingLesson } from "@/lib/api/learning-progress";
 import { getMandatoryBlog, getMandatoryBlogs } from "@/lib/api/mandatory-blogs";
 import {
   readMandatorySnapshot,
@@ -69,9 +70,14 @@ import {
 } from "@/lib/learning/workspace-tree";
 import { continueFromCourse, lessonProgressOf } from "@/lib/dashboard/continue-learning";
 import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
-import { getRetrainingApplications } from "@/lib/retraining/applications";
-import { getRetrainingMyCourses } from "@/lib/api/retraining";
+import type { RetrainingType } from "@/lib/retraining/kind";
 import { isRetrainingApplication } from "@/lib/retraining/match";
+import { retrainingListApplications, retrainingListMyCourses } from "@/lib/retraining/service";
+import { RETRAINING_SELECT_PATH } from "@/lib/auth/program";
+import {
+  isRetrainingTypeMissingError,
+  useRequireRetrainingType,
+} from "@/lib/retraining/use-require-type";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import { readQualificationSnapshot } from "@/lib/qualification/published-snapshot";
 
@@ -116,7 +122,8 @@ export default function LearningView({ courseId, initialLessonId }: LearningView
 
 function LearningHome() {
   const router = useRouter();
-  const { kind, learning, courses } = useStudentProgramPaths();
+  const requireType = useRequireRetrainingType();
+  const { kind, learning, courses, retrainingKind } = useStudentProgramPaths();
   const isRetraining = kind === "retraining";
   const [options, setOptions] = useState<Array<{ id: number; title: string; href: string; progress: number }>>([]);
   const [loading, setLoading] = useState(true);
@@ -126,13 +133,18 @@ function LearningHome() {
     let cancelled = false;
     void (async () => {
       try {
+        const type = isRetraining ? await requireType() : retrainingKind;
+        if (isRetraining && !type) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
         const [apps, blogs, enrolled, retrainingMine] = await Promise.all([
-          (isRetraining ? getRetrainingApplications() : getMyApplications()).catch(() => []),
+          (isRetraining ? retrainingListApplications(type) : getMyApplications()).catch(() => []),
           isRetraining
             ? Promise.resolve([] as QualificationDirection[])
             : readMandatorySnapshot({ forceNetwork: true }).catch(() => readMandatorySnapshotLocal()),
           isRetraining ? Promise.resolve([]) : getMyLearningCourses(true),
-          isRetraining ? getRetrainingMyCourses().catch(() => []) : Promise.resolve([]),
+          isRetraining ? retrainingListMyCourses(type).catch(() => []) : Promise.resolve([]),
         ]);
         if (cancelled) return;
 
@@ -192,6 +204,10 @@ function LearningHome() {
         setLoading(false);
       } catch (caught) {
         if (cancelled) return;
+        if (isRetrainingTypeMissingError(caught)) {
+          router.replace(RETRAINING_SELECT_PATH);
+          return;
+        }
         setError(caught);
         setLoading(false);
       }
@@ -199,7 +215,7 @@ function LearningHome() {
     return () => {
       cancelled = true;
     };
-  }, [isRetraining, learning, router]);
+  }, [isRetraining, learning, requireType, retrainingKind, router]);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={() => window.location.reload()} />;
@@ -530,12 +546,13 @@ async function loadLearningCourseWithKinds(
   courseId: number,
   force = false,
   skipQualification = false,
-  prefix?: string
+  prefix?: string,
+  retrainingType?: RetrainingType | null
 ) {
   if (force) invalidateLearningCache(courseId);
   const stored = readCourseLessonProgress(courseId);
   const [data, catalog, snapshot] = await Promise.all([
-    getLearningCourse(courseId, false, prefix),
+    getLearningCourse(courseId, false, prefix, retrainingType),
     skipQualification ? Promise.resolve(null) : getCatalogCourse(String(courseId)).catch(() => null),
     skipQualification ? Promise.resolve([]) : readQualificationSnapshot({ forceNetwork: force }).catch(() => []),
   ]);
@@ -560,8 +577,10 @@ function LearningPlayer({
   const router = useRouter();
   const pathname = usePathname();
   const isLg = useIsLgUp();
-  const { kind, learning, applications, learningApi } = useStudentProgramPaths();
+  const { kind, learning, applications, learningApi, retrainingKind } = useStudentProgramPaths();
+  const requireType = useRequireRetrainingType();
   const skipQualification = kind === "retraining";
+  const retrainingType = kind === "retraining" ? retrainingKind : null;
   const urlLessonId = lessonIdFromPath(pathname, initialLessonId);
   const courseHref = `${learning}/${courseId}`;
   const [course, setCourse] = useState<LearningCourseResponse | null>(null);
@@ -571,6 +590,8 @@ function LearningPlayer({
   const [loading, setLoading] = useState(true);
   const [lessonLoading, setLessonLoading] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const completingRef = useRef(false);
+  const succeededLessonComplete = useRef(new Set<number>());
   const [error, setError] = useState<unknown>(null);
 
   const rememberCourse = (data: LearningCourseResponse) => {
@@ -580,7 +601,7 @@ function LearningPlayer({
   };
 
   const loadCourse = useCallback(async () => {
-    const data = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi);
+    const data = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi, retrainingType);
     if (skipApplicationGate) {
       return rememberCourse({
         ...data,
@@ -590,18 +611,18 @@ function LearningPlayer({
     }
     if (!data.enrolled) {
       try {
-        await enrollInCourse(courseId, learningApi);
+        await enrollInCourse(courseId, learningApi, retrainingType);
       } catch (caught) {
         if (isLearnForbiddenError(caught)) throw caught;
         if (!isAlreadyEnrolledError(caught)) {
           return rememberCourse(data);
         }
       }
-      const refreshed = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi);
+      const refreshed = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi, retrainingType);
       return rememberCourse({ ...refreshed, enrolled: true, can_learn: refreshed.can_learn || true });
     }
     return rememberCourse(data);
-  }, [courseId, skipApplicationGate, skipQualification, learningApi]);
+  }, [courseId, skipApplicationGate, skipQualification, learningApi, retrainingType]);
 
   const openLesson = useCallback(
     async (id: number, canLearn = true) => {
@@ -625,7 +646,7 @@ function LearningPlayer({
 
       setLessonLoading(true);
       try {
-        const fromApi = await getLearningLesson(id, false, learningApi).catch((caught) => {
+        const fromApi = await getLearningLesson(id, false, learningApi, retrainingType).catch((caught) => {
           if (isLearnForbiddenError(caught)) throw caught;
           return null;
         });
@@ -668,15 +689,22 @@ function LearningPlayer({
         setLessonLoading(false);
       }
     },
-    [applications, router, skipApplicationGate, learningApi]
+    [applications, router, skipApplicationGate, learningApi, retrainingType]
   );
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    loadCourse()
+    void (async () => {
+      if (kind === "retraining") {
+        const type = await requireType();
+        if (!type || cancelled) return;
+      }
+      return loadCourse();
+    })()
       .then((data) => {
+        if (!data) return;
         if (cancelled) return;
         const allow = skipApplicationGate || data.can_learn;
         if (!allow) return;
@@ -689,6 +717,10 @@ function LearningPlayer({
       })
       .catch((caught) => {
         if (cancelled) return;
+        if (isRetrainingTypeMissingError(caught)) {
+          router.replace(RETRAINING_SELECT_PATH);
+          return;
+        }
         if (isLearnForbiddenError(caught)) {
           toast.error(
             skipApplicationGate
@@ -706,7 +738,7 @@ function LearningPlayer({
     return () => {
       cancelled = true;
     };
-  }, [applications, loadCourse, openLesson, router, skipApplicationGate]);
+  }, [applications, kind, loadCourse, openLesson, requireType, router, skipApplicationGate]);
 
   useEffect(() => {
     if (loading || !courseRef.current || urlLessonId || selectedId) return;
@@ -723,7 +755,7 @@ function LearningPlayer({
 
   const refreshLive = useCallback(async () => {
     try {
-      const data = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi);
+      const data = await loadLearningCourseWithKinds(courseId, false, skipQualification, learningApi, retrainingType);
       const next = skipApplicationGate
         ? { ...data, enrolled: true, can_learn: data.can_learn !== false }
         : data;
@@ -740,27 +772,44 @@ function LearningPlayer({
         return;
       }
       if ((!skipApplicationGate && !next.can_learn)) return;
-      const lessonData = await getLearningLesson(nextId, false, learningApi);
+      const lessonData = await getLearningLesson(nextId, false, learningApi, retrainingType);
       const kind = sidebarLessonKind(lessonData);
       setSelectedId(lessonData.id || nextId);
       setLesson({ ...lessonData, lesson_type: kind });
     } catch {
       /* fon yangilash */
     }
-  }, [courseId, selectedId, skipApplicationGate, skipQualification, learningApi]);
+  }, [courseId, selectedId, skipApplicationGate, skipQualification, learningApi, retrainingType]);
 
   useLiveRefresh(() => void refreshLive());
 
   const complete = async (opts?: { goNext?: boolean }) => {
-    if (!selectedId || completing) return;
+    if (!selectedId) return;
     if (!skipApplicationGate && course?.can_learn !== true) return;
     const goNext = opts?.goNext ?? true;
+    const isRetraining = kind === "retraining";
+
+    if (isRetraining && succeededLessonComplete.current.has(selectedId)) {
+      if (!goNext) return;
+      const upcoming = lesson?.next_lesson_id;
+      if (upcoming) {
+        router.push(`${courseHref}/lesson/${upcoming}`);
+        await openLesson(upcoming, skipApplicationGate || course?.can_learn === true);
+      }
+      return;
+    }
+
+    if (completing || completingRef.current) return;
+    completingRef.current = true;
     setCompleting(true);
-    markCourseLessonCompleted(courseId, selectedId);
+    if (!isRetraining) markCourseLessonCompleted(courseId, selectedId);
     try {
-      const result = await completeLearningLesson(selectedId, false, learningApi);
+      const result = isRetraining
+        ? await completeRetrainingLesson(selectedId, retrainingType)
+        : await completeLearningLesson(selectedId, false, learningApi, retrainingType);
+      if (isRetraining) succeededLessonComplete.current.add(selectedId);
       toast.success("Dars tugatildi");
-      const data = await loadLearningCourseWithKinds(courseId, true, skipQualification, learningApi);
+      const data = await loadLearningCourseWithKinds(courseId, true, skipQualification, learningApi, retrainingType);
       rememberCourse(
         skipApplicationGate
           ? { ...data, enrolled: true, can_learn: data.can_learn !== false }
@@ -777,14 +826,14 @@ function LearningPlayer({
       }
     } catch (caught) {
       invalidateLearningCache(courseId);
-      const data = await loadLearningCourseWithKinds(courseId, true, skipQualification, learningApi).catch(() => null);
+      const data = await loadLearningCourseWithKinds(courseId, true, skipQualification, learningApi, retrainingType).catch(() => null);
       if (data) rememberCourse(data);
       if (isLearnForbiddenError(caught)) {
         if (!skipApplicationGate) router.push(applications);
         else toast.error("Darsni yakunlashda ruxsat yo'q. Qayta urinib ko'ring.");
         return;
       }
-      if (goNext) {
+      if (!isRetraining && goNext) {
         const upcoming = flattenLessons((data ?? course)?.modules ?? []).find(
           (item) => resolveLessonProgressStatus(item) === "current"
         );
@@ -792,6 +841,7 @@ function LearningPlayer({
       }
       toast.error(err(caught));
     } finally {
+      completingRef.current = false;
       setCompleting(false);
     }
   };

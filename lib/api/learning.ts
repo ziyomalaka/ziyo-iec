@@ -3,6 +3,7 @@ import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { isLearnForbiddenError, withLearningAccessRetry } from "@/lib/api/learning-access";
 import { LEARNING_API_PREFIX, learningApiPath } from "@/lib/api/student-api";
+import type { RetrainingType } from "@/lib/retraining/kind";
 import { parsePositiveInt, unwrapApiPayload, asList } from "@/lib/api/unwrap";
 import { lessonKindFromDescription, mapStoredLessonKind, stripLessonKindMarker } from "@/lib/learning/lesson-kind";
 import { isLessonListedForStudent, isModuleListedForStudent, isRemovedLessonRecord, isVisibleToStudent } from "@/lib/publish-status";
@@ -387,8 +388,12 @@ export function invalidateLearningCache(courseId?: number, lessonId?: number) {
   if (lessonId != null) dropCacheById(lessonCache, lessonId);
 }
 
-export async function enrollInCourse(id: number, prefix: string = LEARNING_API_PREFIX.malaka) {
-  return apiRequest<unknown>(learningApiPath(prefix, `/courses/${id}/enroll`), { method: "POST" });
+export async function enrollInCourse(
+  id: number,
+  prefix: string = LEARNING_API_PREFIX.malaka,
+  retrainingType?: RetrainingType | null
+) {
+  return apiRequest<unknown>(learningApiPath(prefix, `/courses/${id}/enroll`, retrainingType), { method: "POST" });
 }
 
 /** GET /learning/courses — yozilgan kurslar (yo'q bo'lsa bo'sh). */
@@ -406,7 +411,8 @@ export async function getMyLearningCourses(silentAuth = true): Promise<LearningC
 export async function getLearningCourse(
   id: number,
   silentAuth = false,
-  prefix: string = LEARNING_API_PREFIX.malaka
+  prefix: string = LEARNING_API_PREFIX.malaka,
+  retrainingType?: RetrainingType | null
 ) {
   const key = cacheKey(prefix, id);
   if (!silentAuth) {
@@ -414,7 +420,10 @@ export async function getLearningCourse(
     if (cached) return cached;
   }
   const data = await withLearningAccessRetry(() =>
-    apiRequest<unknown>(learningApiPath(prefix, `/courses/${id}`), silentAuth ? { skipAuthRedirect: true } : {})
+    apiRequest<unknown>(
+      learningApiPath(prefix, `/courses/${id}`, retrainingType),
+      silentAuth ? { skipAuthRedirect: true } : {}
+    )
   );
   const normalized = normalizeLearningCourse(data);
   if (!silentAuth) writeCache(courseCache, key, normalized);
@@ -424,14 +433,15 @@ export async function getLearningCourse(
 export async function getLearningLesson(
   id: number,
   silentAuth = false,
-  prefix: string = LEARNING_API_PREFIX.malaka
+  prefix: string = LEARNING_API_PREFIX.malaka,
+  retrainingType?: RetrainingType | null
 ) {
   const key = cacheKey(prefix, id);
   if (!silentAuth) {
     const cached = readCache(lessonCache, key);
     if (cached) return cached;
   }
-  const requestUrl = learningApiPath(prefix, `/lessons/${id}`);
+  const requestUrl = learningApiPath(prefix, `/lessons/${id}`, retrainingType);
 
   const data = await withLearningAccessRetry(() =>
     apiRequest<unknown>(requestUrl, silentAuth ? { skipAuthRedirect: true } : {})
@@ -447,7 +457,7 @@ export async function getLearningLesson(
   if (!(lesson.tests?.length)) {
     try {
       const { fetchLessonTestSummaries } = await import("@/lib/api/learning-test");
-      const summaries = await fetchLessonTestSummaries(id, prefix);
+      const summaries = await fetchLessonTestSummaries(id, prefix, retrainingType);
       if (summaries.length) {
         const testMaterials = summaries.map((t) => ({
           id: t.id,
@@ -478,10 +488,12 @@ export async function getLearningLesson(
 export async function completeLearningLesson(
   id: number,
   silentAuth = false,
-  prefix: string = LEARNING_API_PREFIX.malaka
+  prefix: string = LEARNING_API_PREFIX.malaka,
+  retrainingType?: RetrainingType | null
 ) {
-  const data = await apiRequest<unknown>(learningApiPath(prefix, `/lessons/${id}/complete`), {
+  const data = await apiRequest<unknown>(learningApiPath(prefix, `/lessons/${id}/complete`, retrainingType), {
     method: "POST",
+    body: JSON.stringify({}),
     ...(silentAuth ? { skipAuthRedirect: true } : {}),
   });
   if (!silentAuth) {

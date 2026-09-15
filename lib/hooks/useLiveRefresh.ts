@@ -22,7 +22,9 @@ export function useLiveRefresh(
   optionsRef.current = options;
 
   useEffect(() => {
-    return subscribeLiveRefresh((reason) => {
+    let active = true;
+    const unsubscribe = subscribeLiveRefresh((reason) => {
+      if (!active) return;
       if (reason === "tick" && optionsRef.current?.skipTick) return;
       if (inflight.current) return;
       inflight.current = true;
@@ -30,5 +32,9 @@ export function useLiveRefresh(
         inflight.current = false;
       });
     });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 }

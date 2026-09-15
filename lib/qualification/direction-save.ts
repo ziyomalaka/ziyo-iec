@@ -21,6 +21,8 @@ export type DirectionWritePayload = {
   duration_hours?: number;
   language?: string;
   status?: string;
+  thumbnail_url?: string;
+  file_id?: number;
 };
 
 function itBody(payload: DirectionWritePayload): CreateItDirectionRequest {
@@ -31,11 +33,16 @@ function itBody(payload: DirectionWritePayload): CreateItDirectionRequest {
     duration_hours: payload.duration_hours,
     language: payload.language,
     status: payload.status,
+    thumbnail_url: payload.thumbnail_url,
   };
 }
 
 function qualBody(payload: DirectionWritePayload): CreateQualificationDirectionPayload {
-  return itBody(payload);
+  return {
+    ...itBody(payload),
+    image_url: payload.thumbnail_url,
+    file_id: payload.file_id,
+  };
 }
 
 function firstRejection(results: PromiseSettledResult<unknown>[]) {
@@ -65,6 +72,7 @@ export async function saveAdminDirection(
         itId: it?.id,
         category_id: it?.category_id ?? qual.category_id ?? payload.category_id,
         category_name: it?.category_name || qual.category_name,
+        thumbnail_url: payload.thumbnail_url || it?.thumbnail_url || qual.thumbnail_url,
       };
     }
     return mapItDirection(it!);
@@ -89,6 +97,7 @@ export async function saveAdminDirection(
       duration_hours: it.duration_hours ?? qual.duration_hours,
       language: it.language || qual.language,
       status: it.status || qual.status,
+      thumbnail_url: payload.thumbnail_url || it.thumbnail_url || qual.thumbnail_url,
     };
   }
 

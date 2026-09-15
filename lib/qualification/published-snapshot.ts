@@ -33,6 +33,7 @@ function fingerprint(items: QualificationDirection[]) {
       id: item.id,
       itId: item.itId,
       status: item.status,
+      thumbnail_url: item.thumbnail_url,
       modules: (item.modules ?? []).map((module) => ({
         id: module.id,
         title: module.title,
@@ -86,6 +87,7 @@ function slim(item: QualificationDirection): QualificationDirection {
       category_id: item.category_id,
       category_name: item.category_name,
       duration_hours: item.duration_hours,
+      thumbnail_url: item.thumbnail_url,
       modules: [],
     };
   }
@@ -112,6 +114,7 @@ function slim(item: QualificationDirection): QualificationDirection {
     category_id: item.category_id,
     category_name: item.category_name,
     duration_hours: item.duration_hours,
+    thumbnail_url: item.thumbnail_url,
     modules,
   };
 }

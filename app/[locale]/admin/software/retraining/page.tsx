@@ -1,5 +1,5 @@
-import RetrainingDirectionsPage from "@/components/admin/qualification/RetrainingDirectionsPage";
+import RetrainingHubPage from "@/components/admin/retraining/RetrainingHubPage";
 
 export default function SoftwareRetrainingPage() {
-  return <RetrainingDirectionsPage />;
+  return <RetrainingHubPage />;
 }

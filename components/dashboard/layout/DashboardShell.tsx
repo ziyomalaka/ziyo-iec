@@ -12,6 +12,7 @@ import { LearningChromeProvider, useLearningChrome } from "@/components/dashboar
 import { useEscapeKey } from "@/lib/hooks/useEscapeKey";
 import { useLockBodyScroll } from "@/lib/hooks/useLockBodyScroll";
 import { cn } from "@/lib/cn";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 import type { ReactNode } from "react";
 
 function DashboardShellInner({
@@ -54,12 +55,11 @@ function DashboardShellInner({
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const paths = useStudentProgramPaths();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isCoursesCatalog = pathname === "/dashboard/courses" || pathname === "/retraining/courses";
+  const isCoursesCatalog = pathname === paths.courses;
   const isMyDirection =
-    pathname === "/dashboard/my-courses" ||
-    pathname.startsWith("/dashboard/my-direction") ||
-    pathname === "/retraining/my-courses";
+    pathname === paths.myCourses || pathname.startsWith(`${paths.base}/my-direction`);
 
   useLockBodyScroll(mobileOpen);
   useEscapeKey(mobileOpen, () => setMobileOpen(false));

@@ -20,6 +20,7 @@ import { apiRequest, type ApiRequestOptions } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { asList, parsePositiveInt, parseSignedInt, pickEntityId, unwrapApiPayload } from "@/lib/api/unwrap";
 import { pickFileUrl } from "@/lib/api/media";
+import { pickDirectionThumbnail } from "@/lib/qualification/direction-image";
 import {
   publishMandatorySnapshot,
   readMandatorySnapshot,
@@ -239,6 +240,7 @@ function mapBlog(data: unknown): QualificationDirection {
     duration_hours: parsePositiveInt(row.duration_hours) ?? undefined,
     language: typeof row.language === "string" ? row.language : undefined,
     status: typeof row.status === "string" ? row.status : undefined,
+    thumbnail_url: pickDirectionThumbnail(row),
     module_count: parsePositiveInt(row.module_count) ?? modules?.length,
     modules,
   };
@@ -267,6 +269,8 @@ function blogBody(payload: CreateQualificationDirectionPayload) {
     duration_hours: payload.duration_hours,
     language: payload.language,
     status: payload.status,
+    ...(payload.thumbnail_url ? { thumbnail_url: payload.thumbnail_url } : {}),
+    ...(payload.file_id ? { file_id: payload.file_id } : {}),
   };
 }
 
@@ -491,6 +495,7 @@ export async function createMandatoryBlog(payload: CreateQualificationDirectionP
   mapped.title = mapped.title || payload.title;
   mapped.category_id = mapped.category_id ?? payload.category_id;
   mapped.status = mapped.status || payload.status;
+  mapped.thumbnail_url = mapped.thumbnail_url || payload.thumbnail_url;
   mapped.source = "mandatory";
   void publishMandatorySnapshot([mapped], "upsert", { notify: true });
   return mapped;
@@ -508,6 +513,7 @@ export async function updateMandatoryBlog(id: number, payload: CreateQualificati
     title: mapped.title || payload.title,
     category_id: mapped.category_id ?? payload.category_id,
     status: mapped.status || payload.status,
+    thumbnail_url: mapped.thumbnail_url || payload.thumbnail_url,
     source: "mandatory" as const,
   } satisfies QualificationDirection;
   void publishMandatorySnapshot([next], "upsert", { notify: true });

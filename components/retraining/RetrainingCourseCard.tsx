@@ -9,6 +9,7 @@ import { applicationDecisionNote, isApprovedApplicationStatus } from "@/lib/dash
 import { studentApplicationKind } from "@/lib/dashboard/student-status";
 import { retrainingStatusCard } from "@/lib/retraining/status";
 import DashboardBadge from "@/components/dashboard/ui/DashboardBadge";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 
 type RetrainingCourseCardProps = {
   course: RetrainingCatalogCourse;
@@ -25,6 +26,7 @@ function resolveCta(course: RetrainingCatalogCourse, application?: ClientApplica
 }
 
 export default function RetrainingCourseCard({ course, application }: RetrainingCourseCardProps) {
+  const paths = useStudentProgramPaths();
   const kind = studentApplicationKind(application?.status ?? course.applicationStatus);
   const approved = isApprovedApplicationStatus(application?.status ?? course.applicationStatus);
   const note = applicationDecisionNote(application) || course.rejectReason;
@@ -40,7 +42,11 @@ export default function RetrainingCourseCard({ course, application }: Retraining
       <div className={cn("relative h-[178px] overflow-hidden bg-gradient-to-br", course.imageGradient)}>
         {course.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={course.thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <img
+            src={course.thumbnailUrl}
+            alt={course.title}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
         ) : null}
         {course.hours ? (
           <span className="absolute bottom-0 left-3 flex h-[25px] items-center rounded-t bg-[#0756F5] px-2.5 text-[12px] font-semibold text-white">
@@ -92,7 +98,7 @@ export default function RetrainingCourseCard({ course, application }: Retraining
         <div className="mt-auto flex flex-wrap justify-end gap-2 pt-4">
           {cta === "my_courses" || approved ? (
             <Link
-              href="/retraining/my-courses"
+              href={paths.myCourses}
               className="flex min-h-11 items-center justify-center rounded-xl bg-[#0756F5] px-3 text-[13px] font-semibold text-white"
             >
               Mening kurslarim
@@ -103,14 +109,14 @@ export default function RetrainingCourseCard({ course, application }: Retraining
             </span>
           ) : cta === "none" ? null : (
             <Link
-              href={`/retraining/applications?course=${encodeURIComponent(course.id)}`}
+              href={`${paths.applications}?course=${encodeURIComponent(course.id)}`}
               className="flex min-h-11 items-center justify-center rounded-xl bg-[#0756F5] px-3 text-[13px] font-semibold text-white"
             >
               {cta === "reapply" || (application && kind === "rejected") ? "Qayta ariza berish" : "Ariza berish"}
             </Link>
           )}
           <Link
-            href={`/retraining/courses/${course.id}`}
+            href={`${paths.courses}/${course.id}`}
             className="flex min-h-11 min-w-[76px] shrink-0 items-center justify-center rounded-xl border border-[#d9e3f0] bg-white px-3 text-[13px] font-semibold text-[#0057ff]"
           >
             Batafsil

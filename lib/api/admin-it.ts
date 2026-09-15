@@ -3,6 +3,7 @@ import { apiRequest, type ApiRequestOptions } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { apiUpload } from "@/lib/api/upload";
 import { pickFileUrl } from "@/lib/api/media";
+import { pickDirectionThumbnail } from "@/lib/qualification/direction-image";
 import type {
   CreateITCourseRequest,
   CreateItAssignmentRequest,
@@ -167,7 +168,7 @@ export function normalizeItDirection(data: unknown): ItDirection {
     id: parsePositiveInt(row.id) ?? pickEntityId(data) ?? 0,
     title: String(row.title ?? ""),
     description: typeof row.description === "string" ? row.description : undefined,
-    thumbnail_url: typeof row.thumbnail_url === "string" ? row.thumbnail_url : undefined,
+    thumbnail_url: pickDirectionThumbnail(row),
     duration_hours: Number(row.duration_hours) || undefined,
     duration_label: typeof row.duration_label === "string" ? row.duration_label : undefined,
     language: typeof row.language === "string" ? row.language : undefined,
@@ -440,7 +441,8 @@ export async function createItDirection(payload: CreateItDirectionRequest) {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  return normalizeItDirection(data);
+  const mapped = normalizeItDirection(data);
+  return { ...mapped, thumbnail_url: mapped.thumbnail_url || payload.thumbnail_url };
 }
 
 export async function updateItDirection(id: number, payload: CreateItDirectionRequest) {
@@ -448,11 +450,73 @@ export async function updateItDirection(id: number, payload: CreateItDirectionRe
     method: "PUT",
     body: JSON.stringify(payload),
   });
-  return normalizeItDirection(data);
+  const mapped = normalizeItDirection(data);
+  return { ...mapped, thumbnail_url: mapped.thumbnail_url || payload.thumbnail_url };
 }
 
 export async function deleteItDirection(id: number) {
   return apiRequest<unknown>(`/admin/it/directions/${id}`, { method: "DELETE" });
+}
+
+// ─── Qayta tayyorlash yo'nalishlari (admin-it) ───────────────────────────────
+
+export async function getItRetrainingDirections(query?: ItListQuery & { retraining_type?: string; status?: string }) {
+  const data = await apiRequest<unknown>(
+    `/admin/it/retraining-directions${toQuery({
+      page: query?.page,
+      per_page: query?.per_page,
+      q: query?.q?.trim() || undefined,
+      category_id: query?.category_id,
+      status: query?.status,
+    })}`
+  );
+  return pagedEntities(data, ["items", "directions"], normalizeItDirection, (item) => Boolean(item.id));
+}
+
+export async function getItRetrainingDirection(id: number, silentAuth = false) {
+  const data = await apiRequest<unknown>(`/admin/it/retraining-directions/${id}`, silentGet(silentAuth));
+  return normalizeItDirection(data);
+}
+
+export async function createItRetrainingDirection(
+  payload: CreateItDirectionRequest,
+  retrainingType?: string
+) {
+  const data = await apiRequest<unknown>(`/admin/it/retraining-directions`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return normalizeItDirection(data);
+}
+
+export async function updateItRetrainingDirection(id: number, payload: CreateItDirectionRequest) {
+  const data = await apiRequest<unknown>(`/admin/it/retraining-directions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  return normalizeItDirection(data);
+}
+
+export async function deleteItRetrainingDirection(id: number) {
+  return apiRequest<unknown>(`/admin/it/retraining-directions/${id}`, { method: "DELETE" });
+}
+
+export async function getItRetrainingDirectionModules(directionId: number, silentAuth = false) {
+  const data = await apiRequest<unknown>(
+    `/admin/it/retraining-directions/${directionId}/modules`,
+    silentGet(silentAuth)
+  );
+  return asList<unknown>(data, ["items", "modules"])
+    .map((item) => asModule(item))
+    .filter((item): item is ItModule => item !== null);
+}
+
+export async function createItRetrainingModule(directionId: number, payload: CreateItModuleRequest) {
+  const data = await apiRequest<unknown>(`/admin/it/retraining-directions/${directionId}/modules`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return asModule(unwrapApiPayload(data));
 }
 
 export async function createItModule(directionId: number, payload: CreateItModuleRequest) {
@@ -511,8 +575,9 @@ export async function updateItMaterial(id: number, payload: CreateItMaterialRequ
   return asMaterial(unwrapApiPayload(data));
 }
 
+/** Swagger: DELETE /api/v1/admin/materials/{materialId} */
 export async function deleteItMaterial(id: number) {
-  return apiRequest<unknown>(`/admin/it/materials/${id}`, { method: "DELETE" });
+  return apiRequest<unknown>(`/api/v1/admin/materials/${id}`, { method: "DELETE" });
 }
 
 export async function createItLessonAssignment(lessonId: number, payload: CreateItAssignmentRequest) {

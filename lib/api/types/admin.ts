@@ -35,8 +35,10 @@ export type ClientListItem = {
   first_name?: string;
   last_name?: string;
   father_name?: string;
+  middle_name?: string;
   full_name?: string;
   email?: string;
+  phone?: string;
   phone_number?: string;
   city?: string;
   district?: string;
@@ -47,6 +49,14 @@ export type ClientListItem = {
   status_label?: string;
   password?: string;
   password_plain?: string;
+  program_type?: string | null;
+  retraining_type?: string | null;
+  dastur?: string | null;
+  program_label?: string | null;
+  user_id?: number;
+  supervisor_id?: number | null;
+  supervisor_name?: string | null;
+  field_of_study?: string;
 };
 
 export type ClientDetail = ClientListItem & {
@@ -55,7 +65,6 @@ export type ClientDetail = ClientListItem & {
   gender?: string;
   position?: string;
   workplace?: string;
-  field_of_study?: string;
 };
 
 export type ClientApplication = {
@@ -65,6 +74,10 @@ export type ClientApplication = {
   client_email?: string;
   title: string;
   type?: string;
+  program_type?: string | null;
+  retraining_type?: string | null;
+  dastur?: string | null;
+  program_label?: string | null;
   status: string;
   status_label?: string;
   comment?: string;

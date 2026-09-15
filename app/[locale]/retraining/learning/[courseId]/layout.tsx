@@ -1,4 +1,4 @@
-import LearningView from "@/components/dashboard/views/LearningView";
+import RetrainingLearningView from "@/components/retraining/RetrainingLearningView";
 
 type Props = {
   children: React.ReactNode;
@@ -9,7 +9,7 @@ export default async function RetrainingLearningCourseLayout({ children, params 
   const { courseId } = await params;
   return (
     <>
-      <LearningView courseId={courseId} />
+      <RetrainingLearningView courseId={courseId} />
       {children}
     </>
   );

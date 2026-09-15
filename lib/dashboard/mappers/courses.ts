@@ -53,6 +53,7 @@ function mapCard(course: CourseCardResponse): CourseCatalogItem {
     audience: "",
     lessonsCount: 0,
     syllabus: [],
+    retrainingType: course.retraining_type ?? course.kind ?? null,
   };
 }
 

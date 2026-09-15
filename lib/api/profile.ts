@@ -82,6 +82,7 @@ export async function updateProfile(payload: UpdateProfileRequest) {
   if (payload.field_of_study) body.field_of_study = payload.field_of_study;
   if (payload.avatar_url) body.avatar_url = payload.avatar_url;
   if (payload.program_type) body.program_type = payload.program_type;
+  if (payload.retraining_type !== undefined) body.retraining_type = payload.retraining_type;
 
   const data = await apiRequest<unknown>("/profile", {
     method: "PUT",
@@ -118,6 +119,15 @@ export async function updateProgramType(programType: string) {
     body: JSON.stringify(body),
   });
   return asProfile(data);
+}
+
+/** PUT /retraining/retraining-type — authenticated user.retraining_type ni saqlaydi. */
+export async function updateRetrainingType(retrainingType: string) {
+  await apiRequest<unknown>("/retraining/retraining-type", {
+    method: "PUT",
+    body: JSON.stringify({ retraining_type: retrainingType }),
+  });
+  return getProfile();
 }
 
 /** DELETE /profile */

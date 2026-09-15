@@ -1,5 +1,5 @@
-import LearningView from "@/components/dashboard/views/LearningView";
+import RetrainingLearningView from "@/components/retraining/RetrainingLearningView";
 
 export default function RetrainingLearningPage() {
-  return <LearningView />;
+  return <RetrainingLearningView />;
 }

@@ -8,6 +8,7 @@ export type CreateApplicationRequest = {
   type?: string;
   comment?: string;
   course_id?: number;
+  retraining_type?: string;
 };
 
 export type ClientApplicationResponse = {
@@ -17,6 +18,10 @@ export type ClientApplicationResponse = {
   client_email?: string;
   title: string;
   type?: string;
+  program_type?: string | null;
+  retraining_type?: string | null;
+  dastur?: string | null;
+  program_label?: string | null;
   status: string;
   status_label?: string;
   comment?: string;

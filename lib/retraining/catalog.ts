@@ -3,21 +3,39 @@ import {
   getRetrainingCourseFilters,
   getRetrainingCoursesAll,
 } from "@/lib/api/retraining";
+import { isRetrainingApiEnabled } from "@/lib/retraining/temp-state";
 import type { CourseListQuery } from "@/lib/api/types/courses";
 import type { RetrainingCatalogCourse } from "@/lib/api/types/retraining";
 import { studentApplicationKind } from "@/lib/dashboard/student-status";
+import type { RetrainingType } from "@/lib/retraining/kind";
+import { requireStudentRetrainingType } from "@/lib/retraining/isolate";
 
-export async function getRetrainingCourses(query: CourseListQuery = {}): Promise<RetrainingCatalogCourse[]> {
-  return getRetrainingCoursesAll(query);
+function scope(type?: RetrainingType | null) {
+  return { retrainingType: requireStudentRetrainingType(type) };
 }
 
-export async function getRetrainingCourse(id: string): Promise<RetrainingCatalogCourse | null> {
-  const detail = await getRetrainingCourseDetail(id);
+export async function getRetrainingCourses(
+  query: CourseListQuery = {},
+  retrainingType?: RetrainingType | null
+): Promise<RetrainingCatalogCourse[]> {
+  if (!isRetrainingApiEnabled()) return [];
+  return getRetrainingCoursesAll(query, scope(retrainingType));
+}
+
+export async function getRetrainingCourse(
+  id: string,
+  retrainingType?: RetrainingType | null
+): Promise<RetrainingCatalogCourse | null> {
+  if (!isRetrainingApiEnabled()) return null;
+  const detail = await getRetrainingCourseDetail(id, scope(retrainingType));
   return detail;
 }
 
-export async function getRetrainingFilterOptions() {
-  const filters = await getRetrainingCourseFilters();
+export async function getRetrainingFilterOptions(retrainingType?: RetrainingType | null) {
+  if (!isRetrainingApiEnabled()) {
+    return { directions: [], subjects: [], types: [], hours: [], statuses: [] };
+  }
+  const filters = await getRetrainingCourseFilters(scope(retrainingType));
   return {
     directions: filters.directions ?? [],
     subjects: filters.subjects ?? [],

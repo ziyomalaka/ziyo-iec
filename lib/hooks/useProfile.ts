@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/api/errors";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import { profileService } from "@/lib/profile/service";
@@ -21,13 +21,17 @@ export function useProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadGen = useRef(0);
+
   const reload = useCallback(async (silent = false) => {
+    const gen = silent ? loadGen.current : ++loadGen.current;
     if (!silent) {
       setLoading(true);
       setError(null);
     }
     try {
       const data = await profileService.getPageData();
+      if (gen !== loadGen.current) return;
       setProfile(data.profile);
       setStats(data.stats);
       setSettings(data.settings);
@@ -35,15 +39,18 @@ export function useProfile() {
       setSessions(data.sessions);
       setError(null);
     } catch (err) {
-      if (silent) return;
+      if (gen !== loadGen.current || silent) return;
       setError(err instanceof ApiError ? err.message : "Profil ma'lumotlarini yuklab bo'lmadi.");
     } finally {
-      if (!silent) setLoading(false);
+      if (gen === loadGen.current && !silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void reload();
+    return () => {
+      loadGen.current += 1;
+    };
   }, [reload]);
 
   useLiveRefresh(() => void reload(true));

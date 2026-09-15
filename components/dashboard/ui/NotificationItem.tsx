@@ -7,17 +7,26 @@ import type { Notification } from "@/lib/dashboard/types";
 import { formatUzDateTime } from "@/lib/dashboard/utils";
 import {
   createNotification,
-  formatToAdminMessage,
   notificationErrorMessage,
   sendNotificationToAdmin,
 } from "@/lib/api/notifications";
-import { getAuthUser } from "@/lib/auth/session";
+import {
+  personInitials,
+  studentStaffDisplayName,
+  studentStaffRoleLabel,
+} from "@/lib/dashboard/staff-public-label";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 
 type NotificationItemProps = {
   notification: Notification;
   onMarkRead?: (id: string) => void;
   onDelete?: (id: string) => void;
   replyTo?: "admin" | "sender";
+  allowReply?: boolean;
+  replyUserId?: number;
+  onReplied?: () => void;
+  variant?: "card" | "thread";
+  outgoing?: boolean;
   className?: string;
 };
 
@@ -26,17 +35,28 @@ export default function NotificationItem({
   onMarkRead,
   onDelete,
   replyTo = "admin",
+  allowReply = true,
+  replyUserId,
+  onReplied,
+  variant = "card",
+  outgoing = false,
   className,
 }: NotificationItemProps) {
+  const { notificationsApi, retrainingKind } = useStudentProgramPaths();
   const unread = !notification.read;
-  const canReply =
-    replyTo === "admin"
-      ? notification.fromAdmin
-      : Boolean(notification.senderId);
+  const senderUserId = replyUserId ?? notification.senderId;
+  const canReply = allowReply && (replyTo !== "sender" || Boolean(senderUserId));
+  const showStaff =
+    replyTo === "admin" &&
+    (notification.fromAdmin || Boolean(notification.senderName) || notification.category === "system");
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyTitle, setReplyTitle] = useState(`Re: ${notification.title}`);
   const [replyMessage, setReplyMessage] = useState("");
   const [sending, setSending] = useState(false);
+
+  const senderLabel = showStaff
+    ? studentStaffDisplayName(notification.senderName)
+    : notification.senderName || (notification.senderId ? `Mijoz #${notification.senderId}` : "Mijoz");
 
   const onReply = async (event: FormEvent) => {
     event.preventDefault();
@@ -48,32 +68,37 @@ export default function NotificationItem({
       toast.error("Sarlavha va javob matni to'ldirilishi shart");
       return;
     }
-    if (replyTo === "sender" && !notification.senderId) {
+    if (replyTo === "sender" && !senderUserId) {
       toast.error("Mijoz ID topilmadi");
       return;
     }
     setSending(true);
     try {
-      if (replyTo === "sender" && notification.senderId) {
+      if (replyTo === "sender" && senderUserId) {
         await createNotification({
-          user_id: notification.senderId,
+          user_id: senderUserId,
           title,
           message,
         });
         toast.success("Javob mijozga yuborildi.");
       } else {
-        const sent = await sendNotificationToAdmin({
-          title,
-          message: formatToAdminMessage(message, getAuthUser()),
-        });
+        const sent = await sendNotificationToAdmin(
+          {
+            title,
+            message,
+          },
+          notificationsApi,
+          retrainingKind
+        );
         if (sent.count < 1) {
           toast.error("Nazoratchi topilmadi — xabar inboxga tushmadi.");
-        } else {
-          toast.success("Javob nazoratchiga yuborildi.");
+          return;
         }
+        toast.success("Javob nazoratchiga yuborildi.");
       }
       setReplyMessage("");
       setReplyOpen(false);
+      onReplied?.();
     } catch (error) {
       toast.error(notificationErrorMessage(error, "Javob yuborilmadi"));
     } finally {
@@ -81,51 +106,98 @@ export default function NotificationItem({
     }
   };
 
+  if (variant === "thread") {
+    return (
+      <div
+        className={cn("flex gap-2.5", outgoing ? "flex-row-reverse" : "flex-row", className)}
+        onClick={() => {
+          if (unread) onMarkRead?.(notification.id);
+        }}
+      >
+        <div
+          className={cn(
+            "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+            outgoing ? "bg-primary text-white" : "bg-surface-blue text-primary"
+          )}
+        >
+          {personInitials(outgoing ? "Nazoratchi" : senderLabel)}
+        </div>
+        <div
+          className={cn(
+            "max-w-[min(100%,28rem)] rounded-2xl px-4 py-3 shadow-[0_4px_16px_-6px_rgba(15,35,64,0.12)]",
+            outgoing
+              ? "rounded-tr-md bg-primary text-white"
+              : "rounded-tl-md border border-border/70 bg-white text-primary-dark"
+          )}
+        >
+          {notification.title ? (
+            <p className={cn("text-sm font-semibold", outgoing ? "text-white" : "text-primary-dark")}>
+              {notification.title}
+            </p>
+          ) : null}
+          {notification.text ? (
+            <p className={cn("mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed", outgoing ? "text-white/95" : "text-muted")}>
+              {notification.text}
+            </p>
+          ) : null}
+          <p className={cn("mt-2 text-[11px]", outgoing ? "text-white/70" : "text-slate-400")}>
+            {formatUzDateTime(notification.date)}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={() => {
         if (unread && !replyOpen) onMarkRead?.(notification.id);
       }}
       className={cn(
-        "flex flex-col gap-3 rounded-xl border bg-white p-4 text-left transition-colors sm:flex-row sm:gap-4",
-        unread
-          ? "border-[#2563EB]/25 bg-[#F8FAFF]"
-          : "border-[#E8EDF5] bg-white opacity-90",
+        "flex flex-col gap-3 rounded-2xl border bg-white p-4 text-left shadow-[0_4px_24px_-4px_rgba(15,35,64,0.06)] transition-colors sm:flex-row sm:gap-4",
+        unread ? "border-primary/20 bg-[#F8FAFF]" : "border-border/70",
         unread && onMarkRead && !replyOpen ? "cursor-pointer" : "cursor-default",
         className
       )}
     >
-      <span
-        className={cn("mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", unread ? "bg-[#0756F5]" : "bg-transparent")}
-        aria-hidden
-      />
+      <div
+        className={cn(
+          "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+          unread ? "bg-primary text-white" : "bg-surface-blue text-primary"
+        )}
+      >
+        {personInitials(senderLabel)}
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <h4 className={cn("min-w-0 break-words font-semibold text-[#0C2340]", unread && "text-[#0A3D91]")}>
+          <h4 className={cn("min-w-0 break-words font-semibold text-primary-dark", unread && "text-[#0A3D91]")}>
             {notification.title}
           </h4>
         </div>
-        <p className="mt-1 break-words text-sm text-[#64748B] whitespace-pre-wrap">{notification.text}</p>
-        {replyTo === "sender" || notification.senderName ? (
-          <p className={cn("mt-1", replyTo === "sender" ? "text-sm font-medium text-[#0C2340]" : "text-xs text-[#94A3B8]")}>
-            Kimdan: {notification.senderName || (notification.senderId ? `Mijoz #${notification.senderId}` : "Mijoz")}
+        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted">{notification.text}</p>
+        {showStaff ? (
+          <div className="mt-2">
+            <p className="text-sm font-semibold text-primary-dark">{studentStaffDisplayName(notification.senderName)}</p>
+            <p className="text-xs text-muted">{studentStaffRoleLabel()}</p>
+          </div>
+        ) : replyTo === "sender" || notification.senderName ? (
+          <p className={cn("mt-1", replyTo === "sender" ? "text-sm font-medium text-primary-dark" : "text-xs text-slate-400")}>
+            Kimdan: {senderLabel}
           </p>
         ) : null}
-        <span className="mt-2 inline-block text-xs text-[#94A3B8]">
-          {formatUzDateTime(notification.date)}
-        </span>
+        <span className="mt-2 inline-block text-xs text-slate-400">{formatUzDateTime(notification.date)}</span>
         {replyOpen ? (
           <form
             onSubmit={(event) => void onReply(event)}
             onClick={(event) => event.stopPropagation()}
-            className="mt-3 space-y-2 rounded-lg border border-[#E8EDF5] bg-white p-3"
+            className="mt-3 space-y-2 rounded-2xl border border-border/70 bg-surface p-3"
           >
             <input
               value={replyTitle}
               onChange={(e) => setReplyTitle(e.target.value)}
               disabled={sending}
               placeholder="Sarlavha"
-              className="w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm"
+              className="input-field"
             />
             <textarea
               value={replyMessage}
@@ -133,21 +205,17 @@ export default function NotificationItem({
               disabled={sending}
               rows={3}
               placeholder="Yozma javob"
-              className="w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm"
+              className="input-field min-h-[5.5rem] resize-y"
             />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={sending}
-                className="rounded-lg bg-[#0756F5] px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60"
-              >
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" disabled={sending} className="btn-primary-sm disabled:opacity-60">
                 {sending ? "Yuborilmoqda..." : "Yuborish"}
               </button>
               <button
                 type="button"
                 disabled={sending}
                 onClick={() => setReplyOpen(false)}
-                className="rounded-lg border border-[#E8EDF5] px-4 py-1.5 text-sm text-[#64748B]"
+                className="btn-outline-sm"
               >
                 Bekor
               </button>
@@ -164,7 +232,7 @@ export default function NotificationItem({
               setReplyTitle(`Re: ${notification.title}`);
               setReplyOpen(true);
             }}
-            className="min-h-11 rounded-lg border border-[#0756F5] px-3 py-1.5 text-xs font-medium text-[#0756F5] hover:bg-[#EEF4FF]"
+            className="btn-outline-sm px-3 text-xs"
           >
             Javob berish
           </button>
@@ -173,8 +241,8 @@ export default function NotificationItem({
       <div className="flex shrink-0 flex-row flex-wrap items-center justify-between gap-2 sm:flex-col sm:items-end">
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-[11px] font-medium",
-            unread ? "bg-[#EEF4FF] text-[#2563EB]" : "bg-[#F1F5F9] text-[#64748B]"
+            "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+            unread ? "bg-primary/10 text-primary" : "bg-slate-100 text-muted"
           )}
         >
           {unread ? "O'qilmagan" : "O'qilgan"}
@@ -186,7 +254,7 @@ export default function NotificationItem({
               event.stopPropagation();
               onMarkRead(notification.id);
             }}
-            className="text-xs font-medium text-[#2563EB] hover:underline"
+            className="text-xs font-medium text-primary hover:underline"
           >
             O&apos;qildi deb belgilash
           </button>

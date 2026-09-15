@@ -60,6 +60,7 @@ export default function LessonMaterialsFlow({
   lessonCode,
   completedKeys,
   onMarkComplete,
+  onFlowFinished,
   testSlot,
   hasTest,
   testDone,
@@ -68,6 +69,8 @@ export default function LessonMaterialsFlow({
   lessonCode: string;
   completedKeys: Set<string>;
   onMarkComplete: (opts: { key: string; materialId?: number }) => void | Promise<void>;
+  /** Oxirgi material ko'rilgach — parent lesson-level complete/test oqimini boshlaydi. */
+  onFlowFinished?: () => void;
   testSlot?: ReactNode;
   hasTest?: boolean;
   testDone?: boolean;
@@ -93,6 +96,11 @@ export default function LessonMaterialsFlow({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const markViewed = (item: RequiredLessonMaterial) => {
+    if (completedKeys.has(item.key)) return;
+    void onMarkComplete({ key: item.key, materialId: item.materialId });
+  };
+
   const goNext = async (item: RequiredLessonMaterial, index: number) => {
     if (!completedKeys.has(item.key)) {
       await onMarkComplete({ key: item.key, materialId: item.materialId });
@@ -105,6 +113,7 @@ export default function LessonMaterialsFlow({
     }
     setActiveKey(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
+    if (index >= required.length - 1) onFlowFinished?.();
   };
 
   return (
@@ -132,7 +141,7 @@ export default function LessonMaterialsFlow({
           done={completedKeys.has(active.key)}
           onBack={() => setActiveKey(null)}
           onNext={() => void goNext(active, activeIndex)}
-          onComplete={() => void onMarkComplete({ key: active.key, materialId: active.materialId })}
+          onViewed={() => markViewed(active)}
         />
       ) : (
         <ul className="space-y-3">
@@ -197,7 +206,7 @@ function MaterialDetail({
   done,
   onBack,
   onNext,
-  onComplete,
+  onViewed,
 }: {
   lesson: LearningLessonDetail;
   lessonCode: string;
@@ -207,7 +216,7 @@ function MaterialDetail({
   done: boolean;
   onBack: () => void;
   onNext: () => void;
-  onComplete: () => void;
+  onViewed: () => void;
 }) {
   const material = findMaterial(lesson, item);
   const assignment = findAssignment(lesson, item);
@@ -234,7 +243,7 @@ function MaterialDetail({
       </p>
 
       {item.kind === "video" && videoUrl ? (
-        <VideoBlock url={videoUrl} title={item.title} onEnded={onComplete} />
+        <VideoBlock url={videoUrl} title={item.title} onEnded={onViewed} />
       ) : null}
 
       {item.kind === "lecture" ? (

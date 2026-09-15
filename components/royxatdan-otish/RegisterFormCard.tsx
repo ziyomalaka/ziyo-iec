@@ -1,17 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { Mail, Phone, Lock, Eye, EyeOff, ArrowRight, Loader2 } from "@/lib/icons";
+import { Mail, Phone, Lock, Eye, EyeOff, ArrowRight, Loader2, User } from "@/lib/icons";
 import { register as registerUser } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/errors";
 import { saveAuthSession } from "@/lib/auth/session";
-import { resolvePostLoginPath } from "@/lib/auth/program";
+import { programHomePath } from "@/lib/auth/program";
+import {
+  clearTempRetrainingType,
+  getTempProgramType,
+  getTempRetrainingType,
+  setTempProgramType,
+  setTempRetrainingType,
+} from "@/lib/retraining/temp-state";
 import { GMAIL_ONLY_MESSAGE, isGmailAddress } from "@/lib/auth/gmail";
 import BrandLogo from "@/components/ui/BrandLogo";
 import Button from "@/components/ui/Button";
@@ -34,35 +41,6 @@ import {
   UZ_PHONE_PREFIX,
 } from "@/lib/phone/uz";
 
-function translateOr(
-  t: { (key: string): string; has: (key: string) => boolean },
-  key: string,
-  fallback: string
-) {
-  try {
-    if (typeof t.has === "function" && !t.has(key)) return fallback;
-    return t(key);
-  } catch {
-    return fallback;
-  }
-}
-
-const RETRAINING_LABEL = {
-  uz: "Qayta tayyorlash turini tanlang",
-  ru: "Выберите вид переподготовки",
-} as const;
-
-const RETRAINING_TYPE_LABELS: Record<RetrainingType, { uz: string; ru: string }> = {
-  UMUMIY: { uz: "Umumiy qayta tayyorlash", ru: "Общая переподготовка" },
-  KASBIY: { uz: "Kasbiy qayta tayyorlash", ru: "Профессиональная переподготовка" },
-  PEDAGOGIK: { uz: "Pedagogik qayta tayyorlash", ru: "Педагогическая переподготовка" },
-};
-
-const RETRAINING_TYPE_ERROR = {
-  uz: "Qayta tayyorlash turini tanlang.",
-  ru: "Выберите вид переподготовки.",
-} as const;
-
 const nameField = (tv: (key: string) => string) =>
   z.string().min(2, tv("nameMin")).max(100, tv("nameMax"));
 
@@ -73,7 +51,6 @@ export default function RegisterFormCard() {
   const t = useTranslations("register.form");
   const tv = useTranslations("validation.register");
   const tCommon = useTranslations("common");
-  const locale = useLocale() === "ru" ? "ru" : "uz";
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -85,7 +62,7 @@ export default function RegisterFormCard() {
           program_type: z
             .string()
             .refine((value): value is ProgramType => PROGRAM_TYPES.includes(value as ProgramType), tv("programTypeRequired")),
-          retraining_type: z.string(),
+          retraining_type: z.string().optional(),
           first_name: nameField(tv),
           last_name: nameField(tv),
           father_name: nameField(tv),
@@ -94,22 +71,21 @@ export default function RegisterFormCard() {
           password: z.string().min(6, tv("passwordMin")),
           confirmPassword: z.string().min(1, tv("confirmRequired")),
         })
-        .superRefine((data, ctx) => {
-          if (data.program_type === "QAYTA_TAYYORLASH") {
-            if (!RETRAINING_TYPES.includes(data.retraining_type as RetrainingType)) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                path: ["retraining_type"],
-                message: translateOr(tv, "retrainingTypeRequired", RETRAINING_TYPE_ERROR[locale]),
-              });
-            }
-          }
-        })
         .refine((data) => data.password === data.confirmPassword, {
           message: tv("passwordMismatch"),
           path: ["confirmPassword"],
+        })
+        .superRefine((data, ctx) => {
+          if (data.program_type !== "QAYTA_TAYYORLASH") return;
+          if (!RETRAINING_TYPES.includes(data.retraining_type as RetrainingType)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["retraining_type"],
+              message: tv("retrainingTypeRequired"),
+            });
+          }
         }),
-    [locale, tv]
+    [tv]
   );
 
   const {
@@ -120,7 +96,7 @@ export default function RegisterFormCard() {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(registerSchema) as Resolver<RegisterFormValues>,
     defaultValues: {
       program_type: "",
       retraining_type: "",
@@ -136,12 +112,28 @@ export default function RegisterFormCard() {
 
   const programType = watch("program_type");
   const retrainingType = watch("retraining_type");
-  const showRetraining = programType === "QAYTA_TAYYORLASH";
+
+  useEffect(() => {
+    const savedProgram = getTempProgramType();
+    if (savedProgram) {
+      setValue("program_type", savedProgram, { shouldValidate: false });
+    }
+    const savedType = getTempRetrainingType();
+    if (savedType) {
+      setValue("retraining_type", savedType, { shouldValidate: false });
+    }
+  }, [setValue]);
 
   const onSubmit = async (data: RegisterFormValues) => {
     if (data.program_type !== "MALAKA_OSHIRISH" && data.program_type !== "QAYTA_TAYYORLASH") {
       return;
     }
+
+    const selectedRetraining =
+      data.program_type === "QAYTA_TAYYORLASH" &&
+      RETRAINING_TYPES.includes(data.retraining_type as RetrainingType)
+        ? (data.retraining_type as RetrainingType)
+        : null;
 
     try {
       const response = await registerUser({
@@ -153,9 +145,7 @@ export default function RegisterFormCard() {
         password: data.password,
         password_confirm: data.confirmPassword,
         program_type: data.program_type,
-        ...(data.program_type === "QAYTA_TAYYORLASH" && data.retraining_type
-          ? { retraining_type: data.retraining_type }
-          : {}),
+        ...(selectedRetraining ? { retraining_type: selectedRetraining } : {}),
       });
 
       saveAuthSession(
@@ -163,19 +153,24 @@ export default function RegisterFormCard() {
         {
           ...response.user,
           program_type: response.user.program_type || data.program_type,
+          retraining_type: response.user.retraining_type ?? selectedRetraining,
         },
         true
       );
+
+      setTempProgramType(data.program_type);
+      if (selectedRetraining) {
+        setTempRetrainingType(selectedRetraining);
+      } else {
+        clearTempRetrainingType();
+      }
 
       toast.success(t("toast.successTitle"), {
         description: t("toast.successDescription"),
       });
 
       router.push(
-        await resolvePostLoginPath({
-          ...response.user,
-          program_type: response.user.program_type || data.program_type,
-        })
+        programHomePath(data.program_type, response.user.retraining_type ?? selectedRetraining)
       );
       router.refresh();
     } catch (error) {
@@ -207,66 +202,69 @@ export default function RegisterFormCard() {
               value={programType}
               onChange={(next) => {
                 setValue("program_type", next, { shouldValidate: true, shouldDirty: true });
-                setValue("retraining_type", "", { shouldValidate: false, shouldDirty: true });
+                setTempProgramType(next);
+                if (next !== "QAYTA_TAYYORLASH") {
+                  setValue("retraining_type", "", { shouldValidate: false });
+                  clearTempRetrainingType();
+                }
               }}
               label={t("labels.programType")}
               optionLabel={(option) => t(`programTypes.${option}`)}
               error={errors.program_type?.message}
             />
             <input type="hidden" {...register("program_type")} />
-            <input type="hidden" {...register("retraining_type")} />
 
-            <div
-              className={cn(
-                "grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
-                showRetraining ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-              )}
-              aria-hidden={!showRetraining}
-            >
-              <div className="min-h-0 overflow-hidden" {...(!showRetraining ? { inert: true } : {})}>
-                <RetrainingTypeField
-                  value={retrainingType}
-                  onChange={(next) =>
-                    setValue("retraining_type", next, { shouldValidate: true, shouldDirty: true })
-                  }
-                  label={translateOr(t, "labels.retrainingType", RETRAINING_LABEL[locale])}
-                  optionLabel={(option) =>
-                    translateOr(t, `retrainingTypes.${option}`, RETRAINING_TYPE_LABELS[option][locale])
-                  }
-                  error={showRetraining ? errors.retraining_type?.message : undefined}
-                />
-              </div>
-            </div>
+            {programType === "QAYTA_TAYYORLASH" ? (
+              <RetrainingTypeField
+                value={(retrainingType as RetrainingType | "") ?? ""}
+                onChange={(next) => {
+                  setValue("retraining_type", next, { shouldValidate: true, shouldDirty: true });
+                  setTempRetrainingType(next);
+                }}
+                label={t("labels.retrainingType")}
+                optionLabel={(option) => t(`retrainingTypes.${option}`)}
+                error={errors.retraining_type?.message}
+              />
+            ) : null}
 
             <div className="grid gap-4 md:grid-cols-3">
               <FormField required label={t("labels.lastName")} error={errors.last_name?.message}>
-                <input
-                  {...register("last_name")}
-                  type="text"
-                  autoComplete="family-name"
-                  placeholder={t("placeholders.lastName")}
-                  className={inputClass(Boolean(errors.last_name))}
-                />
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                  <input
+                    {...register("last_name")}
+                    type="text"
+                    autoComplete="family-name"
+                    placeholder={t("placeholders.lastName")}
+                    className={cn(inputClass(Boolean(errors.last_name)), "pl-10")}
+                  />
+                </div>
               </FormField>
 
               <FormField required label={t("labels.firstName")} error={errors.first_name?.message}>
-                <input
-                  {...register("first_name")}
-                  type="text"
-                  autoComplete="given-name"
-                  placeholder={t("placeholders.firstName")}
-                  className={inputClass(Boolean(errors.first_name))}
-                />
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                  <input
+                    {...register("first_name")}
+                    type="text"
+                    autoComplete="given-name"
+                    placeholder={t("placeholders.firstName")}
+                    className={cn(inputClass(Boolean(errors.first_name)), "pl-10")}
+                  />
+                </div>
               </FormField>
 
               <FormField required label={t("labels.fatherName")} error={errors.father_name?.message}>
-                <input
-                  {...register("father_name")}
-                  type="text"
-                  autoComplete="additional-name"
-                  placeholder={t("placeholders.fatherName")}
-                  className={inputClass(Boolean(errors.father_name))}
-                />
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                  <input
+                    {...register("father_name")}
+                    type="text"
+                    autoComplete="additional-name"
+                    placeholder={t("placeholders.fatherName")}
+                    className={cn(inputClass(Boolean(errors.father_name)), "pl-10")}
+                  />
+                </div>
               </FormField>
             </div>
 

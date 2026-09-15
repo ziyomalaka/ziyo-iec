@@ -16,6 +16,7 @@ export type RetrainingMyCourseItem = {
   enrolled_at?: string;
   enrollment_status?: string;
   thumbnail_url?: string;
+  retraining_type?: string | null;
 };
 
 export type RetrainingOverview = {

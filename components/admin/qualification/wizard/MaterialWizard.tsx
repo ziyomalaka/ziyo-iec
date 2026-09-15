@@ -33,7 +33,7 @@ import {
   updateItLesson,
   updateItModule,
 } from "@/lib/api/admin-it";
-import { ApiError, getApiFieldErrors } from "@/lib/api/errors";
+import { ApiError, getApiFieldErrors, materialUploadErrorMessage } from "@/lib/api/errors";
 import {
   createQualificationLesson,
   createQualificationModule,
@@ -58,9 +58,11 @@ import {
   updateMandatoryModule,
 } from "@/lib/api/mandatory-blogs";
 import {
+  assignRetrainingModuleBlock,
   createRetrainingDirection,
   createRetrainingLesson,
   createRetrainingModule,
+  getRetrainingDirection,
   getRetrainingDirections,
   publishRetrainingLesson,
   saveRetrainingLessonDraft,
@@ -75,7 +77,9 @@ import type {
   MaterialWizardState,
   QualificationDirection,
   QualificationMaterialType,
+  QualificationModule,
 } from "@/lib/api/types/qualification";
+import type { UploadOptions } from "@/lib/api/upload";
 import { formatLessonCode } from "@/lib/qualification/constants";
 import {
   isItSource,
@@ -87,6 +91,15 @@ import {
   mergeModules,
 } from "@/lib/qualification/it-bridge";
 import { loadMergedDirections, buildAdminQualificationList } from "@/lib/qualification/load-directions";
+import { resolveWizardRetrainingPanel, retrainingPanelRoute, type RetrainingPanel } from "@/lib/retraining/admin-panels";
+import { resolveBlocksForDirection, withModuleBlockMarker } from "@/lib/retraining/content-blocks";
+import {
+  blockIdForWizardModule,
+  isDirectionIdCopiedAsModuleId,
+  isRetrainingBlockMetaId,
+  resolveRetrainingWizardModule,
+  sanitizeRetrainingWizardModuleId,
+} from "@/lib/retraining/wizard-module";
 import { persistSelectedLessonKind } from "@/lib/qualification/lesson-kind-sync";
 import { lessonSchema, moduleSchema } from "@/lib/qualification/schemas";
 import {
@@ -177,6 +190,8 @@ export default function MaterialWizard() {
   const busyRef = useRef(false);
   const moduleIdempotencyKey = useRef(crypto.randomUUID());
   const lessonIdempotencyKey = useRef(crypto.randomUUID());
+  /** API response dan tasdiqlangan modul PK — React stale state oldini oladi. */
+  const confirmedModuleIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const launch = launchFromSearch(searchParams);
@@ -192,6 +207,12 @@ export default function MaterialWizard() {
           return {
             ...draft,
             launchKey,
+            moduleId: launched.moduleId ?? draft.moduleId ?? null,
+            blockId: launched.blockId ?? draft.blockId,
+            moduleNumber: launched.moduleNumber ?? draft.moduleNumber,
+            moduleTitle: launched.moduleTitle || draft.moduleTitle,
+            savedModuleNumber: launched.moduleId ? (launched.savedModuleNumber ?? draft.savedModuleNumber) : draft.savedModuleNumber,
+            savedModuleTitle: launched.moduleId ? (launched.savedModuleTitle ?? draft.savedModuleTitle) : draft.savedModuleTitle,
             lessonId: null,
             savedLessonNumber: null,
             savedLessonType: null,
@@ -200,6 +221,7 @@ export default function MaterialWizard() {
             lessonTitle: launched.lessonTitle || draft.lessonTitle,
             lessonType: launched.lessonType ?? draft.lessonType,
             lessonCode: launched.lessonCode || draft.lessonCode,
+            retrainingPanel: launched.retrainingPanel ?? draft.retrainingPanel,
           };
         }
         if (
@@ -209,6 +231,7 @@ export default function MaterialWizard() {
           return {
             ...launched,
             moduleId: launched.moduleId ?? prev.moduleId,
+            blockId: launched.blockId ?? prev.blockId,
             savedModuleNumber: launched.savedModuleNumber ?? prev.savedModuleNumber,
             savedModuleTitle: launched.savedModuleTitle ?? prev.savedModuleTitle,
             lessonId: launch.lessonId ?? null,
@@ -237,6 +260,17 @@ export default function MaterialWizard() {
   }, [hydrated, state]);
 
   const urlSource = searchParams.get("source");
+  const urlPanel = searchParams.get("panel");
+  const selectedDirection = useMemo(
+    () => (state.directionId ? directions.find((item) => item.id === state.directionId) ?? null : null),
+    [directions, state.directionId]
+  );
+  const routePanelHint = urlPanel ?? state.retrainingPanel ?? null;
+  const retrainingPanel = resolveWizardRetrainingPanel(routePanelHint, selectedDirection);
+  const retrainingMaterialContext = useMemo(
+    () => (isRetrainingSource(state.source) && selectedDirection ? { direction: selectedDirection } : undefined),
+    [state.source, selectedDirection]
+  );
   // Wizard qaysi panel nomidan ochilgan: majburiy blog, qayta tayyorlash yoki malaka oshirish.
   const panelSource: ContentSource | null =
     urlSource === "mandatory" || isMandatorySource(state.source)
@@ -247,11 +281,18 @@ export default function MaterialWizard() {
 
   useEffect(() => {
     let cancelled = false;
+    if (panelSource === "retraining" && !retrainingPanel) {
+      setIsLoadingDirections(false);
+      toast.error("Qayta tayyorlash paneli ko'rsatilmagan (?panel=umumiy|pedagogik|kasbiy)");
+      return () => {
+        cancelled = true;
+      };
+    }
     const request =
       panelSource === "mandatory"
         ? getMandatoryBlogs({ per_page: 100 })
-        : panelSource === "retraining"
-          ? getRetrainingDirections({ per_page: 100 })
+        : panelSource === "retraining" && retrainingPanel
+          ? getRetrainingDirections(retrainingPanel, { per_page: 100 })
           : loadMergedDirections().then(({ merged }) =>
               buildAdminQualificationList(merged).filter((item) => item.id > 0)
             );
@@ -266,7 +307,61 @@ export default function MaterialWizard() {
     return () => {
       cancelled = true;
     };
-  }, [panelSource]);
+  }, [panelSource, retrainingPanel]);
+
+  useEffect(() => {
+    if (!isRetrainingSource(state.source) || !state.directionId || selectedDirection || !retrainingPanel) return;
+    let cancelled = false;
+    void getRetrainingDirection(retrainingPanel, state.directionId, true, { fetchMaterials: false })
+      .then((detail) => {
+        if (cancelled || !detail.id) return;
+        setDirections((prev) =>
+          prev.some((item) => item.id === detail.id) ? prev : [...prev, detail]
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [state.source, state.directionId, selectedDirection, retrainingPanel]);
+
+  useEffect(() => {
+    if (!isRetrainingSource(state.source) || !retrainingPanel || state.retrainingPanel === retrainingPanel) return;
+    setState((prev) => ({ ...prev, retrainingPanel }));
+  }, [state.source, state.retrainingPanel, retrainingPanel]);
+
+  const retrainingBlocks = useMemo(
+    () => (selectedDirection ? resolveBlocksForDirection(selectedDirection) : []),
+    [selectedDirection]
+  );
+
+  useEffect(() => {
+    if (!isRetrainingSource(state.source) || !selectedDirection || !state.moduleId) return;
+    const qualModule = resolveRetrainingWizardModule(selectedDirection, state.moduleId);
+    if (!qualModule) return;
+    const derivedBlockId = blockIdForWizardModule(selectedDirection, qualModule);
+    if (!derivedBlockId || state.blockId === derivedBlockId) return;
+    setState((prev) => ({ ...prev, blockId: derivedBlockId }));
+  }, [state.source, state.moduleId, state.blockId, selectedDirection]);
+
+  useEffect(() => {
+    if (!isRetrainingSource(state.source) || !state.moduleId) return;
+    const sanitized = sanitizeRetrainingWizardModuleId(selectedDirection, state.moduleId);
+    if (sanitized === state.moduleId) {
+      if (sanitized) confirmedModuleIdRef.current = sanitized;
+      return;
+    }
+    confirmedModuleIdRef.current = null;
+    setState((prev) => ({
+      ...prev,
+      moduleId: sanitized,
+      savedModuleNumber: sanitized ? prev.savedModuleNumber : null,
+      savedModuleTitle: sanitized ? prev.savedModuleTitle : undefined,
+    }));
+    if (state.moduleId && !sanitized) {
+      toast.error("Noto'g'ri modul ID. Modulni qayta tanlang yoki yarating.");
+    }
+  }, [state.source, state.moduleId, selectedDirection]);
 
   useEffect(() => {
     const dirty = Boolean(state.directionId || state.moduleTitle || state.lessonTitle || state.materials.length);
@@ -284,6 +379,11 @@ export default function MaterialWizard() {
   const patch = useCallback((next: Partial<MaterialWizardState>) => {
     setState((prev) => ({ ...prev, ...next }));
   }, []);
+
+  useEffect(() => {
+    if (!isRetrainingSource(state.source) || state.blockId || state.moduleId || retrainingBlocks.length !== 1) return;
+    patch({ blockId: retrainingBlocks[0]!.id });
+  }, [state.source, state.blockId, state.moduleId, retrainingBlocks, patch]);
 
   const lessonCode = state.lessonCode || formatLessonCode(state.moduleNumber, state.lessonNumber);
 
@@ -304,6 +404,7 @@ export default function MaterialWizard() {
     if (state.directionId && state.directionId !== id) {
       moduleIdempotencyKey.current = crypto.randomUUID();
       lessonIdempotencyKey.current = crypto.randomUUID();
+      confirmedModuleIdRef.current = null;
       setState((prev) => ({
         ...resetDownstreamFromDirection(prev),
         directionId: id,
@@ -314,6 +415,56 @@ export default function MaterialWizard() {
     }
     patch({ directionId: id, directionTitle: title, source: nextSource });
   };
+
+  const syncWizardUrl = useCallback(
+    (overrides: {
+      step?: number;
+      directionId?: number;
+      moduleId?: number | null;
+      lessonId?: number | null;
+      blockId?: number | null;
+    } = {}) => {
+      const moduleId =
+        overrides.moduleId === null
+          ? undefined
+          : overrides.moduleId ?? confirmedModuleIdRef.current ?? state.moduleId ?? undefined;
+      const lessonId =
+        overrides.lessonId === null ? undefined : overrides.lessonId ?? state.lessonId ?? undefined;
+      router.replace(
+        qualificationWizardPath({
+          step: overrides.step ?? state.step,
+          source: state.source,
+          retrainingPanel: isRetrainingSource(state.source) ? retrainingPanel ?? state.retrainingPanel : undefined,
+          directionId: overrides.directionId ?? state.directionId ?? undefined,
+          directionTitle: state.directionTitle,
+          blockId: overrides.blockId === null ? undefined : overrides.blockId ?? state.blockId ?? undefined,
+          moduleId: moduleId && moduleId > 0 ? moduleId : undefined,
+          moduleNumber: state.moduleNumber ?? undefined,
+          moduleTitle: state.moduleTitle,
+          lessonId: lessonId && lessonId > 0 ? lessonId : undefined,
+          lessonNumber: state.lessonNumber ?? undefined,
+          lessonType: state.lessonType ?? undefined,
+          lessonTitle: state.lessonTitle,
+          lessonCode: state.lessonCode,
+        })
+      );
+    },
+    [router, state, retrainingPanel]
+  );
+
+  const logRetrainingWizardIds = useCallback(
+    (label: string, extra?: Record<string, unknown>) => {
+      if (process.env.NODE_ENV !== "development" || !isRetrainingSource(state.source)) return;
+      console.log(label, {
+        panel: retrainingPanel,
+        directionId: state.directionId,
+        moduleId: confirmedModuleIdRef.current ?? state.moduleId,
+        lessonId: state.lessonId,
+        ...extra,
+      });
+    },
+    [state.source, state.directionId, state.moduleId, state.lessonId, retrainingPanel]
+  );
 
   const toggleType = (type: QualificationMaterialType) => {
     if (state.materialTypes.includes(type)) {
@@ -333,10 +484,59 @@ export default function MaterialWizard() {
     patch({ materialTypes: nextTypes, materials: syncMaterialsForTypes({ ...state, materialTypes: nextTypes }) });
   };
 
-  const ensureModule = async () => {
+  const resolveModuleForLesson = async (): Promise<QualificationModule | null> => {
+    if (!isRetrainingSource(state.source)) {
+      return state.moduleId ? ({ id: state.moduleId } as QualificationModule) : null;
+    }
+    if (!selectedDirection || !state.moduleId) return null;
+    let direction = selectedDirection;
+    let qualModule = resolveRetrainingWizardModule(direction, state.moduleId);
+    if (!qualModule && retrainingPanel && state.directionId) {
+      const fresh = await getRetrainingDirection(retrainingPanel, state.directionId, true, { fetchMaterials: false }).catch(
+        () => null
+      );
+      if (fresh) {
+        direction = fresh;
+        setDirections((prev) => (prev.some((item) => item.id === fresh.id) ? prev.map((item) => (item.id === fresh.id ? fresh : item)) : [...prev, fresh]));
+        qualModule = resolveRetrainingWizardModule(fresh, state.moduleId);
+      }
+    }
+    return qualModule;
+  };
+
+  const ensureModule = async (): Promise<number | null> => {
     const parsed = moduleSchema.safeParse({ moduleNumber: state.moduleNumber, moduleTitle: state.moduleTitle });
-    if (!parsed.success || !state.directionId || !state.moduleNumber) return false;
-    if (state.moduleId && !isModuleDirty(state)) return true;
+    if (!parsed.success || !state.directionId || !state.moduleNumber) return null;
+    if (isRetrainingSource(state.source) && !state.moduleId && !state.blockId) {
+      setFieldErrors({ block_id: "Blokni tanlang" });
+      toast.error("Avval blokni tanlang");
+      return null;
+    }
+    if (state.moduleId && !isModuleDirty(state)) {
+      if (isRetrainingSource(state.source)) {
+        const qualModule = await resolveModuleForLesson();
+        if (!qualModule?.id) {
+          if (selectedDirection && isDirectionIdCopiedAsModuleId(selectedDirection, state.moduleId)) {
+            toast.error("Yo'nalish ID modul sifatida ishlatilgan. Modulni qayta yarating.");
+          } else if (selectedDirection && isRetrainingBlockMetaId(selectedDirection, state.moduleId)) {
+            toast.error("Blok ID modul sifatida ishlatilgan. Modulni qayta yarating.");
+          } else {
+            toast.error("Modul topilmadi. Modulni qayta yarating.");
+          }
+          confirmedModuleIdRef.current = null;
+          patch({ moduleId: null, savedModuleNumber: null, savedModuleTitle: undefined });
+          return null;
+        }
+        confirmedModuleIdRef.current = qualModule.id;
+        if (state.moduleId !== qualModule.id) patch({ moduleId: qualModule.id });
+        logRetrainingWizardIds("Retraining wizard IDs (existing module)", {
+          createdModuleId: qualModule.id,
+        });
+        return qualModule.id;
+      }
+      confirmedModuleIdRef.current = state.moduleId;
+      return state.moduleId;
+    }
     setIsCreatingModule(true);
     setFieldErrors({});
     try {
@@ -370,7 +570,8 @@ export default function MaterialWizard() {
           await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
         }
         toast.success("Modul yangilandi");
-        return true;
+        confirmedModuleIdRef.current = state.moduleId;
+        return state.moduleId;
       }
       const created = isItSource(state.source)
         ? await createItModule(state.directionId, {
@@ -390,13 +591,16 @@ export default function MaterialWizard() {
             )
           : isRetrainingSource(state.source)
             ? await createRetrainingModule(
+                retrainingPanel!,
                 state.directionId,
                 {
                   module_number: state.moduleNumber,
                   title: state.moduleTitle.trim(),
+                  description: state.blockId ? withModuleBlockMarker("", state.blockId) : undefined,
                   status: "PUBLISHED",
                 },
-                { idempotencyKey: moduleIdempotencyKey.current }
+                { idempotencyKey: moduleIdempotencyKey.current },
+                retrainingMaterialContext
               )
             : await createQualificationModule(
               state.directionId,
@@ -406,7 +610,17 @@ export default function MaterialWizard() {
               },
               { idempotencyKey: moduleIdempotencyKey.current }
             );
-      if (!created?.id) throw new ApiError(500, "Modul ID qaytmadi");
+      const createdModuleId = created.id;
+      if (!createdModuleId) throw new ApiError(500, "Modul ID qaytmadi");
+      if (
+        isRetrainingSource(state.source) &&
+        isDirectionIdCopiedAsModuleId(selectedDirection, createdModuleId)
+      ) {
+        throw new ApiError(500, "Modul ID qaytmadi — backend yo'nalish ID qaytardi, module.id emas");
+      }
+      if (isRetrainingSource(state.source) && state.blockId) {
+        await assignRetrainingModuleBlock(retrainingPanel!, created, state.blockId).catch(() => undefined);
+      }
       if (!isItSource(state.source) && !isMandatorySource(state.source) && !isRetrainingSource(state.source)) {
         await setModuleStatus(created.id, "PUBLISHED", {
           module_number: state.moduleNumber,
@@ -419,32 +633,53 @@ export default function MaterialWizard() {
           status: "PUBLISHED",
         }).catch(() => undefined);
       }
+      confirmedModuleIdRef.current = createdModuleId;
       patch({
-        moduleId: created.id,
+        moduleId: createdModuleId,
         savedModuleNumber: state.moduleNumber,
         savedModuleTitle: state.moduleTitle.trim(),
+      });
+      if (isRetrainingSource(state.source) && selectedDirection) {
+        setDirections((prev) =>
+          prev.map((item) =>
+            item.id === selectedDirection.id
+              ? {
+                  ...item,
+                  modules: [...(item.modules ?? []).filter((row) => row.id !== createdModuleId), created],
+                }
+              : item
+          )
+        );
+      }
+      logRetrainingWizardIds("Module created", {
+        directionId: state.directionId,
+        createdModuleId,
       });
       if (usesQualificationSnapshot(state.source)) {
         await pushQualificationSnapshotForDirection(state.directionId, state.source).catch(() => undefined);
       }
       toast.success("✓ Modul yaratildi");
-      return true;
+      return createdModuleId;
     } catch (error) {
       setFieldErrors(getApiFieldErrors(error));
       toast.error(error instanceof ApiError ? error.message : "Modulni yaratib bo'lmadi");
-      return false;
+      return null;
     } finally {
       setIsCreatingModule(false);
     }
   };
 
-  const ensureLesson = async () => {
+  const ensureLesson = async (moduleIdOverride?: number | null) => {
     const parsed = lessonSchema.safeParse({
       lessonType: state.lessonType,
       lessonNumber: state.lessonNumber,
       lessonTitle: state.lessonTitle,
     });
-    if (!parsed.success || !state.moduleId || !state.lessonType || !state.lessonNumber) return false;
+    const moduleIdHint = moduleIdOverride ?? confirmedModuleIdRef.current ?? state.moduleId;
+    if (!parsed.success || !moduleIdHint || !state.lessonType || !state.lessonNumber) {
+      if (!moduleIdHint) toast.error("Dars yaratish uchun avval modul yaratilishi kerak.");
+      return false;
+    }
 
     const urlLessonId = Number(searchParams.get("lessonId") ?? "");
     const existingLessonId = Number.isInteger(urlLessonId) && urlLessonId > 0 ? urlLessonId : null;
@@ -464,7 +699,12 @@ export default function MaterialWizard() {
       }).catch(() => undefined);
     };
 
-    if (existingLessonId && !isLessonDirty({ ...state, lessonId: existingLessonId })) {
+    const canReuseExistingLesson =
+      existingLessonId &&
+      !isLessonDirty({ ...state, lessonId: existingLessonId }) &&
+      (!isRetrainingSource(state.source) || Boolean(state.savedLessonTitle));
+
+    if (canReuseExistingLesson) {
       if (state.lessonId !== existingLessonId) patch({ lessonId: existingLessonId });
       await persistItLessonKind(existingLessonId);
       return true;
@@ -537,16 +777,56 @@ export default function MaterialWizard() {
         }
         return true;
       }
-      const moduleId = state.moduleId!;
+      let selectedModuleId = moduleIdHint;
+      let moduleObject: QualificationModule | null = null;
+      if (isRetrainingSource(state.source)) {
+        if (selectedDirection) {
+          moduleObject = resolveRetrainingWizardModule(selectedDirection, moduleIdHint);
+          if (!moduleObject && retrainingPanel && state.directionId) {
+            const fresh = await getRetrainingDirection(retrainingPanel, state.directionId, true, {
+              fetchMaterials: false,
+            }).catch(() => null);
+            if (fresh) {
+              moduleObject = resolveRetrainingWizardModule(fresh, moduleIdHint);
+              setDirections((prev) =>
+                prev.some((item) => item.id === fresh.id)
+                  ? prev.map((item) => (item.id === fresh.id ? fresh : item))
+                  : [...prev, fresh]
+              );
+            }
+          }
+        }
+        if (!moduleObject?.id) {
+          if (selectedDirection && isDirectionIdCopiedAsModuleId(selectedDirection, moduleIdHint)) {
+            toast.error("Yo'nalish ID modul sifatida yuborilgan. Avval modulni saqlang.");
+          } else if (selectedDirection && isRetrainingBlockMetaId(selectedDirection, moduleIdHint)) {
+            toast.error("Blok ID modul sifatida yuborilgan. Avval modulni saqlang.");
+          } else {
+            toast.error("Modul topilmadi. Avval modulni saqlang.");
+          }
+          return false;
+        }
+        selectedModuleId = moduleObject.id;
+        confirmedModuleIdRef.current = selectedModuleId;
+        logRetrainingWizardIds("Creating lesson", {
+          selectedBlockId: state.blockId ?? blockIdForWizardModule(selectedDirection, moduleObject),
+          selectedModuleId,
+          moduleObject: {
+            id: moduleObject.id,
+            module_number: moduleObject.module_number,
+            title: moduleObject.title,
+          },
+        });
+      }
       lessonIdempotencyKey.current = crypto.randomUUID();
       const created = isItSource(state.source)
-        ? await createItLesson(moduleId, {
+        ? await createItLesson(selectedModuleId, {
             title: state.lessonTitle.trim(),
             item_type: "lesson",
             lesson_type: state.lessonType,
             order_index: state.lessonNumber ?? 1,
           }).catch(() =>
-            createItLesson(moduleId, {
+            createItLesson(selectedModuleId, {
               title: state.lessonTitle.trim(),
               item_type: "lesson",
               order_index: state.lessonNumber ?? 1,
@@ -564,16 +844,18 @@ export default function MaterialWizard() {
             )
           : isRetrainingSource(state.source)
             ? await createRetrainingLesson(
-                state.moduleId,
+                retrainingPanel!,
+                selectedModuleId,
                 {
                   lesson_number: state.lessonNumber,
                   lesson_type: state.lessonType,
                   title: state.lessonTitle.trim(),
                 },
-                { idempotencyKey: lessonIdempotencyKey.current }
+                { idempotencyKey: lessonIdempotencyKey.current },
+                retrainingMaterialContext
               )
           : await createQualificationLesson(
-              state.moduleId,
+              selectedModuleId,
               {
                 lesson_number: state.lessonNumber,
                 lesson_type: state.lessonType,
@@ -586,6 +868,7 @@ export default function MaterialWizard() {
       const code = formatLessonCode(state.moduleNumber, assignedNumber);
       patch({
         lessonId: created.id,
+        moduleId: selectedModuleId,
         lessonNumber: assignedNumber,
         lessonCode: code,
         savedLessonNumber: assignedNumber,
@@ -596,9 +879,11 @@ export default function MaterialWizard() {
         qualificationWizardPath({
           step: state.step,
           source: state.source,
+          retrainingPanel: isRetrainingSource(state.source) ? retrainingPanel ?? state.retrainingPanel : undefined,
           directionId: state.directionId ?? undefined,
           directionTitle: state.directionTitle,
-          moduleId: state.moduleId ?? undefined,
+          moduleId: selectedModuleId,
+          blockId: state.blockId ?? undefined,
           moduleNumber: state.moduleNumber ?? undefined,
           moduleTitle: state.moduleTitle,
           lessonId: created.id,
@@ -646,11 +931,29 @@ export default function MaterialWizard() {
         }));
       },
     };
+    if (isRetrainingSource(state.source)) {
+      if (!retrainingPanel) {
+        throw new ApiError(400, "Qayta tayyorlash paneli aniqlanmadi (?panel=umumiy|pedagogik|kasbiy)");
+      }
+      if (!retrainingMaterialContext?.direction) {
+        throw new ApiError(
+          400,
+          "Yo'nalish ma'lumoti topilmadi — material uchun to'g'ri panel (retraining_type) aniqlanmaydi"
+        );
+      }
+    }
     // mandatory-blog / retraining-admin / qualification / IT — files → lessons/{id}/materials (file_id)
     const submitMaterial = isMandatorySource(state.source)
       ? submitMandatoryLessonMaterial
       : isRetrainingSource(state.source)
-        ? submitRetrainingLessonMaterial
+        ? (lessonId: number, material: MaterialFormData, uploadOptions?: UploadOptions) =>
+            submitRetrainingLessonMaterial(
+              retrainingPanel!,
+              lessonId,
+              material,
+              uploadOptions,
+              retrainingMaterialContext
+            )
         : submitLessonMaterial;
     const result = await submitMaterial(lessonId, item, options);
     setState((prev) => ({
@@ -686,14 +989,16 @@ export default function MaterialWizard() {
         await uploadOne(item, state.lessonId, controller);
       } catch (error) {
         ok = false;
-        const errMsg = error instanceof ApiError ? error.message : "Fayl yuklanmadi";
+        const { message, retryable } = materialUploadErrorMessage(error);
         setState((prev) => ({
           ...prev,
           materials: prev.materials.map((row) =>
-            row.type === item.type ? { ...row, uploadError: errMsg, uploadProgress: 0 } : row
+            row.type === item.type
+              ? { ...row, uploadError: message, uploadRetryable: retryable, uploadProgress: 0 }
+              : row
           ),
         }));
-        toast.error(errMsg);
+        toast.error(message);
       }
     }
     setIsUploading(false);
@@ -714,14 +1019,16 @@ export default function MaterialWizard() {
     try {
       await uploadOne(item, state.lessonId, controller);
     } catch (error) {
-      const errMsg = error instanceof ApiError ? error.message : "Fayl yuklanmadi";
+      const { message, retryable } = materialUploadErrorMessage(error);
       setState((prev) => ({
         ...prev,
         materials: prev.materials.map((row) =>
-          row.type === type ? { ...row, uploadError: errMsg, uploadProgress: 0 } : row
+          row.type === type
+            ? { ...row, uploadError: message, uploadRetryable: retryable, uploadProgress: 0 }
+            : row
         ),
       }));
-      toast.error(errMsg);
+      toast.error(message);
     } finally {
       setIsUploading(false);
       busyRef.current = false;
@@ -733,20 +1040,33 @@ export default function MaterialWizard() {
     busyRef.current = true;
     try {
       if (state.step === 1 && state.directionId) {
-        patch({ step: 2 });
+        const launchModuleRaw = Number(searchParams.get("moduleId") ?? "");
+        const hasLaunchModule = Number.isInteger(launchModuleRaw) && launchModuleRaw > 0;
+        if (!hasLaunchModule) confirmedModuleIdRef.current = null;
+        patch({
+          step: 2,
+          ...(hasLaunchModule
+            ? {}
+            : { moduleId: null, savedModuleNumber: null, savedModuleTitle: undefined, lessonId: null }),
+        });
+        syncWizardUrl({ step: 2, moduleId: hasLaunchModule ? launchModuleRaw : null, lessonId: null });
+        logRetrainingWizardIds("Retraining wizard IDs (after direction)");
         return;
       }
       if (state.step === 2) {
-        const ok = await ensureModule();
-        if (ok) patch({ step: 3 });
+        const createdModuleId = await ensureModule();
+        if (!createdModuleId) return;
+        patch({ step: 3, moduleId: createdModuleId });
+        syncWizardUrl({ step: 3, moduleId: createdModuleId });
         return;
       }
       if (state.step === 3) {
-        if (!state.moduleId) {
-          toast.error("Avval modul yaratilishi kerak");
+        const moduleIdForLesson = confirmedModuleIdRef.current ?? state.moduleId;
+        if (!moduleIdForLesson) {
+          toast.error("Dars yaratish uchun avval modul yaratilishi kerak.");
           return;
         }
-        const ok = await ensureLesson();
+        const ok = await ensureLesson(moduleIdForLesson);
         if (ok) patch({ step: 4 });
         return;
       }
@@ -812,7 +1132,7 @@ export default function MaterialWizard() {
       await (isMandatorySource(state.source)
         ? publishMandatoryLesson(state.lessonId)
         : isRetrainingSource(state.source)
-          ? publishRetrainingLesson(state.lessonId)
+          ? publishRetrainingLesson(retrainingPanel!, state.lessonId, retrainingMaterialContext)
           : publishLesson(state.lessonId));
       if (isMandatorySource(state.source) && state.directionId) {
         const detailed = await getMandatoryBlog(state.directionId).catch(() => null);
@@ -847,7 +1167,7 @@ export default function MaterialWizard() {
     panelSource === "mandatory"
       ? "/admin/software/mandatory"
       : panelSource === "retraining"
-        ? "/admin/software/retraining"
+        ? retrainingPanelRoute(retrainingPanel)
         : "/admin/software/qualification";
 
   const leave = () => {
@@ -858,7 +1178,12 @@ export default function MaterialWizard() {
 
   const stepValid = useMemo(() => {
     if (state.step === 1) return state.directionId !== null;
-    if (state.step === 2) return moduleSchema.safeParse({ moduleNumber: state.moduleNumber, moduleTitle: state.moduleTitle }).success;
+    if (state.step === 2) {
+      const parsed = moduleSchema.safeParse({ moduleNumber: state.moduleNumber, moduleTitle: state.moduleTitle }).success;
+      if (!parsed) return false;
+      if (isRetrainingSource(state.source) && !state.moduleId && !state.blockId) return false;
+      return true;
+    }
     if (state.step === 3) {
       if (!state.moduleId) return false;
       return lessonSchema.safeParse({
@@ -921,12 +1246,21 @@ export default function MaterialWizard() {
             directionTitle={state.directionTitle}
             moduleNumber={state.moduleNumber}
             moduleTitle={state.moduleTitle}
+            moduleId={state.moduleId}
+            blocks={isRetrainingSource(state.source) ? retrainingBlocks : undefined}
+            blockId={state.blockId}
             errors={{
               module_number: fieldError(fieldErrors, "module_number", "moduleNumber"),
               title: fieldError(fieldErrors, "title", "moduleTitle"),
+              block_id: fieldError(fieldErrors, "block_id", "blockId"),
             }}
             onNumber={(moduleNumber) => patch({ moduleNumber })}
             onTitle={(moduleTitle) => patch({ moduleTitle })}
+            onBlockId={
+              isRetrainingSource(state.source)
+                ? (blockId) => patch({ blockId, moduleId: null, savedModuleNumber: null, savedModuleTitle: undefined })
+                : undefined
+            }
           />
         ) : null}
         {state.step === 3 ? (
@@ -1031,12 +1365,21 @@ export default function MaterialWizard() {
             ? async (payload, editing) =>
                 editing?.id ? updateMandatoryBlog(editing.id, payload) : createMandatoryBlog(payload)
             : panelSource === "retraining"
-              ? async (payload, editing) =>
-                  editing?.id ? updateRetrainingDirection(editing.id, payload) : createRetrainingDirection(payload)
+              ? async (payload, editing) => {
+                  if (!retrainingPanel) {
+                    throw new ApiError(400, "Qayta tayyorlash paneli ko'rsatilmagan (?panel=umumiy|pedagogik|kasbiy)");
+                  }
+                  return editing?.id
+                    ? updateRetrainingDirection(retrainingPanel, editing.id, payload)
+                    : createRetrainingDirection(retrainingPanel, payload);
+                }
               : undefined
         }
         onClose={() => setCreateDirectionOpen(false)}
         onSaved={(created) => {
+          confirmedModuleIdRef.current = null;
+          moduleIdempotencyKey.current = crypto.randomUUID();
+          lessonIdempotencyKey.current = crypto.randomUUID();
           setDirections((prev) => {
             const key = directionKey(created);
             if (prev.some((item) => directionKey(item) === key)) {
@@ -1044,7 +1387,16 @@ export default function MaterialWizard() {
             }
             return [...prev, created];
           });
-          goDirection(created.id, created.title, created.source);
+          setState((prev) => ({
+            ...resetDownstreamFromDirection(prev),
+            directionId: created.id,
+            directionTitle: created.title,
+            source: created.source ?? prev.source,
+          }));
+          syncWizardUrl({ directionId: created.id, moduleId: null, lessonId: null });
+          logRetrainingWizardIds("Retraining wizard IDs (direction created)", {
+            directionId: created.id,
+          });
           setCreateDirectionOpen(false);
         }}
       />
@@ -1065,6 +1417,7 @@ export default function MaterialWizard() {
                 if (!directionWarning) return;
                 moduleIdempotencyKey.current = crypto.randomUUID();
                 lessonIdempotencyKey.current = crypto.randomUUID();
+                confirmedModuleIdRef.current = null;
                 setState((prev) => ({
                   ...resetDownstreamFromDirection(prev),
                   directionId: directionWarning.id,

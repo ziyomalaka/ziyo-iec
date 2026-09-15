@@ -8,7 +8,7 @@ export type RetrainingType = (typeof RETRAINING_TYPES)[number];
 
 export type RegisterFormValues = {
   program_type: ProgramType | "";
-  retraining_type: RetrainingType | "";
+  retraining_type?: RetrainingType | "";
   first_name: string;
   last_name: string;
   father_name: string;

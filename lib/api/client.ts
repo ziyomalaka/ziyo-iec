@@ -22,9 +22,12 @@ function sanitizeErrorText(text: string, status: number) {
 
   if (
     lower.includes("err_ngrok") ||
-    (lower.includes("endpoint") && lower.includes("offline"))
+    lower.includes("ngrok") ||
+    (lower.includes("endpoint") && lower.includes("offline")) ||
+    lower.includes("tunnel o'chiq") ||
+    lower.includes("backend hozir ishlamayapti")
   ) {
-    return "Backend hozir ishlamayapti. Ngrok tunnel o'chiq — backendni qayta ishga tushiring.";
+    return "So'rov bajarilmadi";
   }
 
   if (text.includes("<html") || text.includes("<!DOCTYPE") || text.includes("<!doctype")) {
@@ -67,7 +70,8 @@ function parseErrorMessage(text: string, status: number): string {
     if (status === 400) return "Ma'lumotlar noto'g'ri. Maydonlarni tekshirib, qayta saqlang.";
     if (status === 422) return "So'rov to'liq emas. Kerakli maydonlarni tekshirib, qayta saqlang.";
     if (status === 404) return "So'rov topilmadi. Backend manzilini tekshiring.";
-    if (status === 403) return "Ruxsat yo'q. Admin huquqlaringizni tekshiring.";
+    if (status === 502 || status === 503) return "Backend vaqtincha mavjud emas.";
+    if (status === 403) return "Bu amal uchun ruxsat mavjud emas";
     if (status === 409) return "Bunday ma'lumot allaqachon mavjud.";
     return "So'rov bajarilmadi";
   }
@@ -104,6 +108,48 @@ function parseErrorMessage(text: string, status: number): string {
   return sanitizeErrorText(text, status);
 }
 
+function redactSecrets(value: unknown): unknown {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return value;
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        return redactSecrets(JSON.parse(trimmed));
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(redactSecrets);
+  if (!value || typeof value !== "object") return value;
+  if (value instanceof FormData) return "[form-data]";
+  const next: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    next[key] = /password|token|authorization|secret|refresh/i.test(key)
+      ? "[redacted]"
+      : redactSecrets(item);
+  }
+  return next;
+}
+
+function logApiRequestError(details: {
+  method: string;
+  endpoint: string;
+  resolvedUrl: string;
+  status: number;
+  message: string;
+  body: unknown;
+  requestPayload: unknown;
+}) {
+  if (process.env.NODE_ENV !== "development") return;
+  try {
+    console.error("[apiRequest error]", JSON.stringify(details, null, 2));
+  } catch {
+    console.error("[apiRequest error]", details.method, details.endpoint, details.status, details.message);
+  }
+}
+
 function emitMutationRefresh(path: string, method?: string) {
   const verb = (method ?? "GET").toUpperCase();
   if (verb === "GET" || verb === "HEAD") return;
@@ -113,7 +159,10 @@ function emitMutationRefresh(path: string, method?: string) {
 }
 
 function resolveApiUrl(path: string) {
-  const suffix = path.startsWith("/") ? path : `/${path}`;
+  let suffix = path.startsWith("/") ? path : `/${path}`;
+  if (suffix === "/backend" || suffix.startsWith("/backend/")) {
+    suffix = suffix.slice("/backend".length) || "/";
+  }
   const base = API_BASE.replace(/\/$/, "");
   if (/^https?:\/\//i.test(base)) return `${base}${suffix}`;
   if (typeof window !== "undefined") return `${base}${suffix}`;
@@ -141,6 +190,8 @@ function parseJsonBody(raw: string, status: number): unknown {
 export type ApiRequestOptions = RequestInit & {
   skipAuthRedirect?: boolean;
   duplex?: "half";
+  /** 404/400 kutilgan bo'lsa console.error o'rniga jim qoldiriladi */
+  suppressErrorLog?: boolean;
 };
 
 export async function apiRequest<T>(
@@ -148,7 +199,7 @@ export async function apiRequest<T>(
   options: ApiRequestOptions = {},
   auth = true
 ): Promise<T> {
-  const { skipAuthRedirect, headers: inputHeaders, ...fetchOptions } = options;
+  const { skipAuthRedirect, suppressErrorLog, headers: inputHeaders, ...fetchOptions } = options;
   const headers = new Headers(inputHeaders);
 
   if (auth) {
@@ -195,9 +246,7 @@ export async function apiRequest<T>(
     const isOffline = detail.toLowerCase().includes("failed") || detail.toLowerCase().includes("network");
     throw new ApiError(
       0,
-      isOffline
-        ? "Internet yoki server bilan aloqa yo'q. Ngrok tunnel ishlayotganini tekshiring."
-        : `Serverga ulanib bo'lmadi: ${detail}`
+      isOffline ? "So'rov bajarilmadi" : `Serverga ulanib bo'lmadi: ${detail}`
     );
   }
 
@@ -205,6 +254,27 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     const message = parseErrorMessage(raw, response.status);
+    if (
+      process.env.NODE_ENV === "development" &&
+      !suppressErrorLog &&
+      (response.status === 400 || response.status === 404 || response.status === 422)
+    ) {
+      let parsedBody: unknown = raw;
+      try {
+        parsedBody = raw ? JSON.parse(raw) : raw;
+      } catch {
+        // keep raw text
+      }
+      logApiRequestError({
+        method,
+        endpoint: path,
+        resolvedUrl: resolveApiUrl(path),
+        status: response.status,
+        message,
+        body: redactSecrets(parsedBody),
+        requestPayload: redactSecrets(fetchOptions.body ?? null),
+      });
+    }
     if (response.status === 401 && auth && !skipAuthRedirect) {
       redirectToLogin();
     }

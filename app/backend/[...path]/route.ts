@@ -5,8 +5,7 @@ export const maxDuration = 300;
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const OFFLINE_MESSAGE =
-  "Backend hozir ishlamayapti. Ngrok tunnel o'chiq — backendni qayta ishga tushiring.";
+const OFFLINE_MESSAGE = "So'rov bajarilmadi";
 
 function isNgrokOffline(status: number, body: string, headers: Headers) {
   if (headers.get("ngrok-error-code") === "ERR_NGROK_3200") return true;
@@ -18,6 +17,48 @@ function isNgrokOffline(status: number, body: string, headers: Headers) {
       (text.includes("endpoint") && text.includes("offline")) ||
       text.includes("ngrok-free.dev is offline") ||
       text.includes("bandwidth limit"))
+  );
+}
+
+function causeCode(error: unknown): string {
+  if (!error || typeof error !== "object" || !("cause" in error)) return "";
+  const cause = (error as { cause?: unknown }).cause;
+  if (!cause || typeof cause !== "object") return "";
+  const code = "code" in cause ? String((cause as { code?: unknown }).code ?? "") : "";
+  const message = cause instanceof Error ? cause.message : "";
+  return `${code} ${message}`.trim();
+}
+
+function unavailableResponse(error: unknown, target: string) {
+  const detail = error instanceof Error ? error.message : "unknown";
+  const extra = causeCode(error);
+  const combined = `${detail} ${extra}`;
+  const refused = /econnrefused|fetch failed|enotfound|econnreset|etimedout/i.test(combined);
+
+  let host = "";
+  let port = "";
+  try {
+    const url = new URL(target);
+    host = url.hostname;
+    port = url.port || (url.protocol === "https:" ? "443" : "80");
+  } catch {
+    // target parse optional
+  }
+
+  console.error("[backend-proxy] upstream unavailable", {
+    error: detail,
+    code: extra || undefined,
+    host,
+    port,
+    target,
+  });
+
+  return NextResponse.json(
+    {
+      message: "Service Unavailable",
+      detail: refused ? "ECONNREFUSED" : detail,
+    },
+    { status: 503 }
   );
 }
 
@@ -54,16 +95,31 @@ async function proxyRequest(
     });
   }
 
+  const target = `${API_URL}/${targetPath}${search}`;
+
   try {
-    const response = await fetchUpstream(`${API_URL}/${targetPath}${search}`, request.method, headers, body);
+    const response = await fetchUpstream(target, request.method, headers, body);
     const responseBody = await response.text();
+
+    if (
+      process.env.NODE_ENV === "development" &&
+      targetPath.startsWith("notifications") &&
+      response.status >= 500
+    ) {
+      console.warn("[backend-proxy] notifications upstream error", {
+        target,
+        status: response.status,
+        body: responseBody.slice(0, 300),
+      });
+    }
 
     if (isNgrokOffline(response.status, responseBody, response.headers)) {
       return NextResponse.json({ message: OFFLINE_MESSAGE }, { status: 503 });
     }
 
     if (response.status === 404 && !targetPath.startsWith("api/")) {
-      const retry = await fetchUpstream(`${API_URL}/api/${targetPath}${search}`, request.method, headers, body);
+      const retryTarget = `${API_URL}/api/${targetPath}${search}`;
+      const retry = await fetchUpstream(retryTarget, request.method, headers, body);
       const retryBody = await retry.text();
 
       if (isNgrokOffline(retry.status, retryBody, retry.headers)) {
@@ -77,11 +133,7 @@ async function proxyRequest(
 
     return passthrough(response, responseBody);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : "unknown";
-    return NextResponse.json(
-      { message: "Backendga ulanib bo'lmadi. Qayta urinib ko'ring.", detail },
-      { status: 503 }
-    );
+    return unavailableResponse(error, target);
   }
 }
 

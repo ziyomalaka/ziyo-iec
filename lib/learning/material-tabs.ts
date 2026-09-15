@@ -36,6 +36,9 @@ export function materialKind(
     if (type === "lecture" || type === "guide" || type === "maruza" || type.includes("lecture")) {
       return "lecture";
     }
+    if (type === "mustaqil_ish" || type.includes("mustaqil") || type === "independent_work") {
+      return "lecture";
+    }
     if (type === "seminar" || type.includes("seminar")) return "seminar";
     if (type === "laboratory" || type === "lab" || type.includes("laborator")) return "laboratory";
     if (type === "test" || type.includes("test")) return "test";

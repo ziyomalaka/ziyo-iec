@@ -31,7 +31,7 @@ import { Link } from "@/i18n/navigation";
 type Phase =
   | { type: "idle" }
   | { type: "loading" }
-  | { type: "error"; message: string; status?: number }
+  | { type: "error"; message: string; status?: number; retry?: "summaries" | "start" }
   | { type: "no-test" }
   | { type: "active"; test: LessonTestData }
   | { type: "submitting"; test: LessonTestData; timedOut?: boolean }
@@ -94,11 +94,13 @@ export default function LessonTest({
   const [knownTestId, setKnownTestId] = useState<number | null>(null);
   const [knownTestTitle, setKnownTestTitle] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
+  const [testsRetryNonce, setTestsRetryNonce] = useState(0);
   const [attemptLimit, setAttemptLimit] = useState(MAX_LESSON_TEST_ATTEMPTS);
   const [submitHint, setSubmitHint] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const { setHideBottomNav } = useLearningChrome();
-  const { learningApi, kind } = useStudentProgramPaths();
+  const { learningApi, kind, retrainingKind } = useStudentProgramPaths();
+  const retrainingType = kind === "retraining" ? retrainingKind : null;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedCalledRef = useRef(false);
@@ -120,10 +122,8 @@ export default function LessonTest({
   const materialTest = findTestMaterial(materials);
   const materialTestId = materialTest?.id ?? null;
 
-  // Swagger:
-  // 1) GET /learning/lessons/{id} → tests[0].id (materials orqali)
-  // 2) bo'sh bo'lsa → GET /learning/lessons/{id}/tests
-  // 403 ≠ "test yo'q"
+  // Retraining: GET /lessons/{id}/tests faqat material oqimi tugagach.
+  // 200+[] = test yo'q. 200+data = test bor. 503 ≠ test yo'q.
   useEffect(() => {
     let cancelled = false;
     setCurrent(0);
@@ -137,7 +137,6 @@ export default function LessonTest({
       autoCloseRef.current = null;
     }
     setModalOpen(false);
-    setChecking(true);
 
     const saved = readLessonTestAttempt(lessonId);
     if (saved?.result) {
@@ -163,8 +162,17 @@ export default function LessonTest({
       return;
     }
 
+    if (kind === "retraining" && !materialsUnlocked) {
+      setChecking(false);
+      setPhase({ type: "idle" });
+      setKnownTestId(null);
+      return;
+    }
+
+    setChecking(true);
+
     setAnswers({});
-    if (materialTestId) {
+    if (materialTestId && kind !== "retraining") {
       setKnownTestId(materialTestId);
       setPhase({ type: "idle" });
       setChecking(false);
@@ -174,7 +182,7 @@ export default function LessonTest({
 
     void (async () => {
       try {
-        const summaries = await fetchLessonTestSummaries(lessonId, learningApi);
+        const summaries = await fetchLessonTestSummaries(lessonId, learningApi, retrainingType);
         if (cancelled) return;
         const first = summaries[0];
         if (first) {
@@ -193,15 +201,18 @@ export default function LessonTest({
         setKnownTestId(null);
         setKnownTestTitle(null);
         const status = err instanceof ApiError ? err.status : undefined;
-        if (status === 404) {
+        if (status === 404 && kind !== "retraining") {
           setPhase({ type: "no-test" });
           onResolvedRef.current?.(false);
         } else {
-          onResolvedRef.current?.(true);
           setPhase({
             type: "error",
-            message: lessonTestErrorMessage(err),
+            message:
+              kind === "retraining" && status === 404
+                ? "Test ma'lumotlarini yuklab bo'lmadi. Qayta urinib ko'ring."
+                : lessonTestErrorMessage(err),
             status,
+            retry: "summaries",
           });
         }
       } finally {
@@ -212,7 +223,7 @@ export default function LessonTest({
     return () => {
       cancelled = true;
     };
-  }, [lessonId, materialTestId, materialTest?.title, learningApi]);
+  }, [lessonId, materialTestId, materialTest?.title, learningApi, retrainingType, materialsUnlocked, kind, testsRetryNonce]);
 
   // Taymer — vaqt tugasa ham javobsiz testdi yubormaydi
   useEffect(() => {
@@ -289,7 +300,7 @@ export default function LessonTest({
 
     try {
       const preloadedId = knownTestId ?? findTestMaterial(materials)?.id ?? undefined;
-      const test = await fetchLessonTest(lessonId, preloadedId, learningApi);
+      const test = await fetchLessonTest(lessonId, preloadedId, learningApi, retrainingType);
 
       if (!test || test.questions.length === 0) {
         setPhase({
@@ -345,6 +356,7 @@ export default function LessonTest({
         type: "error",
         message: lessonTestErrorMessage(err),
         status,
+        retry: "start",
       });
     }
   };
@@ -400,7 +412,7 @@ export default function LessonTest({
 
       try {
         const result = attachSubmittedAnswers(
-          await submitLessonTest(test.id, lessonId, submitAnswers, learningApi),
+          await submitLessonTest(test.id, lessonId, submitAnswers, learningApi, retrainingType),
           currentAnswers,
           test.questions,
           test.passing_score
@@ -577,6 +589,7 @@ export default function LessonTest({
       : null;
 
   if (!checking && phase.type === "no-test") return null;
+  if (kind === "retraining" && !materialsUnlocked && !checking && phase.type === "idle") return null;
 
   const cardClass = compactCard
     ? "flex w-full min-h-11 flex-col items-stretch gap-3 rounded-2xl border border-[#E8EDF5] bg-white px-4 py-3 text-left"
@@ -703,7 +716,13 @@ export default function LessonTest({
             <p className="text-sm font-medium text-red-700">{phase.message}</p>
             <button
               type="button"
-              onClick={startTest}
+              onClick={() => {
+                if (phase.retry === "summaries") {
+                  setTestsRetryNonce((n) => n + 1);
+                  return;
+                }
+                void startTest();
+              }}
               className="mt-3 rounded-lg border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-100"
             >
               Qayta urinish

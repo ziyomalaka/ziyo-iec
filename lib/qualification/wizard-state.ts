@@ -6,14 +6,17 @@ import type {
   QualificationMaterialType,
   TestQuestion,
 } from "@/lib/api/types/qualification";
+import type { RetrainingPanel } from "@/lib/retraining/admin-panels";
 import { QUALIFICATION_WIZARD_DRAFT_KEY, defaultMaterialTitle, formatLessonCode } from "@/lib/qualification/constants";
 
 export type WizardLaunch = {
   step?: number;
   source?: ContentSource;
+  retrainingPanel?: RetrainingPanel;
   directionId?: number;
   directionTitle?: string;
   moduleId?: number;
+  blockId?: number;
   moduleNumber?: number;
   moduleTitle?: string;
   lessonId?: number;
@@ -41,9 +44,11 @@ export function qualificationWizardPath(launch: WizardLaunch) {
   };
   setNum("step", launch.step);
   setStr("source", launch.source);
+  setStr("panel", launch.retrainingPanel);
   setNum("directionId", launch.directionId);
   setStr("directionTitle", launch.directionTitle);
   setNum("moduleId", launch.moduleId);
+  setNum("blockId", launch.blockId);
   setNum("moduleNumber", launch.moduleNumber);
   setStr("moduleTitle", launch.moduleTitle);
   setNum("lessonId", launch.lessonId);
@@ -63,6 +68,7 @@ export function launchFromSearch(search: { get: (key: string) => string | null }
   if (!hasDirection && source !== "mandatory" && source !== "retraining") return null;
   const step = Number(search.get("step") ?? "");
   const moduleId = Number(search.get("moduleId") ?? "");
+  const blockId = Number(search.get("blockId") ?? "");
   const moduleNumber = Number(search.get("moduleNumber") ?? "");
   const lessonId = Number(search.get("lessonId") ?? "");
   const lessonNumber = Number(search.get("lessonNumber") ?? "");
@@ -71,12 +77,17 @@ export function launchFromSearch(search: { get: (key: string) => string | null }
     source === "it" || source === "mandatory" || source === "retraining" || source === "qualification"
       ? (source as ContentSource)
       : undefined;
+  const panelRaw = search.get("panel");
+  const retrainingPanel =
+    panelRaw === "umumiy" || panelRaw === "pedagogik" || panelRaw === "kasbiy" ? panelRaw : undefined;
   return {
     directionId: hasDirection ? directionId : undefined,
     source: parsedSource,
+    retrainingPanel,
     directionTitle: search.get("directionTitle") ?? "",
     step: Number.isInteger(step) && step >= 1 && step <= 7 ? step : undefined,
     moduleId: Number.isInteger(moduleId) && moduleId > 0 ? moduleId : undefined,
+    blockId: Number.isInteger(blockId) && blockId > 0 ? blockId : undefined,
     moduleNumber: Number.isInteger(moduleNumber) && moduleNumber > 0 ? moduleNumber : undefined,
     moduleTitle: search.get("moduleTitle") ?? undefined,
     lessonId: Number.isInteger(lessonId) && lessonId > 0 ? lessonId : undefined,
@@ -106,6 +117,7 @@ export function stateFromLaunch(launch: WizardLaunch): MaterialWizardState {
     directionId: launch.directionId ?? null,
     directionTitle: launch.directionTitle ?? "",
     moduleId: launch.moduleId ?? null,
+    blockId: launch.blockId ?? null,
     moduleNumber,
     moduleTitle,
     savedModuleNumber: launch.moduleId ? moduleNumber : null,
@@ -119,6 +131,7 @@ export function stateFromLaunch(launch: WizardLaunch): MaterialWizardState {
     savedLessonType: launch.lessonId ? lessonType : null,
     savedLessonTitle: launch.lessonId ? lessonTitle : undefined,
     source: launch.source,
+    retrainingPanel: launch.retrainingPanel,
   };
 }
 
@@ -135,6 +148,7 @@ export const emptyWizardState = (): MaterialWizardState => ({
   directionId: null,
   directionTitle: "",
   moduleId: null,
+  blockId: null,
   moduleNumber: 1,
   moduleTitle: "",
   lessonId: null,
@@ -229,6 +243,7 @@ export function resetDownstreamFromDirection(state: MaterialWizardState): Materi
   return {
     ...state,
     moduleId: null,
+    blockId: null,
     moduleNumber: 1,
     moduleTitle: "",
     savedModuleNumber: null,

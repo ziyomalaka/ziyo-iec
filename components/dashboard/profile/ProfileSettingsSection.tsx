@@ -20,7 +20,7 @@ export default function ProfileSettingsSection({
   onChange,
   onSave,
   saving,
-}: ProfileSettingsSectionProps) {
+}: ProfileSettingsSectionProps)  {
   return (
     <div className="rounded-xl border border-[#E8EDF5] bg-white p-6 shadow-sm">
       <h3 className="font-semibold text-[#0C2340]">Bildirishnoma va til sozlamalari</h3>

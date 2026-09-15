@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Search, Users, UserPlus, BarChart3 } from "lucide-react";
+import { Plus, Users, UserPlus, BarChart3 } from "lucide-react";
 import PageHeader from "@/components/dashboard/ui/PageHeader";
 import StatCard from "@/components/dashboard/ui/StatCard";
 import DashboardBadge from "@/components/dashboard/ui/DashboardBadge";
@@ -14,7 +14,7 @@ import {
   deleteEmployee,
   getEmployees,
   getManagementClient,
-  getManagementClients,
+  getManagementClientsAll,
   getManagementReports,
   updateEmployeeRole,
 } from "@/lib/api/admin-management";
@@ -31,13 +31,36 @@ import { getAuthUser } from "@/lib/auth/session";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import { formatDateTime } from "@/lib/dashboard/utils";
 import { cn } from "@/lib/cn";
+import ClientProgramTabs from "@/components/admin/ClientProgramTabs";
+import ClientRetrainingTypeTabs from "@/components/admin/ClientRetrainingTypeTabs";
+import {
+  CLIENTS_FORBIDDEN_MESSAGE,
+  applyClientListFilters,
+  clientDasturLabel,
+  clientRetrainingLabel,
+  countClientsByProgram,
+  countClientsByRetraining,
+  hydrateClientRegistrations,
+  paginateList,
+  rememberClientRegistration,
+  type ClientProgramFilter,
+  type ClientRetrainingFilter,
+} from "@/lib/admin/client-program";
+import {
+  assignedSupervisorLabel,
+  clientDirectionLabel,
+  clientFullName,
+  clientProgramTitle,
+  clientSubtypeTitle,
+} from "@/lib/admin/client-source";
 
 const NICKNAME_RE = /^[a-zA-Z0-9._-]{3,50}$/;
-const STAFF_ROLES: StaffRole[] = ["boshqaruv", "nazoratchi"];
+const STAFF_ROLES: StaffRole[] = ["boshqaruv", "nazoratchi", "it"];
 
 type Tab = "employees" | "clients" | "reports";
 
 function err(error: unknown) {
+  if (error instanceof ApiError && error.status === 403) return CLIENTS_FORBIDDEN_MESSAGE;
   return error instanceof ApiError ? error.message : "So'rov bajarilmadi";
 }
 
@@ -184,7 +207,7 @@ function EmployeesTab({ meId }: { meId?: number }) {
                   onChange={(e) => void onRole(item.id, e.target.value as StaffRole)}
                   className="mt-3 min-h-11 w-full rounded-md border border-[#E8EDF5] px-2 py-1 disabled:opacity-50"
                 >
-                  {(item.role === "it" ? (["it", ...STAFF_ROLES] as StaffRole[]) : STAFF_ROLES).map((value) => (
+                  {STAFF_ROLES.map((value) => (
                     <option key={value} value={value}>
                       {item.role === value && item.role_label ? item.role_label : staffRoleLabel[value]}
                     </option>
@@ -241,15 +264,13 @@ function EmployeesTab({ meId }: { meId?: number }) {
                           onChange={(e) => void onRole(item.id, e.target.value as StaffRole)}
                           className="rounded-md border border-[#E8EDF5] px-2 py-1 disabled:opacity-50"
                         >
-                          {(item.role === "it" ? (["it", ...STAFF_ROLES] as StaffRole[]) : STAFF_ROLES).map(
-                            (value) => (
-                              <option key={value} value={value}>
-                                {item.role === value && item.role_label
-                                  ? item.role_label
-                                  : staffRoleLabel[value]}
-                              </option>
-                            )
-                          )}
+                          {STAFF_ROLES.map((value) => (
+                            <option key={value} value={value}>
+                              {item.role === value && item.role_label
+                                ? item.role_label
+                                : staffRoleLabel[value]}
+                            </option>
+                          ))}
                         </select>
                       </td>
                       <td className="px-4 py-3">{item.last_login_at ? formatDateTime(item.last_login_at) : "—"}</td>
@@ -338,24 +359,45 @@ function EmployeesTab({ meId }: { meId?: number }) {
 function ClientsTab() {
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
+  const [program, setProgram] = useState<ClientProgramFilter>("MALAKA_OSHIRISH");
+  const [retrainingType, setRetrainingType] = useState<ClientRetrainingFilter>("UMUMIY");
+  const [counts, setCounts] = useState<Partial<Record<ClientProgramFilter, number>>>({});
+  const [retrainingCounts, setRetrainingCounts] = useState<Partial<Record<ClientRetrainingFilter, number>>>({});
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [items, setItems] = useState<ClientListItem[]>([]);
+  const [forbidden, setForbidden] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<ClientDetail | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const data = await getManagementClients({ page, per_page: 10, q: query });
-      setItems(data.items);
-      setTotalPages(data.total_pages || 1);
+      const all = await getManagementClientsAll();
+      const hydrated = await hydrateClientRegistrations(all.items, getManagementClient);
+      const filtered = applyClientListFilters(hydrated, {
+        program,
+        retrainingType,
+        q: query,
+      });
+      const paged = paginateList(filtered, page, 10);
+      setForbidden(false);
+      setItems(paged.items);
+      setTotalPages(paged.totalPages);
+      setCounts(countClientsByProgram(hydrated));
+      setRetrainingCounts(countClientsByRetraining(hydrated));
     } catch (error) {
-      if (!silent) toast.error(err(error));
+      if (error instanceof ApiError && error.status === 403) {
+        setForbidden(true);
+        setItems([]);
+        if (!silent) toast.error(CLIENTS_FORBIDDEN_MESSAGE);
+      } else if (!silent) {
+        toast.error(err(error));
+      }
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [page, query]);
+  }, [page, program, query, retrainingType]);
 
   useEffect(() => {
     void load();
@@ -363,7 +405,22 @@ function ClientsTab() {
 
   const openDetail = async (id: number, silent = false) => {
     try {
-      setDetail(await getManagementClient(id));
+      const client = await getManagementClient(id);
+      rememberClientRegistration(id, client.program_type, client.retraining_type);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                program_type: client.program_type,
+                retraining_type: client.retraining_type,
+                dastur: client.dastur,
+                program_label: client.program_label,
+              }
+            : item
+        )
+      );
+      setDetail(client);
     } catch (error) {
       if (!silent) toast.error(err(error));
     }
@@ -376,29 +433,53 @@ function ClientsTab() {
 
   return (
     <div>
+      <ClientProgramTabs
+        value={program}
+        counts={counts}
+        onChange={(next) => {
+          setProgram(next);
+          if (next === "QAYTA_TAYYORLASH") setRetrainingType("UMUMIY");
+          setPage(1);
+        }}
+      />
       <form
-        className="mb-4 flex gap-2"
+        className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
         onSubmit={(e) => {
           e.preventDefault();
           setPage(1);
           setQuery(q);
         }}
       >
-        <div className="relative max-w-sm flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+        {program === "QAYTA_TAYYORLASH" ? (
+          <ClientRetrainingTypeTabs
+            value={retrainingType}
+            counts={retrainingCounts}
+            onChange={(next) => {
+              setRetrainingType(next);
+              setPage(1);
+            }}
+          />
+        ) : (
+          <span />
+        )}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Qidirish"
-            className="w-full rounded-lg border border-[#E8EDF5] py-2 pl-9 pr-3 text-sm"
+            className="min-h-11 w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm sm:w-56"
           />
+          <button type="submit" className="min-h-11 rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white">
+            Qidirish
+          </button>
         </div>
-        <button type="submit" className="rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white">
-          Qidirish
-        </button>
       </form>
       {loading ? (
         <LoadingState />
+      ) : forbidden ? (
+        <p className="rounded-xl border border-[#E8EDF5] bg-white px-4 py-8 text-center text-sm text-[#64748B]">
+          {CLIENTS_FORBIDDEN_MESSAGE}
+        </p>
       ) : (
         <>
         <div className="space-y-3 md:hidden">
@@ -416,6 +497,10 @@ function ClientsTab() {
                 <p className="mt-1 text-xs text-[#94A3B8]">
                   {item.phone_number ?? "—"} · {item.public_id ?? item.id}
                 </p>
+                <p className="mt-1 text-xs text-[#475569]">{clientDasturLabel(item)}</p>
+                {clientSubtypeTitle(item) ? (
+                  <p className="text-xs text-[#64748B]">{clientSubtypeTitle(item)}</p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => void openDetail(item.id)}
@@ -429,12 +514,14 @@ function ClientsTab() {
         </div>
         <div className="hidden overflow-hidden rounded-xl border border-[#E8EDF5] bg-white md:block">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[920px] text-sm">
               <thead className="bg-[#F7F9FC] text-left text-[#64748B]">
                 <tr>
                   <th className="px-4 py-3 font-medium">ID</th>
                   <th className="px-4 py-3 font-medium">Ism</th>
                   <th className="px-4 py-3 font-medium">Email</th>
+                  <th className="px-4 py-3 font-medium">Dastur</th>
+                  <th className="px-4 py-3 font-medium">Turi</th>
                   <th className="px-4 py-3 font-medium">Telefon</th>
                   <th className="px-4 py-3 font-medium">Amal</th>
                 </tr>
@@ -442,7 +529,7 @@ function ClientsTab() {
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-[#64748B]">
+                    <td colSpan={7} className="px-4 py-8 text-center text-[#64748B]">
                       Mijozlar yo'q
                     </td>
                   </tr>
@@ -452,6 +539,10 @@ function ClientsTab() {
                       <td className="px-4 py-3">{item.public_id ?? item.id}</td>
                       <td className="px-4 py-3">{item.full_name || [item.first_name, item.last_name].filter(Boolean).join(" ")}</td>
                       <td className="px-4 py-3">{item.email ?? "—"}</td>
+                      <td className="px-4 py-3">{clientDasturLabel(item)}</td>
+                      <td className="px-4 py-3">
+                        {clientRetrainingLabel(item.retraining_type, item.program_type)}
+                      </td>
                       <td className="px-4 py-3">{item.phone_number ?? "—"}</td>
                       <td className="px-4 py-3">
                         <button type="button" onClick={() => void openDetail(item.id)} className="text-[#0756F5] hover:underline">
@@ -467,15 +558,23 @@ function ClientsTab() {
         </div>
         </>
       )}
-      <AdminPagination page={page} totalPages={totalPages} onPage={setPage} />
+      {!forbidden ? <AdminPagination page={page} totalPages={totalPages} onPage={setPage} /> : null}
       <DashboardModal open={!!detail} onClose={() => setDetail(null)} title="Mijoz" size="md">
         {detail ? (
           <div className="space-y-2 text-sm">
-            <p><strong>Ism:</strong> {detail.full_name || `${detail.first_name ?? ""} ${detail.last_name ?? ""}`}</p>
+            <p><strong>Mijoz:</strong> {clientFullName(detail)}</p>
+            <p><strong>Dastur:</strong> {clientProgramTitle(detail)}</p>
+            {clientSubtypeTitle(detail) ? (
+              <p><strong>Turi:</strong> {clientSubtypeTitle(detail)}</p>
+            ) : null}
+            <p><strong>Yo‘nalish:</strong> {clientDirectionLabel(detail)}</p>
+            <p><strong>Mas’ul nazoratchi:</strong> {assignedSupervisorLabel(detail)}</p>
             <p><strong>Email:</strong> {detail.email ?? "—"}</p>
             <p><strong>Telefon:</strong> {detail.phone_number ?? "—"}</p>
             <p><strong>Manzil:</strong> {detail.address ?? "—"}</p>
-            <p className="text-xs text-[#64748B]">Boshqaruv panelida mijoz faqat ko'riladi.</p>
+            <p className="text-xs text-[#64748B]">
+              Biriktirish uchun backendda client_id + supervisor_id assignment API yo‘q. Frontend taxminiy endpoint chaqirmaydi.
+            </p>
           </div>
         ) : null}
       </DashboardModal>

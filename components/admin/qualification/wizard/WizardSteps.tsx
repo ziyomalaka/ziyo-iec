@@ -5,6 +5,7 @@ import type { ContentSource, QualificationDirection, QualificationLessonType, Qu
 import { LESSON_TYPE_OPTIONS, MATERIAL_TYPE_OPTIONS, formatLessonCode, lessonTypeLabel } from "@/lib/qualification/constants";
 import { directionKey } from "@/lib/qualification/it-bridge";
 import type { MaterialWizardState } from "@/lib/api/types/qualification";
+import { blockLabel, type RetrainingBlock } from "@/lib/retraining/content-blocks";
 
 const field = "mt-1 w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm";
 
@@ -71,17 +72,26 @@ export function ModuleStep({
   directionTitle,
   moduleNumber,
   moduleTitle,
+  moduleId,
+  blocks,
+  blockId,
   errors,
   onNumber,
   onTitle,
+  onBlockId,
 }: {
   directionTitle?: string;
   moduleNumber: number | null;
   moduleTitle: string;
-  errors?: { module_number?: string; title?: string };
+  moduleId?: number | null;
+  blocks?: RetrainingBlock[];
+  blockId?: number | null;
+  errors?: { module_number?: string; title?: string; block_id?: string };
   onNumber: (value: number) => void;
   onTitle: (value: string) => void;
+  onBlockId?: (value: number) => void;
 }) {
+  const showBlockSelect = Boolean(blocks?.length && onBlockId && !moduleId);
   return (
     <div className="max-w-xl space-y-4">
       <h2 className="text-lg font-bold text-[#0C2340]">{"Modul qo'shish"}</h2>
@@ -90,6 +100,39 @@ export function ModuleStep({
         <br />
         <span className="font-medium text-[#0C2340]">{directionTitle}</span>
       </p>
+      {showBlockSelect ? (
+        <label className="block text-sm">
+          Blok *
+          <select
+            value={blockId ?? ""}
+            onChange={(e) => onBlockId?.(Number(e.target.value))}
+            className={field}
+          >
+            <option value="">Tanlang</option>
+            {blocks!.map((item) => (
+              <option key={item.id} value={item.id}>
+                {blockLabel(item)}
+              </option>
+            ))}
+          </select>
+          {errors?.block_id ? (
+            <p className="mt-1 text-sm text-red-600" role="alert">
+              {errors.block_id}
+            </p>
+          ) : null}
+        </label>
+      ) : null}
+      {moduleId ? (
+        <p className="rounded-lg bg-[#F7F9FC] px-3 py-2 text-sm text-[#64748B]">
+          Mavjud modul ID: <span className="font-medium text-[#0C2340]">{moduleId}</span>
+          {blockId ? (
+            <>
+              {" · "}
+              Blok ID: <span className="font-medium text-[#0C2340]">{blockId}</span>
+            </>
+          ) : null}
+        </p>
+      ) : null}
       <label className="block text-sm">
         Modul raqami *
         <input

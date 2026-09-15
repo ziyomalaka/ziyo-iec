@@ -23,7 +23,15 @@ type DashboardHeaderProps = {
 export default function DashboardHeader({ pathname, onMenuClick }: DashboardHeaderProps) {
   const router = useRouter();
   const { search, setSearch } = useDashboardSearch();
-  const { items: notifications, unreadCount, listError, loading: notificationsLoading, markRead, markAllRead } = useNotifications();
+  const {
+    items: notifications,
+    unreadCount,
+    unreadAvailable,
+    listError,
+    loading: notificationsLoading,
+    markRead,
+    markAllRead,
+  } = useNotifications();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -87,14 +95,21 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
               <BookOpen className="h-5 w-5" strokeWidth={1.75} />
             </span>
           ) : null}
-          <h1
-            className={cn(
-              "hidden min-w-0 truncate font-bold lg:block",
-              isMyDirectionPage ? "text-[27px] text-[#101A3B]" : "text-[28px] text-[#0b1938]"
-            )}
-          >
-            {pageTitle}
-          </h1>
+          <div className="hidden min-w-0 lg:block">
+            {paths.badge ? (
+              <span className="mb-1 inline-flex rounded-md bg-[#EEF4FF] px-2.5 py-0.5 text-[11px] font-semibold text-[#2563EB]">
+                {paths.badge}
+              </span>
+            ) : null}
+            <h1
+              className={cn(
+                "min-w-0 truncate font-bold",
+                isMyDirectionPage ? "text-[27px] text-[#101A3B]" : "text-[28px] text-[#0b1938]"
+              )}
+            >
+              {pageTitle}
+            </h1>
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -123,11 +138,14 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
               aria-expanded={notifOpen}
             >
               <Bell className="h-5 w-5" strokeWidth={1.75} />
-              {unreadCount > 0 && (
+              {unreadAvailable && unreadCount != null && unreadCount > 0 ? (
                 <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ef233c] px-1 text-[11px] font-bold text-white">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
-              )}
+              ) : null}
+              {!unreadAvailable ? (
+                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#94A3B8]" aria-hidden />
+              ) : null}
             </button>
 
             {notifOpen && (
@@ -135,7 +153,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                 <div className="flex items-center justify-between border-b border-[#E8EDF5] px-4 py-3">
                   <p className="text-[14px] font-semibold text-[#101a37]">Bildirishnomalar</p>
                   <div className="flex items-center gap-3">
-                    {unreadCount > 0 ? (
+                    {unreadAvailable && unreadCount != null && unreadCount > 0 ? (
                       <button
                         type="button"
                         className="text-[12px] font-medium text-[#0756F5]"
@@ -157,9 +175,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
                   {notificationsLoading ? (
                     <p className="px-4 py-6 text-center text-[13px] text-[#64748B]">Yuklanmoqda...</p>
                   ) : listError ? (
-                    <p className="px-4 py-6 text-center text-[13px] text-[#B91C1C]">
-                      Bildirishnomalarni yuklashda xatolik yuz berdi.
-                    </p>
+                    <p className="px-4 py-6 text-center text-[13px] text-[#B91C1C]">{listError}</p>
                   ) : notifications.length === 0 ? (
                     <p className="px-4 py-6 text-center text-[13px] text-[#64748B]">
                       Hozircha bildirishnomalar mavjud emas.

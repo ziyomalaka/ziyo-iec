@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Bell } from "lucide-react";
+import { Bell, MessageCircle } from "lucide-react";
 import PageHeader from "@/components/dashboard/ui/PageHeader";
 import DashboardTabs from "@/components/dashboard/ui/DashboardTabs";
 import DashboardModal from "@/components/dashboard/ui/DashboardModal";
@@ -14,10 +14,15 @@ import AdminPagination from "@/components/admin/AdminPagination";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
 import { getAuthUser } from "@/lib/auth/session";
 import {
-  formatToAdminMessage,
   notificationErrorMessage,
   sendNotificationToAdmin,
 } from "@/lib/api/notifications";
+import {
+  personInitials,
+  studentStaffDisplayName,
+  studentStaffRoleLabel,
+} from "@/lib/dashboard/staff-public-label";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 
 const tabs = [
   { id: "all", label: "Barchasi" },
@@ -40,6 +45,8 @@ export default function NotificationsView({
   emptyTitle?: string;
   emptyDescription?: string;
 } = {}) {
+  const { notificationsApi, retrainingKind } = useStudentProgramPaths();
+  const allowContactAdmin = true;
   const [active, setActive] = useState("all");
   const [contactOpen, setContactOpen] = useState(false);
   const [title, setTitle] = useState("Murojaat");
@@ -48,6 +55,7 @@ export default function NotificationsView({
   const {
     items,
     unreadCount,
+    unreadAvailable,
     loading,
     listError,
     page,
@@ -58,6 +66,9 @@ export default function NotificationsView({
     remove,
     reload,
   } = useNotifications();
+  const staffName = studentStaffDisplayName(
+    items.find((item) => item.fromAdmin || Boolean(item.senderName))?.senderName
+  );
 
   const filtered = useMemo(() => {
     if (active === "all") return items;
@@ -81,10 +92,14 @@ export default function NotificationsView({
     }
     setSending(true);
     try {
-      const sent = await sendNotificationToAdmin({
-        title: trimmedTitle,
-        message: formatToAdminMessage(trimmedMessage, getAuthUser()),
-      });
+      const sent = await sendNotificationToAdmin(
+        {
+          title: trimmedTitle,
+          message: trimmedMessage,
+        },
+        notificationsApi,
+        retrainingKind
+      );
       if (sent.count < 1) {
         toast.error("Nazoratchi topilmadi — xabar inboxga tushmadi.");
       } else {
@@ -106,30 +121,40 @@ export default function NotificationsView({
         title="Bildirishnomalar"
         description="Kurs, test va tizim xabarlari."
         action={
-          unreadCount > 0 ? (
+          unreadAvailable && unreadCount != null && unreadCount > 0 ? (
             <button
               type="button"
               onClick={() => markAllRead()}
-              className="min-h-11 w-full rounded-xl border border-[#E8EDF5] px-4 py-2 text-sm font-medium text-[#2563EB] hover:bg-[#F7F9FC] sm:w-auto"
+              className="btn-outline-sm w-full sm:w-auto"
             >
               Hammasini o&apos;qilgan deb belgilash
             </button>
           ) : null
         }
       />
+      <div className="card card-padding mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-blue text-sm font-bold text-primary">
+            {personInitials(staffName)}
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-bold text-primary-dark">{staffName}</p>
+            <p className="text-sm text-muted">{studentStaffRoleLabel()}</p>
+          </div>
+        </div>
+      </div>
       <DashboardTabs
         tabs={tabs}
         active={active}
         onChange={setActive}
         className="mb-6"
         action={
-          <button
-            type="button"
-            onClick={() => setContactOpen(true)}
-            className="min-h-11 rounded-xl bg-[#0756F5] px-4 text-sm font-medium text-white hover:bg-[#0648d1]"
-          >
-            Admin bilan bog&apos;lanish
-          </button>
+          allowContactAdmin ? (
+            <button type="button" onClick={() => setContactOpen(true)} className="btn-primary-sm">
+              <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
+              Xabar yozish
+            </button>
+          ) : undefined
         }
       />
       {loading ? (
@@ -156,6 +181,8 @@ export default function NotificationsView({
                   onMarkRead={markRead}
                   onDelete={remove}
                   replyTo="admin"
+                  allowReply={allowContactAdmin}
+                  onReplied={() => void reload()}
                 />
               ))
             )}
@@ -165,9 +192,9 @@ export default function NotificationsView({
       )}
 
       <DashboardModal
-        open={contactOpen}
+        open={allowContactAdmin && contactOpen}
         onClose={closeContact}
-        title="Admin bilan bog'lanish"
+        title="Nazoratchiga xabar"
         size="md"
         footer={
           <>
@@ -175,7 +202,7 @@ export default function NotificationsView({
               type="button"
               disabled={sending}
               onClick={closeContact}
-              className="rounded-lg border border-[#E8EDF5] px-4 py-2 text-sm text-[#64748B] disabled:opacity-60"
+              className="btn-outline-sm disabled:opacity-60"
             >
               Bekor
             </button>
@@ -183,7 +210,7 @@ export default function NotificationsView({
               type="submit"
               form="contact-admin-form"
               disabled={sending}
-              className="rounded-lg bg-[#0756F5] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              className="btn-primary-sm disabled:opacity-60"
             >
               {sending ? "Yuborilmoqda..." : "Yuborish"}
             </button>
@@ -191,19 +218,28 @@ export default function NotificationsView({
         }
       >
         <form id="contact-admin-form" onSubmit={(event) => void onContact(event)} className="space-y-4">
-          <p className="rounded-lg bg-[#F7F9FC] px-3 py-2 text-sm text-[#64748B]">
-            Yuboruvchi: <span className="font-medium text-[#0C2340]">{senderLabel()}</span>
+          <div className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-2.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-blue text-xs font-bold text-primary">
+              {personInitials(staffName)}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-primary-dark">{staffName}</p>
+              <p className="text-xs text-muted">{studentStaffRoleLabel()}</p>
+            </div>
+          </div>
+          <p className="rounded-2xl bg-surface px-3 py-2 text-sm text-muted">
+            Yuboruvchi: <span className="font-medium text-primary-dark">{senderLabel()}</span>
           </p>
-          <label className="block text-sm font-medium text-[#0C2340]">
+          <label className="label-field text-primary-dark">
             Sarlavha
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={sending}
-              className="mt-1 w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm font-normal"
+              className="input-field mt-1.5 font-normal"
             />
           </label>
-          <label className="block text-sm font-medium text-[#0C2340]">
+          <label className="label-field text-primary-dark">
             Xabar
             <textarea
               value={message}
@@ -211,7 +247,7 @@ export default function NotificationsView({
               disabled={sending}
               rows={5}
               placeholder="Nazoratchiga yozma xabar"
-              className="mt-1 w-full rounded-lg border border-[#E8EDF5] px-3 py-2 text-sm font-normal"
+              className="input-field mt-1.5 min-h-[8rem] resize-y font-normal"
             />
           </label>
         </form>

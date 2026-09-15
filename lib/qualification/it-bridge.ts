@@ -161,6 +161,7 @@ export function mapItDirection(item: ItDirection): QualificationDirection {
     duration_hours: item.duration_hours,
     language: item.language,
     status: item.status,
+    thumbnail_url: item.thumbnail_url,
     modules: (item.modules ?? []).map((row) => mapItModule(row, item.id)),
   };
 }

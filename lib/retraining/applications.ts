@@ -3,13 +3,18 @@ import {
   createRetrainingApplication,
   getRetrainingApplications as fetchRetrainingApplications,
 } from "@/lib/api/retraining";
+import { isRetrainingApiEnabled } from "@/lib/retraining/temp-state";
 import type { ClientApplicationResponse } from "@/lib/api/types/applications";
 import { parsePositiveInt } from "@/lib/api/unwrap";
 import { courseApplicationTitle } from "@/lib/dashboard/course-application";
-import { RETRAINING_APPLICATION_TYPE } from "@/lib/retraining/match";
+import type { RetrainingType } from "@/lib/retraining/kind";
 
-export async function getRetrainingApplications() {
-  return fetchRetrainingApplications();
+export async function getRetrainingApplications(retrainingType?: RetrainingType | null) {
+  if (!isRetrainingApiEnabled()) return [];
+  if (!retrainingType) {
+    throw new ApiError(400, "Qayta tayyorlash turi tanlanmagan");
+  }
+  return fetchRetrainingApplications(retrainingType);
 }
 
 export function findRetrainingApplication(
@@ -27,29 +32,21 @@ export function findRetrainingApplication(
     .sort((a, b) => (b.id ?? 0) - (a.id ?? 0))[0];
 }
 
-export async function applyToRetrainingCourse(course: { id: string; title: string }, notes?: string) {
+export async function applyToRetrainingCourse(
+  course: { id: string; title: string },
+  _notes?: string,
+  retrainingType?: RetrainingType | null
+) {
+  if (!isRetrainingApiEnabled()) {
+    throw new ApiError(503, "Qayta tayyorlash API hozircha o‘chiq.");
+  }
   const published = parsePositiveInt(course.id);
+  const title = course.title.trim();
   if (!published) {
     throw new ApiError(400, "Kurs tanlanishi shart.");
   }
-  const payload = {
-    title: courseApplicationTitle(course.title),
-    type: RETRAINING_APPLICATION_TYPE,
-    comment: notes?.trim() || undefined,
-    course_id: published,
-  };
-
-  try {
-    return await createRetrainingApplication(payload);
-  } catch (error) {
-    const retry = error instanceof ApiError && (error.status === 400 || error.status === 422);
-    if (retry) {
-      return createRetrainingApplication({
-        title: payload.title,
-        course_id: published,
-        comment: payload.comment,
-      });
-    }
-    throw error instanceof ApiError ? error : new ApiError(400, "Ariza yuborilmadi");
+  if (!title) {
+    throw new ApiError(400, "Kurs nomi topilmadi.");
   }
+  return createRetrainingApplication({ course_id: published, title }, retrainingType);
 }

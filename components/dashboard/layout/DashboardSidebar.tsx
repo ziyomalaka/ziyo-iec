@@ -26,7 +26,7 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, unreadAvailable } = useNotifications();
   const { kind } = useStudentProgramPaths();
 
   return (
@@ -50,7 +50,7 @@ function NavLinks({
           >
             <Icon className="h-[22px] w-[22px] shrink-0" strokeWidth={active ? 2.1 : 1.6} />
             <span className="min-w-0 flex-1 leading-snug">{label}</span>
-            {item.labelKey === "notifications" && unreadCount > 0 ? (
+            {item.labelKey === "notifications" && unreadAvailable && unreadCount != null && unreadCount > 0 ? (
               <span
                 className={cn(
                   "flex h-[27px] min-w-[27px] shrink-0 items-center justify-center rounded-full px-1 text-[12px] font-semibold",

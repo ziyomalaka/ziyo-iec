@@ -7,14 +7,17 @@ import {
   LEARNING_API_PREFIX,
   NOTIFICATIONS_API_PREFIX,
 } from "@/lib/api/student-api";
+import type { RetrainingType } from "@/lib/retraining/kind";
 
 export type StudentProgramKind = "malaka" | "retraining";
 
 export type StudentProgramConfig = {
   kind: StudentProgramKind;
+  retrainingKind?: RetrainingType | null;
   homePath: string;
   basePath: string;
   tagline: string;
+  badge?: string;
   navItems: DashboardNavItem[];
   bottomNavItems: DashboardNavItem[];
   pageTitle: (pathname: string) => string;
@@ -42,16 +45,18 @@ export function useStudentProgramPaths() {
   const base = program?.basePath ?? "/dashboard";
   return {
     kind,
+    retrainingKind: program?.retrainingKind ?? null,
     home: program?.homePath ?? "/dashboard",
     base,
     courses: `${base}/courses`,
-    applications: `${base}/applications`,
+    applications: kind === "retraining" ? `${base}/application` : `${base}/applications`,
     myCourses: `${base}/my-courses`,
     learning: `${base}/learning`,
     results: `${base}/results`,
     notifications: `${base}/notifications`,
     profile: `${base}/profile`,
     tagline: program?.tagline ?? "Malaka oshirish platformasi",
+    badge: program?.badge ?? "",
     navItems: program?.navItems ?? null,
     bottomNavItems: program?.bottomNavItems ?? null,
     pageTitle: program?.pageTitle ?? null,

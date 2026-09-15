@@ -1,53 +1,67 @@
-import { Award, Bell, BookMarked, BookOpen, FileText, GraduationCap, User } from "lucide-react";
+import { Award, Bell, BookMarked, BookOpen, FileText, GraduationCap } from "lucide-react";
 import type { DashboardNavItem } from "@/lib/dashboard/navigation";
 import type { StudentProgramConfig } from "@/lib/dashboard/program-context";
+import {
+  RETRAINING_TYPE_META,
+  retrainingBasePath,
+  type RetrainingType,
+} from "@/lib/retraining/kind";
 
-const BASE = "/retraining";
-
-export const retrainingNavItems: DashboardNavItem[] = [
-  { href: `${BASE}/courses`, labelKey: "courses", icon: GraduationCap, exact: true },
-  { href: `${BASE}/applications`, labelKey: "applications", icon: FileText },
-  { href: `${BASE}/my-courses`, labelKey: "myCourses", icon: BookOpen },
-  { href: `${BASE}/learning`, labelKey: "learning", icon: BookMarked },
-  { href: `${BASE}/results`, labelKey: "results", icon: Award },
-  { href: `${BASE}/notifications`, labelKey: "notifications", icon: Bell },
-  { href: `${BASE}/profile`, labelKey: "profile", icon: User },
-];
-
-export const retrainingBottomNavItems: DashboardNavItem[] = [
-  { href: `${BASE}/courses`, labelKey: "courses", icon: GraduationCap },
-  { href: `${BASE}/my-courses`, labelKey: "myCourses", icon: BookOpen },
-  { href: `${BASE}/learning`, labelKey: "learning", icon: BookMarked },
-  { href: `${BASE}/results`, labelKey: "results", icon: Award },
-  { href: `${BASE}/notifications`, labelKey: "notifications", icon: Bell },
-];
-
-const titles: Record<string, string> = {
-  [BASE]: "Qayta tayyorlash",
-  [`${BASE}/courses`]: "Kurslar",
-  [`${BASE}/applications`]: "Ariza",
-  [`${BASE}/my-courses`]: "Mening kurslarim",
-  [`${BASE}/learning`]: "O'quv jarayoni",
-  [`${BASE}/results`]: "Natija",
-  [`${BASE}/notifications`]: "Bildirishnomalar",
-  [`${BASE}/profile`]: "Profil",
-};
-
-export function getRetrainingPageTitle(pathname: string) {
-  if (pathname.includes("/courses/") && !pathname.endsWith("/courses")) return "Kurs haqida";
-  if (pathname.includes("/learning/")) return "O'quv jarayoni";
-  return titles[pathname] ?? "Qayta tayyorlash";
+function createRetrainingNav(base: string): DashboardNavItem[] {
+  return [
+    { href: `${base}/courses`, labelKey: "courses", icon: GraduationCap, exact: true },
+    { href: `${base}/application`, labelKey: "applications", icon: FileText },
+    { href: `${base}/my-courses`, labelKey: "myCourses", icon: BookOpen },
+    { href: `${base}/learning`, labelKey: "learning", icon: BookMarked },
+    { href: `${base}/results`, labelKey: "results", icon: Award },
+    { href: `${base}/notifications`, labelKey: "notifications", icon: Bell },
+  ];
 }
 
-export const retrainingProgram: StudentProgramConfig = {
-  kind: "retraining",
-  homePath: BASE,
-  basePath: BASE,
-  tagline: "Qayta tayyorlash platformasi",
-  navItems: retrainingNavItems,
-  bottomNavItems: retrainingBottomNavItems,
-  pageTitle: getRetrainingPageTitle,
-};
+function createRetrainingBottomNav(base: string): DashboardNavItem[] {
+  return [
+    { href: `${base}/courses`, labelKey: "courses", icon: GraduationCap },
+    { href: `${base}/my-courses`, labelKey: "myCourses", icon: BookOpen },
+    { href: `${base}/learning`, labelKey: "learning", icon: BookMarked },
+    { href: `${base}/results`, labelKey: "results", icon: Award },
+    { href: `${base}/notifications`, labelKey: "notifications", icon: Bell },
+  ];
+}
+
+export function getRetrainingPageTitle(pathname: string, type: RetrainingType) {
+  const meta = RETRAINING_TYPE_META[type];
+  const base = retrainingBasePath(type);
+  if (pathname.includes("/courses/") && !pathname.endsWith("/courses")) return "Kurs haqida";
+  if (pathname.includes("/learning/")) return "O'quv jarayoni";
+  const titles: Record<string, string> = {
+    [base]: meta.title,
+    [`${base}/courses`]: "Kurslar",
+    [`${base}/application`]: "Ariza",
+    [`${base}/applications`]: "Ariza",
+    [`${base}/my-courses`]: "Mening kurslarim",
+    [`${base}/learning`]: "O'quv jarayoni",
+    [`${base}/results`]: "Natija",
+    [`${base}/notifications`]: "Bildirishnomalar",
+    [`${base}/profile`]: "Profil",
+  };
+  return titles[pathname] ?? meta.title;
+}
+
+export function createRetrainingProgram(type: RetrainingType): StudentProgramConfig {
+  const meta = RETRAINING_TYPE_META[type];
+  const base = retrainingBasePath(type);
+  return {
+    kind: "retraining",
+    retrainingKind: type,
+    homePath: base,
+    basePath: base,
+    tagline: meta.tagline,
+    badge: meta.badge,
+    navItems: createRetrainingNav(base),
+    bottomNavItems: createRetrainingBottomNav(base),
+    pageTitle: (pathname) => getRetrainingPageTitle(pathname, type),
+  };
+}
 
 export const retrainingMenuLabels: Record<string, string> = {
   courses: "Kurslar",

@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "@/lib/icons";
 import { login } from "@/lib/api/auth";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, isBackendUnreachable, isServiceUnavailableError } from "@/lib/api/errors";
 import { saveAuthSession } from "@/lib/auth/session";
 import { resolvePostLoginPath } from "@/lib/auth/program";
 import { GMAIL_ONLY_MESSAGE, isGmailAddress, isStaffNickname } from "@/lib/auth/gmail";
@@ -71,8 +71,18 @@ export default function LoginFormCard() {
       router.push(await resolvePostLoginPath(response.user));
       router.refresh();
     } catch (error) {
-      const message =
-        error instanceof ApiError ? error.message : t("toast.errorDescription");
+      const unavailable = isServiceUnavailableError(error) || isBackendUnreachable(error);
+      const credentials =
+        error instanceof ApiError && (error.status === 400 || error.status === 401);
+      const message = unavailable
+        ? t.has("toast.unavailableDescription")
+          ? t("toast.unavailableDescription")
+          : "Server vaqtincha mavjud emas. Qayta urinib ko'ring."
+        : credentials
+          ? t("toast.errorDescription")
+          : error instanceof ApiError
+            ? error.message
+            : t("toast.errorDescription");
       toast.error(t("toast.errorTitle"), { description: message });
     }
   };

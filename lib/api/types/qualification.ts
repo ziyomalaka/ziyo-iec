@@ -25,6 +25,12 @@ export type QualificationDirection = {
   status?: string;
   module_count?: number;
   modules?: QualificationModule[];
+  /** Qayta tayyorlash panel slug — faqat source=retraining */
+  retraining_panel?: "umumiy" | "pedagogik" | "kasbiy";
+  retraining_type?: string;
+  kind?: string;
+  thumbnail_url?: string;
+  image_file_id?: number;
 };
 
 export type CreateQualificationDirectionPayload = {
@@ -34,6 +40,9 @@ export type CreateQualificationDirectionPayload = {
   duration_hours?: number;
   language?: string;
   status?: string;
+    thumbnail_url?: string;
+    image_url?: string;
+    file_id?: number;
 };
 
 export type QualificationModule = {
@@ -41,6 +50,7 @@ export type QualificationModule = {
   direction_id?: number;
   module_number?: number;
   title: string;
+  description?: string;
   status?: string;
   status_label?: string;
   source?: ContentSource;
@@ -76,6 +86,7 @@ export type QualificationMaterial = {
 export type CreateQualificationModulePayload = {
   module_number: number;
   title: string;
+  description?: string;
   status?: string;
 };
 
@@ -106,6 +117,8 @@ export type MaterialFormData = {
   uploaded: boolean;
   uploadProgress: number;
   uploadError?: string;
+  /** false bo'lsa "Qayta urinish" yashiriladi (masalan DB constraint 23514). */
+  uploadRetryable?: boolean;
   serverId?: number;
   fileId?: number;
   assignment?: string;
@@ -141,4 +154,8 @@ export type MaterialWizardState = {
   status: QualificationPublishStatus;
   launchKey?: string;
   source?: ContentSource;
+  /** Qayta tayyorlash: umumiy | pedagogik | kasbiy — URL panel yo'qolsa draft dan tiklanadi */
+  retrainingPanel?: "umumiy" | "pedagogik" | "kasbiy";
+  /** Qayta tayyorlash: blok meta ID (ZM_BLOCKS) — moduleId bilan aralashtirilmasin */
+  blockId?: number | null;
 };

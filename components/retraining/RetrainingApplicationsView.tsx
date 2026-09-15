@@ -5,11 +5,14 @@ import { toast } from "sonner";
 import { ClipboardList } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
-import { getAuthUser } from "@/lib/auth/session";
-import { profileService } from "@/lib/profile/service";
 import { applicationDecisionNote, canReapplyApplication, isApprovedApplicationStatus } from "@/lib/dashboard/course-application";
-import { applyToRetrainingCourse, findRetrainingApplication, getRetrainingApplications } from "@/lib/retraining/applications";
-import { getRetrainingCourse } from "@/lib/retraining/catalog";
+import { findRetrainingApplication } from "@/lib/retraining/applications";
+import {
+  getRetrainingApplicant,
+  retrainingGetCourse,
+  retrainingListApplications,
+  retrainingSubmitApplication,
+} from "@/lib/retraining/service";
 import { retrainingStatusCard } from "@/lib/retraining/status";
 import type { ClientApplicationResponse } from "@/lib/api/types/applications";
 import type { CourseCatalogItem } from "@/lib/dashboard/types";
@@ -22,6 +25,12 @@ import ErrorState from "@/components/dashboard/ui/ErrorState";
 import LoadingState from "@/components/dashboard/ui/LoadingState";
 import { cn } from "@/lib/cn";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
+import { RETRAINING_SELECT_PATH } from "@/lib/auth/program";
+import {
+  isRetrainingTypeMissingError,
+  useRequireRetrainingType,
+} from "@/lib/retraining/use-require-type";
 
 type ProfileSnapshot = {
   fullName: string;
@@ -48,14 +57,14 @@ function readOnlyField(label: string, value: string) {
 }
 
 export default function RetrainingApplicationsView() {
+  const paths = useStudentProgramPaths();
   const router = useRouter();
+  const requireType = useRequireRetrainingType();
   const searchParams = useSearchParams();
   const courseId = searchParams.get("course")?.trim() ?? "";
   const [items, setItems] = useState<ClientApplicationResponse[]>([]);
   const [course, setCourse] = useState<CourseCatalogItem | null>(null);
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
-  const [notes, setNotes] = useState("");
-  const [notesError, setNotesError] = useState("");
   const [courseError, setCourseError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -64,35 +73,26 @@ export default function RetrainingApplicationsView() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const user = getAuthUser();
-      const [apps, selected, dashboard] = await Promise.all([
-        getRetrainingApplications(),
-        courseId ? getRetrainingCourse(courseId) : Promise.resolve(null),
-        profileService.getDashboard().catch(() => null),
+      const type = await requireType();
+      if (!type) return;
+      const [apps, selected] = await Promise.all([
+        retrainingListApplications(type),
+        courseId ? retrainingGetCourse(courseId, type) : Promise.resolve(null),
       ]);
       setItems(apps);
       setCourse(selected);
-      const p = dashboard?.profile;
-      setProfile({
-        fullName:
-          [p?.lastName || user?.last_name, p?.firstName || user?.first_name, p?.middleName || user?.father_name]
-            .filter(Boolean)
-            .join(" ") || "",
-        phone: p?.phone || user?.phone_number || "",
-        email: p?.email || user?.email || "",
-        region: [p?.region, p?.district].filter(Boolean).join(", "),
-        education: p?.qualificationDirection || "",
-        specialty: p?.specialization || p?.profession || "",
-        workplace: p?.workplace || "",
-        position: p?.position || "",
-      });
+      setProfile(getRetrainingApplicant());
       setError(null);
     } catch (caught) {
+      if (isRetrainingTypeMissingError(caught)) {
+        router.replace(RETRAINING_SELECT_PATH);
+        return;
+      }
       if (!silent) setError(caught);
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [courseId]);
+  }, [courseId, requireType, router]);
 
   useEffect(() => {
     void load(false);
@@ -109,19 +109,23 @@ export default function RetrainingApplicationsView() {
 
   const submit = async () => {
     setCourseError("");
-    setNotesError("");
     if (!course) {
       setCourseError("Kurs tanlanishi shart.");
+      return;
+    }
+    if (!course.title.trim()) {
+      setCourseError("Kurs nomi topilmadi.");
       return;
     }
     if (!canApply || saving) return;
     setSaving(true);
     try {
-      const created = await applyToRetrainingCourse(course, notes);
+      const type = await requireType();
+      if (!type) return;
+      const created = await retrainingSubmitApplication(course, undefined, type);
       setItems((prev) => [created, ...prev.filter((item) => item.id !== created.id)]);
-      toast.success("Ariza yuborildi.");
-      setNotes("");
-      router.replace("/retraining/applications");
+      toast.success("Ariza yuborildi");
+      router.replace(paths.applications);
     } catch (caught) {
       toast.error(caught instanceof ApiError ? studentApiErrorMessage(caught) : "Ariza yuborilmadi");
     } finally {
@@ -134,7 +138,7 @@ export default function RetrainingApplicationsView() {
 
   return (
     <div className="min-w-0">
-      <PageHeader title="Ariza" description="Qayta tayyorlash kursi uchun ariza yuboring." />
+      <PageHeader title="Ariza" description={`${paths.badge} kursi uchun ariza yuboring.`} />
 
       {courseId ? (
         <section className="mb-6 rounded-xl border border-[#E8EDF5] bg-white p-5 shadow-[0_2px_12px_rgba(15,35,64,0.04)]">
@@ -155,7 +159,7 @@ export default function RetrainingApplicationsView() {
               ) : null}
               {current && isApprovedApplicationStatus(current.status) ? (
                 <Link
-                  href="/retraining/my-courses"
+                  href={paths.myCourses}
                   className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
                 >
                   Mening kurslarim
@@ -186,20 +190,6 @@ export default function RetrainingApplicationsView() {
                     {profile?.workplace ? readOnlyField("Ish joyi", profile.workplace) : null}
                     {profile?.position ? readOnlyField("Lavozimi", profile.position) : null}
                   </div>
-                  <label className="block text-sm font-medium text-[#0C2340]">
-                    Qo&apos;shimcha ma&apos;lumot
-                    <textarea
-                      value={notes}
-                      onChange={(event) => {
-                        setNotes(event.target.value);
-                        setNotesError("");
-                      }}
-                      rows={4}
-                      className="mt-1 w-full rounded-xl border border-[#E8EDF5] px-3 py-2 text-sm font-normal outline-none focus:border-[#2563EB]"
-                      placeholder="Ixtiyoriy izoh"
-                    />
-                    {notesError ? <span className="mt-1 block text-sm font-normal text-[#B91C1C]">{notesError}</span> : null}
-                  </label>
                   <button
                     type="submit"
                     disabled={saving}
@@ -223,10 +213,10 @@ export default function RetrainingApplicationsView() {
         <EmptyState
           icon={ClipboardList}
           title="Siz hali ariza yubormagansiz."
-          description="Qayta tayyorlash kursini tanlab ariza yuboring."
+          description="Kursni tanlab ariza yuboring."
           action={
             <Link
-              href="/retraining/courses"
+              href={paths.courses}
               className="inline-flex min-h-11 items-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
             >
               Kurslarni ko&apos;rish
@@ -249,7 +239,7 @@ export default function RetrainingApplicationsView() {
                 <p className="mt-2 text-xs text-[#94A3B8]">{formatApplicationEvent(item)}</p>
                 {note ? <p className="mt-2 break-words text-sm text-[#445574]">{note}</p> : null}
                 {card.kind === "approved" ? (
-                  <Link href="/retraining/my-courses" className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-[#0756F5]">
+                  <Link href={paths.myCourses} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-[#0756F5]">
                     Mening kurslarim
                   </Link>
                 ) : null}

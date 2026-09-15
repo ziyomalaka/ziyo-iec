@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { CalendarDays, Clock3, Languages, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -29,12 +28,11 @@ export default function DirectionCard({ direction }: DirectionCardProps) {
   return (
     <article className="relative flex min-w-0 flex-col gap-4 overflow-hidden rounded-xl border border-[#E8EDF5] bg-white p-4 shadow-[0_2px_12px_rgba(15,35,64,0.04)] md:flex-row md:items-stretch">
       <div className="relative h-[145px] w-full shrink-0 overflow-hidden rounded-xl md:w-[190px]">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={direction.image}
           alt={direction.title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, 190px"
+          className="absolute inset-0 h-full w-full object-cover"
         />
         <span
           className={cn(

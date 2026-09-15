@@ -13,8 +13,8 @@ import {
   getLearningLesson,
 } from "@/lib/api/learning";
 import { asList, asPaged, parsePositiveInt, unwrapApiPayload } from "@/lib/api/unwrap";
+import { pickDirectionThumbnail } from "@/lib/qualification/direction-image";
 import { COURSES_API_PREFIX, LEARNING_API_PREFIX } from "@/lib/api/student-api";
-import type { CreateApplicationRequest } from "@/lib/api/types/applications";
 import type { CourseCardResponse, CourseListQuery } from "@/lib/api/types/courses";
 import type { LearningCourseResponse } from "@/lib/api/types/learning";
 import type {
@@ -26,6 +26,14 @@ import type {
 import { mapCourseCard, mapCourseDetail } from "@/lib/dashboard/mappers/courses";
 import { type StudentContinueState } from "@/lib/dashboard/continue-learning";
 import { mapRemoteResult } from "@/lib/api/learning-progress";
+import {
+  courseQueryWithType,
+  withRetrainingScope,
+  type RetrainingApiScope,
+} from "@/lib/api/retraining-query";
+import type { RetrainingType } from "@/lib/retraining/kind";
+import { filterByRetrainingType, requireStudentRetrainingType } from "@/lib/retraining/isolate";
+import { hydrateRetrainingCatalogImages } from "@/lib/retraining/direction-images";
 
 const COURSES = COURSES_API_PREFIX.retraining;
 const LEARNING = LEARNING_API_PREFIX.retraining;
@@ -55,7 +63,8 @@ export function mapRetrainingMyCourseItem(data: unknown): RetrainingMyCourseItem
     current_lesson_id: parsePositiveInt(row.current_lesson_id) ?? undefined,
     enrolled_at: optionalString(row.enrolled_at),
     enrollment_status: optionalString(row.enrollment_status),
-    thumbnail_url: optionalString(row.thumbnail_url),
+    thumbnail_url: pickDirectionThumbnail(row),
+    retraining_type: optionalString(row.retraining_type) ?? optionalString(row.retrainingType) ?? null,
   };
 }
 
@@ -106,8 +115,11 @@ function mapOverview(data: unknown): RetrainingOverview {
   };
 }
 
-export async function getRetrainingOverview(): Promise<RetrainingOverview> {
-  return mapOverview(await apiRequest<unknown>("/retraining/overview"));
+export async function getRetrainingOverview(retrainingType?: RetrainingType | null): Promise<RetrainingOverview> {
+  const type = requireStudentRetrainingType(retrainingType);
+  return mapOverview(
+    await apiRequest<unknown>(withRetrainingScope("/retraining/overview", { retrainingType: type }))
+  );
 }
 
 function mapRetrainingCatalogItem(item: CourseCardResponse): RetrainingCatalogCourse {
@@ -118,21 +130,33 @@ function mapRetrainingCatalogItem(item: CourseCardResponse): RetrainingCatalogCo
     canApply: item.can_apply,
     cta: item.cta,
     rejectReason: item.reject_reason,
+    retrainingType: item.retraining_type ?? item.kind ?? null,
   };
 }
 
-export async function getRetrainingCoursesPage(query: CourseListQuery = {}): Promise<RetrainingCatalogPage> {
+export async function getRetrainingCoursesPage(
+  query: CourseListQuery = {},
+  scope?: RetrainingApiScope
+): Promise<RetrainingCatalogPage> {
+  const type = requireStudentRetrainingType(scope?.retrainingType);
   const page = await getCourses(
-    {
-      ...query,
-      page: query.page ?? 1,
-      per_page: query.per_page ?? RETRAINING_PER_PAGE,
-    },
+    courseQueryWithType(
+      {
+        ...query,
+        page: query.page ?? 1,
+        per_page: query.per_page ?? RETRAINING_PER_PAGE,
+      },
+      { retrainingType: type }
+    ) as CourseListQuery,
     false,
     COURSES
   );
   return {
-    items: page.items.map(mapRetrainingCatalogItem),
+    items: filterByRetrainingType(
+      page.items.map(mapRetrainingCatalogItem),
+      type,
+      (item) => item.retrainingType
+    ),
     page: page.page,
     per_page: page.per_page,
     total: page.total,
@@ -140,38 +164,54 @@ export async function getRetrainingCoursesPage(query: CourseListQuery = {}): Pro
   };
 }
 
-export async function getRetrainingCoursesAll(query: CourseListQuery = {}): Promise<RetrainingCatalogCourse[]> {
+export async function getRetrainingCoursesAll(
+  query: CourseListQuery = {},
+  scope?: RetrainingApiScope
+): Promise<RetrainingCatalogCourse[]> {
+  const type = requireStudentRetrainingType(scope?.retrainingType);
   const perPage = query.per_page ?? 100;
-  const first = await getRetrainingCoursesPage({ ...query, page: 1, per_page: perPage });
+  const first = await getRetrainingCoursesPage({ ...query, page: 1, per_page: perPage }, scope);
   const items = [...first.items];
   const totalPages = Math.min(Math.max(1, first.total_pages || 1), 20);
+  const rest: Promise<RetrainingCatalogPage>[] = [];
   for (let page = 2; page <= totalPages; page++) {
-    const next = await getRetrainingCoursesPage({ ...query, page, per_page: first.per_page || perPage });
-    items.push(...next.items);
+    rest.push(getRetrainingCoursesPage({ ...query, page, per_page: first.per_page || perPage }, scope));
   }
-  return items;
+  const extraPages = await Promise.all(rest);
+  for (const page of extraPages) items.push(...page.items);
+  return hydrateRetrainingCatalogImages(items, type);
 }
 
-export async function getRetrainingCourseDetail(id: string | number): Promise<RetrainingCatalogCourse | null> {
+export async function getRetrainingCourseDetail(
+  id: string | number,
+  scope?: RetrainingApiScope
+): Promise<RetrainingCatalogCourse | null> {
   try {
-    const detail = await getCourse(id, true, COURSES);
+    const type = requireStudentRetrainingType(scope?.retrainingType);
+    const typeQuery = courseQueryWithType({}, { retrainingType: type }) as Pick<CourseListQuery, "retraining_type">;
+    const detail = await getCourse(id, true, COURSES, typeQuery);
     if (!detail.id) return null;
-    return {
+    const mapped = {
       ...mapCourseDetail(detail),
       applicationId: detail.application_id,
       applicationStatus: detail.application_status,
       canApply: detail.can_apply,
       cta: detail.cta,
       rejectReason: detail.reject_reason,
+      retrainingType: detail.retraining_type ?? detail.kind ?? null,
     };
+    if (!filterByRetrainingType([mapped], type, (item) => item.retrainingType).length) return null;
+    return (await hydrateRetrainingCatalogImages([mapped], type))[0] ?? null;
   } catch {
     return null;
   }
 }
 
-export async function getRetrainingCourseFilters() {
+export async function getRetrainingCourseFilters(scope?: RetrainingApiScope) {
   try {
-    const filters = await getCourseFilters(false, COURSES);
+    const type = requireStudentRetrainingType(scope?.retrainingType);
+    const typeQuery = courseQueryWithType({}, { retrainingType: type }) as Pick<CourseListQuery, "retraining_type">;
+    const filters = await getCourseFilters(false, COURSES, typeQuery);
     return {
       directions: filters.directions ?? [],
       subjects: filters.subjects ?? [],
@@ -184,50 +224,98 @@ export async function getRetrainingCourseFilters() {
   }
 }
 
-export async function getRetrainingApplications() {
-  const data = await apiRequest<unknown>("/retraining/applications");
-  return asList<unknown>(data, ["items", "applications"]).map(mapApplication).filter((item) => item.id);
+export async function getRetrainingApplications(retrainingType?: RetrainingType | null) {
+  if (!retrainingType) {
+    throw new ApiError(400, "Qayta tayyorlash turi tanlanmagan");
+  }
+  const type = requireStudentRetrainingType(retrainingType);
+  const data = await apiRequest<unknown>(withRetrainingScope("/retraining/applications", { retrainingType: type }));
+  return filterByRetrainingType(
+    asList<unknown>(data, ["items", "applications"]).map(mapApplication).filter((item) => item.id),
+    type,
+    (item) => item.retraining_type ?? item.type
+  );
 }
 
-export async function createRetrainingApplication(payload: CreateApplicationRequest) {
-  if (!payload.course_id) {
+export async function createRetrainingApplication(
+  payload: { course_id: number; title: string },
+  retrainingType?: RetrainingType | null
+) {
+  if (!retrainingType) {
+    throw new ApiError(400, "Qayta tayyorlash turi tanlanmagan");
+  }
+  const courseId = payload.course_id;
+  const title = payload.title.trim();
+  if (!courseId) {
     throw new ApiError(400, "Kurs tanlanishi shart.");
   }
-  const data = await apiRequest<unknown>("/retraining/applications", {
+  if (!title) {
+    throw new ApiError(400, "Kurs nomi topilmadi.");
+  }
+  if (process.env.NODE_ENV === "development") {
+    console.log("Create retraining application", {
+      course_id: courseId,
+      title,
+    });
+  }
+  const type = requireStudentRetrainingType(retrainingType);
+  const data = await apiRequest<unknown>(withRetrainingScope("/retraining/applications", { retrainingType: type }), {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ course_id: courseId, title }),
   });
   return mapApplication(data);
 }
 
-export async function getRetrainingMyCourses(): Promise<RetrainingMyCourseItem[]> {
+export async function getRetrainingMyCourses(retrainingType?: RetrainingType | null): Promise<RetrainingMyCourseItem[]> {
   try {
-    const data = await apiRequest<unknown>("/retraining/my-courses", { skipAuthRedirect: true });
+    const type = requireStudentRetrainingType(retrainingType);
+    const data = await apiRequest<unknown>(withRetrainingScope("/retraining/my-courses", { retrainingType: type }), {
+      skipAuthRedirect: true,
+    });
     const page = asPaged<unknown>(data);
     const items = page.items.length ? page.items : asList<unknown>(data, ["items", "courses"]);
-    return items.map(mapRetrainingMyCourseItem).filter((item): item is RetrainingMyCourseItem => item !== null);
+    return filterByRetrainingType(
+      items.map(mapRetrainingMyCourseItem).filter((item): item is RetrainingMyCourseItem => item !== null),
+      type,
+      (item) => item.retraining_type
+    );
   } catch {
     return [];
   }
 }
 
-export async function getRetrainingLearningCourse(id: number, silentAuth = false) {
-  return getLearningCourse(id, silentAuth, LEARNING);
+export async function getRetrainingLearningCourse(
+  id: number,
+  silentAuth = false,
+  retrainingType?: RetrainingType | null
+) {
+  return getLearningCourse(id, silentAuth, LEARNING, retrainingType);
 }
 
-export async function enrollRetrainingCourse(id: number) {
-  return enrollInCourse(id, LEARNING);
+export async function enrollRetrainingCourse(id: number, retrainingType?: RetrainingType | null) {
+  return enrollInCourse(id, LEARNING, retrainingType);
 }
 
-export async function getRetrainingLearningLesson(id: number, silentAuth = false) {
-  return getLearningLesson(id, silentAuth, LEARNING);
+export async function getRetrainingLearningLesson(
+  id: number,
+  silentAuth = false,
+  retrainingType?: RetrainingType | null
+) {
+  return getLearningLesson(id, silentAuth, LEARNING, retrainingType);
 }
 
-export async function completeRetrainingLearningLesson(id: number, silentAuth = false) {
-  return completeLearningLesson(id, silentAuth, LEARNING);
+export async function completeRetrainingLearningLesson(
+  id: number,
+  silentAuth = false,
+  retrainingType?: RetrainingType | null
+) {
+  return completeLearningLesson(id, silentAuth, LEARNING, retrainingType);
 }
 
-export function overviewContinueState(overview: RetrainingOverview): StudentContinueState | null {
+export function overviewContinueState(
+  overview: RetrainingOverview,
+  learningBase = "/retraining/learning"
+): StudentContinueState | null {
   const active = overview.active_course;
   if (!active) return null;
   const withLesson = {
@@ -235,27 +323,33 @@ export function overviewContinueState(overview: RetrainingOverview): StudentCont
     current_lesson_id: overview.current_lesson_id ?? active.current_lesson_id,
     progress_percent: overview.progress_percent || active.progress_percent,
   };
-  return continueFromRetrainingMyCourse(withLesson);
+  return continueFromRetrainingMyCourse(withLesson, learningBase);
 }
 
 export function overviewLastResult(overview: RetrainingOverview) {
   return overview.last_result ? mapRemoteResult(overview.last_result) : null;
 }
 
-export async function getRetrainingResults(page = 1, per_page = 100) {
-  return apiRequest<unknown>(`/retraining/results?page=${page}&per_page=${per_page}`, {
-    skipAuthRedirect: true,
-  });
+export async function getRetrainingResults(page = 1, per_page = 100, retrainingType?: RetrainingType | null) {
+  const type = requireStudentRetrainingType(retrainingType);
+  return apiRequest<unknown>(
+    withRetrainingScope(`/retraining/results?page=${page}&per_page=${per_page}`, { retrainingType: type }),
+    { skipAuthRedirect: true }
+  );
 }
 
-export async function getRetrainingAttempts(page = 1, per_page = 100) {
-  return apiRequest<unknown>(`/retraining/attempts?page=${page}&per_page=${per_page}`, {
-    skipAuthRedirect: true,
-  });
+export async function getRetrainingAttempts(page = 1, per_page = 100, retrainingType?: RetrainingType | null) {
+  const type = requireStudentRetrainingType(retrainingType);
+  return apiRequest<unknown>(
+    withRetrainingScope(`/retraining/attempts?page=${page}&per_page=${per_page}`, { retrainingType: type }),
+    { skipAuthRedirect: true }
+  );
 }
 
-export async function getRetrainingTestAttempts(page = 1, per_page = 100) {
-  return apiRequest<unknown>(`/retraining/test-attempts?page=${page}&per_page=${per_page}`, {
-    skipAuthRedirect: true,
-  });
+export async function getRetrainingTestAttempts(page = 1, per_page = 100, retrainingType?: RetrainingType | null) {
+  const type = requireStudentRetrainingType(retrainingType);
+  return apiRequest<unknown>(
+    withRetrainingScope(`/retraining/test-attempts?page=${page}&per_page=${per_page}`, { retrainingType: type }),
+    { skipAuthRedirect: true }
+  );
 }

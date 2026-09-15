@@ -19,6 +19,7 @@ import type {
   QualificationModule,
 } from "@/lib/api/types/qualification";
 import { formatLessonCode } from "@/lib/qualification/constants";
+import { pickDirectionThumbnail } from "@/lib/qualification/direction-image";
 import { pickFileUrl } from "@/lib/api/media";
 import { isRemovedLessonRecord } from "@/lib/publish-status";
 
@@ -186,6 +187,7 @@ function mapDirection(data: unknown): QualificationDirection {
     duration_hours: parsePositiveInt(row.duration_hours) ?? undefined,
     language: typeof row.language === "string" ? row.language : undefined,
     status: typeof row.status === "string" ? row.status : undefined,
+    thumbnail_url: pickDirectionThumbnail(row),
     module_count: parsePositiveInt(row.module_count) ?? modules?.length,
     modules,
   };
@@ -270,6 +272,11 @@ function directionBody(payload: CreateQualificationDirectionPayload) {
     duration_hours: payload.duration_hours,
     language: payload.language,
     status: payload.status,
+    ...(payload.thumbnail_url ? { thumbnail_url: payload.thumbnail_url } : {}),
+    ...(payload.image_url || payload.thumbnail_url
+      ? { image_url: payload.image_url || payload.thumbnail_url }
+      : {}),
+    ...(payload.file_id ? { file_id: payload.file_id } : {}),
   };
 }
 
@@ -282,6 +289,7 @@ export async function createQualificationDirection(payload: CreateQualificationD
   mapped.id = mapped.id || pickEntityId(created) || 0;
   mapped.title = mapped.title || payload.title;
   mapped.category_id = mapped.category_id ?? payload.category_id;
+  mapped.thumbnail_url = mapped.thumbnail_url || payload.thumbnail_url;
   mapped.source = "qualification";
   return mapped;
 }
@@ -297,6 +305,7 @@ export async function updateQualificationDirection(id: number, payload: CreateQu
     id: mapped.id || id,
     title: mapped.title || payload.title,
     category_id: mapped.category_id ?? payload.category_id,
+    thumbnail_url: mapped.thumbnail_url || payload.thumbnail_url,
     source: "qualification" as const,
   } satisfies QualificationDirection;
 }

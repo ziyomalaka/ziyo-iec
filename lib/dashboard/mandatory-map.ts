@@ -1,6 +1,7 @@
 import type { QualificationDirection, QualificationLesson, QualificationMaterial } from "@/lib/api/types/qualification";
 import type { LearningCourseResponse, LearningLessonDetail, LearningMaterial } from "@/lib/api/types/learning";
 import type { MyDirection, UpcomingLesson } from "@/lib/dashboard/types";
+import { resolveMediaUrl } from "@/lib/api/media";
 import {
   MANDATORY_BLOCK_TITLE,
   mandatoryLearningHref,
@@ -184,7 +185,7 @@ export function mapMandatoryBlogToDirection(blog: QualificationDirection): MyDir
   return {
     id: `mandatory-blog-${blog.id}`,
     title: blog.title?.trim() || MANDATORY_BLOCK_TITLE,
-    image: "/images/directions/d1.jpg",
+    image: resolveMediaUrl(blog.thumbnail_url) || "/images/directions/d1.jpg",
     category: blog.category_name?.trim() || MANDATORY_BLOCK_TITLE,
     totalHours,
     completedHours: 0,

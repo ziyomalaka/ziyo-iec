@@ -10,10 +10,12 @@ import {
   canReapplyApplication,
   isApprovedApplicationStatus,
 } from "@/lib/dashboard/course-application";
-import { findRetrainingApplication, getRetrainingApplications } from "@/lib/retraining/applications";
+import { findRetrainingApplication } from "@/lib/retraining/applications";
+import { retrainingListApplications } from "@/lib/retraining/service";
 import { retrainingStatusCard } from "@/lib/retraining/status";
 import DashboardBadge from "@/components/dashboard/ui/DashboardBadge";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 
 function Field({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === "") return null;
@@ -26,16 +28,17 @@ function Field({ label, value }: { label: string; value?: string | number | null
 }
 
 export default function RetrainingCourseDetailView({ course }: { course: CourseCatalogItem }) {
+  const paths = useStudentProgramPaths();
   const [application, setApplication] = useState<ClientApplicationResponse | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const items = await getRetrainingApplications();
+      const items = await retrainingListApplications(paths.retrainingKind);
       setApplication(findRetrainingApplication(items, course) ?? null);
     } catch {
       /* fon */
     }
-  }, [course]);
+  }, [course, paths.retrainingKind]);
 
   useEffect(() => {
     void refresh();
@@ -52,7 +55,7 @@ export default function RetrainingCourseDetailView({ course }: { course: CourseC
 
   return (
     <div className="min-w-0 space-y-6">
-      <Link href="/retraining/courses" className="inline-flex min-h-11 items-center text-sm font-medium text-[#0756F5]">
+      <Link href={paths.courses} className="inline-flex min-h-11 items-center text-sm font-medium text-[#0756F5]">
         ← Kurslar
       </Link>
 
@@ -111,14 +114,14 @@ export default function RetrainingCourseDetailView({ course }: { course: CourseC
       <div className="flex flex-col gap-2 sm:flex-row">
         {!application || canApply ? (
           <Link
-            href={`/retraining/applications?course=${encodeURIComponent(course.id)}`}
+            href={`${paths.applications}?course=${encodeURIComponent(course.id)}`}
             className="flex min-h-11 items-center justify-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
           >
             {application && status?.kind === "rejected" ? "Qayta ariza berish" : "Ariza berish"}
           </Link>
         ) : approved ? (
           <Link
-            href="/retraining/my-courses"
+            href={paths.myCourses}
             className="flex min-h-11 items-center justify-center rounded-xl bg-[#0756F5] px-4 text-sm font-semibold text-white"
           >
             Mening kurslarim

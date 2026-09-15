@@ -89,6 +89,7 @@ function asCardFromQual(item: QualificationDirection): CourseCardResponse {
     language: item.language,
     status: item.status,
     module_count: item.modules?.length ?? item.module_count ?? 0,
+    thumbnail_url: item.thumbnail_url,
   };
 }
 
@@ -419,7 +420,7 @@ export async function getCatalogCourse(id: string): Promise<CourseDetailResponse
     language: itDirection?.language || course?.language,
     status: qualificationDirection?.status || itDirection?.status || course?.status,
     status_label: itDirection?.status_label || course?.status_label,
-    thumbnail_url: itDirection?.thumbnail_url || course?.thumbnail_url,
+    thumbnail_url: itDirection?.thumbnail_url || qualificationDirection?.thumbnail_url || course?.thumbnail_url,
     modules,
     module_count: modules.length,
   };
@@ -437,6 +438,7 @@ export function catalogCourseFromPublished(
     category_name: match.category_name,
     duration_hours: match.duration_hours,
     status: match.status,
+    thumbnail_url: match.thumbnail_url,
     modules,
     module_count: modules.length,
   };

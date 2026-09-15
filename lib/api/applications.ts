@@ -1,3 +1,4 @@
+import { pickClientDastur, pickClientRegistration } from "@/lib/admin/client-program";
 import { apiRequest } from "@/lib/api/client";
 import type { ClientApplicationResponse, CreateApplicationRequest } from "@/lib/api/types/applications";
 import { asList, parsePositiveInt, unwrapApiPayload } from "@/lib/api/unwrap";
@@ -12,13 +13,62 @@ function optionalTime(value: unknown) {
 
 export function mapApplication(data: unknown): ClientApplicationResponse {
   const row = asRecord(unwrapApiPayload(data));
+  const nestedClient = asRecord(row.client);
+  const nestedUser = asRecord(row.user);
+  const registration = pickClientRegistration(data);
+  const dastur = pickClientDastur(data);
+  const retrainingType =
+    registration.retraining_type ??
+    (typeof row.retraining_type === "string"
+      ? row.retraining_type
+      : typeof row.retrainingType === "string"
+        ? row.retrainingType
+        : typeof nestedClient.retraining_type === "string"
+          ? nestedClient.retraining_type
+          : typeof nestedUser.retraining_type === "string"
+            ? nestedUser.retraining_type
+            : null);
+  const clientName =
+    typeof row.client_name === "string"
+      ? row.client_name
+      : typeof nestedClient.full_name === "string"
+        ? nestedClient.full_name
+        : typeof nestedUser.full_name === "string"
+          ? nestedUser.full_name
+          : undefined;
+  const clientEmail =
+    typeof row.client_email === "string"
+      ? row.client_email
+      : typeof nestedClient.email === "string"
+        ? nestedClient.email
+        : typeof nestedUser.email === "string"
+          ? nestedUser.email
+          : undefined;
   return {
     id: parsePositiveInt(row.id) ?? 0,
-    client_id: parsePositiveInt(row.client_id) ?? undefined,
-    client_name: typeof row.client_name === "string" ? row.client_name : undefined,
-    client_email: typeof row.client_email === "string" ? row.client_email : undefined,
+    client_id:
+      parsePositiveInt(row.client_id) ??
+      parsePositiveInt(nestedClient.id) ??
+      parsePositiveInt(nestedUser.id) ??
+      undefined,
+    client_name: clientName,
+    client_email: clientEmail,
     title: String(row.title ?? ""),
     type: typeof row.type === "string" ? row.type : undefined,
+    program_type:
+      registration.program_type ??
+      (typeof row.program_type === "string"
+        ? row.program_type
+        : typeof row.programType === "string"
+          ? row.programType
+          : typeof nestedClient.program_type === "string"
+            ? nestedClient.program_type
+            : typeof nestedUser.program_type === "string"
+              ? nestedUser.program_type
+              : null),
+    retraining_type: retrainingType,
+    dastur: dastur.dastur,
+    program_label: dastur.program_label,
     status: String(row.status ?? "").trim().toLowerCase(),
     status_label: typeof row.status_label === "string" ? row.status_label : undefined,
     comment: typeof row.comment === "string" ? row.comment : undefined,

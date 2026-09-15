@@ -10,7 +10,7 @@ export default function AdminIndexPage() {
 
   useEffect(() => {
     const user = getAuthUser();
-    router.replace(getPostLoginPath(user?.role, user?.program_type));
+    router.replace(getPostLoginPath(user?.role, user?.program_type, user?.retraining_type));
   }, [router]);
 
   return null;

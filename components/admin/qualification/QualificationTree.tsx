@@ -17,9 +17,12 @@ import { formatLessonCode, lessonTypeLabel, materialTypeLabel } from "@/lib/qual
 import { displayEducationCategoryName } from "@/lib/dashboard/education-level";
 import {
   directionKey,
+  isRetrainingSource,
   wizardDirectionId,
   wizardSource,
 } from "@/lib/qualification/it-bridge";
+import { panelFromRetrainingType, type RetrainingPanel } from "@/lib/retraining/admin-panels";
+import { blockIdForWizardModule } from "@/lib/retraining/wizard-module";
 import {
   asLessonType,
   nextLessonNumber,
@@ -97,6 +100,13 @@ function matchesQuery(text: string, query: string) {
   return text.toLowerCase().includes(query);
 }
 
+function retrainingPanelParam(direction: QualificationDirection): { retrainingPanel?: RetrainingPanel } {
+  if (!isRetrainingSource(direction.source)) return {};
+  const panel =
+    panelFromRetrainingType(direction.retraining_type) ?? direction.retraining_panel;
+  return panel ? { retrainingPanel: panel } : {};
+}
+
 function materialLabel(type?: string) {
   const key = (type ?? "").toUpperCase();
   const icon = MATERIAL_ICONS[key] ?? (key === "LECTURE" ? "📘" : "•");
@@ -128,6 +138,7 @@ export default function QualificationTree({
   onChangeLessonStatus,
   onChangeModuleStatus,
   onAddModule,
+  buildLessonHref,
 }: {
   directions: QualificationDirection[];
   query: string;
@@ -150,6 +161,11 @@ export default function QualificationTree({
   ) => void;
   onChangeLessonStatus?: LessonStatusHandler;
   onChangeModuleStatus?: ModuleStatusHandler;
+  buildLessonHref?: (
+    direction: QualificationDirection,
+    qualModule: QualificationModule,
+    lesson: QualificationLesson
+  ) => string | undefined;
 }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -204,6 +220,7 @@ export default function QualificationTree({
           onDeleteLesson={onDeleteLesson}
           onChangeLessonStatus={onChangeLessonStatus}
           onChangeModuleStatus={onChangeModuleStatus}
+          buildLessonHref={buildLessonHref}
         />
       ))}
     </div>
@@ -224,6 +241,7 @@ function DirectionNode({
   onDeleteLesson,
   onChangeLessonStatus,
   onChangeModuleStatus,
+  buildLessonHref,
 }: {
   direction: QualificationDirection;
   defaultOpen: boolean;
@@ -246,6 +264,11 @@ function DirectionNode({
   ) => void;
   onChangeLessonStatus?: LessonStatusHandler;
   onChangeModuleStatus?: ModuleStatusHandler;
+  buildLessonHref?: (
+    direction: QualificationDirection,
+    qualModule: QualificationModule,
+    lesson: QualificationLesson
+  ) => string | undefined;
 }) {
   const [toggled, setToggled] = useState<boolean | null>(null);
   const open = toggled ?? defaultOpen;
@@ -314,6 +337,7 @@ function DirectionNode({
             href={qualificationWizardPath({
               step: 2,
               source: wizardSource(direction),
+              ...retrainingPanelParam(direction),
               directionId: wizardDirectionId(direction),
               directionTitle: direction.title,
               moduleNumber: nextModuleNumber(direction.modules),
@@ -343,6 +367,7 @@ function DirectionNode({
                 onDeleteLesson={onDeleteLesson}
                 onChangeLessonStatus={onChangeLessonStatus}
                 onChangeModuleStatus={onChangeModuleStatus}
+                buildLessonHref={buildLessonHref}
               />
             ))
           )}
@@ -361,6 +386,7 @@ function ModuleNode({
   onDeleteLesson,
   onChangeLessonStatus,
   onChangeModuleStatus,
+  buildLessonHref,
 }: {
   direction: QualificationDirection;
   qualModule: QualificationModule;
@@ -378,6 +404,11 @@ function ModuleNode({
   ) => void;
   onChangeLessonStatus?: LessonStatusHandler;
   onChangeModuleStatus?: ModuleStatusHandler;
+  buildLessonHref?: (
+    direction: QualificationDirection,
+    qualModule: QualificationModule,
+    lesson: QualificationLesson
+  ) => string | undefined;
 }) {
   const [open, setOpen] = useState(true);
   const lessons = qualModule.lessons ?? [];
@@ -410,8 +441,12 @@ function ModuleNode({
           href={qualificationWizardPath({
             step: 3,
             source: wizardSource(direction, qualModule),
+            ...retrainingPanelParam(direction),
             directionId: wizardDirectionId(direction, qualModule),
             directionTitle: direction.title,
+            blockId: isRetrainingSource(direction.source)
+              ? blockIdForWizardModule(direction, qualModule) ?? undefined
+              : undefined,
             moduleId: qualModule.id,
             moduleNumber: qualModule.module_number,
             moduleTitle: qualModule.title,
@@ -453,6 +488,7 @@ function ModuleNode({
               onLoadLesson={onLoadLesson}
               onDeleteLesson={onDeleteLesson}
               onChangeLessonStatus={onChangeLessonStatus}
+              buildLessonHref={buildLessonHref}
             />
           ))}
         </ul>
@@ -468,6 +504,7 @@ function LessonRow({
   onLoadLesson,
   onDeleteLesson,
   onChangeLessonStatus,
+  buildLessonHref,
 }: {
   direction: QualificationDirection;
   qualModule: QualificationModule;
@@ -483,11 +520,17 @@ function LessonRow({
     lesson: QualificationLesson
   ) => void;
   onChangeLessonStatus?: LessonStatusHandler;
+  buildLessonHref?: (
+    direction: QualificationDirection,
+    qualModule: QualificationModule,
+    lesson: QualificationLesson
+  ) => string | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const code = lesson.lesson_code || formatLessonCode(qualModule.module_number ?? null, lesson.lesson_number ?? null);
+  const detailHref = buildLessonHref?.(direction, qualModule, lesson);
   const materials = lesson.materials;
   const kind = asLessonType(typeof lesson.lesson_type === "string" ? lesson.lesson_type : undefined);
   const directionId = direction.id;
@@ -528,10 +571,19 @@ function LessonRow({
           ) : (
             statusBadge(lesson.status, lesson.status_label)
           )}
+          {detailHref ? (
+            <Link
+              href={detailHref}
+              className="inline-flex min-h-11 items-center rounded-lg border border-[#E8EDF5] px-2 py-1 text-xs font-medium text-[#0756F5]"
+            >
+              Batafsil
+            </Link>
+          ) : null}
           <Link
             href={qualificationWizardPath({
               step: 4,
               source: wizardSource(direction, qualModule),
+              ...retrainingPanelParam(direction),
               directionId: wizardDirectionId(direction, qualModule),
               directionTitle: direction.title,
               moduleId: qualModule.id,

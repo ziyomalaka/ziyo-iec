@@ -108,6 +108,7 @@ export type CourseCatalogItem = {
   admission?: string;
   lessonsCount: number;
   syllabus: CourseModule[];
+  retrainingType?: string | null;
 };
 
 export type CourseModule = {

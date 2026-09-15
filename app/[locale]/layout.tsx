@@ -56,8 +56,8 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.variable} h-full w-full overflow-x-clip antialiased`}>
-      <body className="min-h-screen w-full overflow-x-clip bg-background text-foreground">
+    <html lang={locale} className={`${inter.variable} h-full w-full overflow-x-clip antialiased`} suppressHydrationWarning>
+      <body className="min-h-screen w-full overflow-x-clip bg-background text-foreground" suppressHydrationWarning>
         <NextIntlClientProvider messages={pickClientMessages(messages)}>
           <Providers>{children}</Providers>
         </NextIntlClientProvider>

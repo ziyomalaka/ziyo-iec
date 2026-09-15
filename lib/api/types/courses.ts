@@ -25,6 +25,7 @@ export type CourseCardResponse = {
   can_apply?: boolean;
   cta?: string;
   reject_reason?: string;
+  retraining_type?: string | null;
 };
 
 export type CourseLessonSummary = {
@@ -93,6 +94,7 @@ export type CourseListQuery = {
   hours?: string;
   modules?: string;
   status?: string;
+  retraining_type?: string;
   page?: number;
   per_page?: number;
 };

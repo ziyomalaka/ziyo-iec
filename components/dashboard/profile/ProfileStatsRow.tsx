@@ -26,7 +26,7 @@ function StatTile({
   badge?: string;
 }) {
   return (
-    <div className="flex h-full min-h-[6.5vw] w-full items-center gap-[8%] rounded-[9px] border border-[#DFE7F2] bg-white px-[8%] shadow-[0_1px_3px_rgba(20,40,80,.03)]">
+    <div className="flex h-full min-h-[88px] w-full items-center gap-3 rounded-2xl border border-border/60 bg-white px-4 py-3 shadow-[0_4px_24px_-4px_rgba(15,35,64,0.08)] sm:px-5">
       <div className={cn(iconBox, iconClass)}>
         <Icon className="h-5 w-5" strokeWidth={1.75} />
       </div>
@@ -48,9 +48,9 @@ function StatTile({
 export default function ProfileStatsRow({ stats, loading }: ProfileStatsRowProps) {
   if (loading && !stats) {
     return (
-      <div className="grid w-full grid-cols-1 gap-[1%] sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="min-h-[6.5vw] w-full animate-pulse rounded-[9px] border border-[#DFE7F2] bg-white" />
+          <div key={i} className="min-h-[88px] w-full animate-pulse rounded-2xl border border-border/60 bg-white" />
         ))}
       </div>
     );
@@ -59,7 +59,7 @@ export default function ProfileStatsRow({ stats, loading }: ProfileStatsRowProps
   if (!stats) return null;
 
   return (
-    <div className="grid w-full grid-cols-1 gap-[1%] sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
       <StatTile
         label="Jami kurslar"
         value={stats.totalCourses}

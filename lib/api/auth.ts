@@ -8,6 +8,7 @@ import type {
   ResetPasswordRequest,
 } from "@/lib/api/types/auth";
 import { withPasswordPlain } from "@/lib/auth/password-plain";
+import { backendRetrainingTypeParam } from "@/lib/retraining/backend-type";
 
 /** POST /auth/login — email+password (student) yoki nickname+password (staff). Ikkalasini birga yubormang. */
 export function login(payload: LoginRequest) {
@@ -40,7 +41,9 @@ export function register(payload: RegisterRequest) {
         password: payload.password,
         password_confirm: payload.password_confirm,
         ...(payload.program_type ? { program_type: payload.program_type } : {}),
-        ...(payload.retraining_type ? { retraining_type: payload.retraining_type } : {}),
+        ...(payload.retraining_type
+          ? { retraining_type: backendRetrainingTypeParam(payload.retraining_type) ?? payload.retraining_type }
+          : {}),
       }),
     },
     false

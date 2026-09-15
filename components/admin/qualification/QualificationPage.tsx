@@ -550,8 +550,21 @@ export default function QualificationPage() {
         saving={saving}
         setSaving={setSaving}
         onClose={() => setDirectionForm(null)}
-        onSaved={async () => {
+        onSaved={async (direction) => {
           setDirectionForm(null);
+          const prev = itemsRef.current.find(
+            (item) => item.id === direction.id || (direction.itId != null && item.itId === direction.itId)
+          );
+          await publishQualificationSnapshot(
+            [
+              {
+                ...(prev ?? direction),
+                ...direction,
+                modules: prev?.modules ?? direction.modules ?? [],
+              },
+            ],
+            { notify: true, immediate: true, replaceEmpty: true }
+          );
           await loadList(true);
         }}
       />

@@ -32,6 +32,9 @@ import { ensureLearningTree, flattenLearningLessons } from "@/lib/learning/works
 import { cn } from "@/lib/cn";
 import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 
+/** Retraining lesson complete — StrictMode/re-render da ikki marta ketmasin. */
+const retrainingLessonCompleteAttempted = new Set<number>();
+
 function moduleLessons(module: LearningModule): LearningLessonSummary[] {
   return module.lessons ?? module.items ?? [];
 }
@@ -79,12 +82,16 @@ export default function LearningWorkspace({
   const [completedKeys, setCompletedKeys] = useState<Set<string>>(new Set());
   const [testFlowDone, setTestFlowDone] = useState(false);
   const [hasLiveTest, setHasLiveTest] = useState<boolean | null>(null);
+  const [materialsFlowFinished, setMaterialsFlowFinished] = useState(false);
   const modulesInit = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
+  const isRetraining = paths.kind === "retraining";
   const required = useMemo(() => (lesson ? listRequiredMaterials(lesson) : []), [lesson]);
   const materialsDone = allRequiredCompleted(required, completedKeys);
   const flaggedTest = lesson ? lessonHasTest(lesson) : false;
-  const hasTest = hasLiveTest ?? flaggedTest;
+  const hasTest = isRetraining ? hasLiveTest === true : (hasLiveTest ?? flaggedTest);
 
   useEffect(() => {
     const currentModuleId =
@@ -103,12 +110,14 @@ export default function LearningWorkspace({
   }, [selectedId, tree]);
 
   useEffect(() => {
-    if (!lesson?.id) {
-      setCompletedKeys(new Set());
-      setTestFlowDone(false);
-      setHasLiveTest(null);
-      return;
-    }
+    setHasLiveTest(null);
+    setTestFlowDone(false);
+    setMaterialsFlowFinished(false);
+    if (!lesson?.id) setCompletedKeys(new Set());
+  }, [lesson?.id]);
+
+  useEffect(() => {
+    if (!lesson?.id) return;
     const saved = readLessonTestAttempt(lesson.id);
     const testDone = Boolean(
       saved?.result &&
@@ -122,7 +131,12 @@ export default function LearningWorkspace({
         return m.id && (row.is_completed === true || row.completed === true);
       })
       .map((m) => `material:${m.id}`);
-    setCompletedKeys(new Set([...stored, ...fromApi]));
+    const keys = new Set([...stored, ...fromApi]);
+    setCompletedKeys(keys);
+    const requiredNow = listRequiredMaterials(lesson);
+    setMaterialsFlowFinished(
+      (prev) => prev || requiredNow.length === 0 || allRequiredCompleted(requiredNow, keys)
+    );
   }, [lesson?.id, lesson?.materials]);
 
   const markComplete = async (opts: { key: string; materialId?: number }) => {
@@ -133,7 +147,8 @@ export default function LearningWorkspace({
       writeMaterialProgress(lesson.id, [...next]);
       return next;
     });
-    await completeLessonMaterial(lesson.id, opts, paths.learningApi);
+    if (isRetraining) return;
+    await completeLessonMaterial(lesson.id, opts, paths.learningApi, null);
   };
 
   const prevId =
@@ -159,8 +174,31 @@ export default function LearningWorkspace({
     return "Dars";
   }, [lesson, tree]);
 
-  const canManualComplete = !hasTest && materialsDone && !completed;
-  const lessonReadyForNext = completed || testFlowDone || (!hasTest && materialsDone);
+  const canManualComplete = isRetraining
+    ? hasLiveTest === false && materialsDone && !completed
+    : !hasTest && materialsDone && !completed;
+  const lessonReadyForNext = isRetraining
+    ? completed
+    : completed || testFlowDone || (!hasTest && materialsDone);
+
+  useEffect(() => {
+    if (!isRetraining || !lesson) return;
+    if (completed || completing) return;
+    if (!materialsDone || hasLiveTest !== false) return;
+    if (required.length > 0 && !materialsFlowFinished) return;
+    if (retrainingLessonCompleteAttempted.has(lesson.id)) return;
+    retrainingLessonCompleteAttempted.add(lesson.id);
+    onCompleteRef.current?.({ goNext: true });
+  }, [
+    isRetraining,
+    lesson,
+    completed,
+    completing,
+    materialsDone,
+    materialsFlowFinished,
+    hasLiveTest,
+    required.length,
+  ]);
 
   const outline = (
     <aside className="min-w-0">
@@ -261,6 +299,7 @@ export default function LearningWorkspace({
             lessonCode={lessonCode}
             completedKeys={completedKeys}
             onMarkComplete={(opts) => void markComplete(opts)}
+            onFlowFinished={() => setMaterialsFlowFinished(true)}
             hasTest={hasTest}
             testDone={testFlowDone}
             testSlot={
@@ -302,7 +341,11 @@ export default function LearningWorkspace({
                 <button
                   type="button"
                   disabled={completing}
-                  onClick={() => onComplete()}
+                  onClick={() => {
+                    if (completing) return;
+                    if (lesson) retrainingLessonCompleteAttempted.add(lesson.id);
+                    onComplete();
+                  }}
                   className="min-h-11 w-full rounded-xl border border-[#2563EB] px-4 py-2 text-sm font-medium text-[#2563EB] disabled:opacity-60 sm:w-auto"
                 >
                   {completing ? "Saqlanmoqda..." : "Darsni tugatish"}

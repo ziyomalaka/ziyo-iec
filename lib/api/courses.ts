@@ -5,6 +5,7 @@
 import { apiRequest } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { pickFileUrl } from "@/lib/api/media";
+import { pickDirectionThumbnail } from "@/lib/qualification/direction-image";
 import { COURSES_API_PREFIX } from "@/lib/api/student-api";
 import { asList, asPaged, parsePositiveInt, unwrapApiPayload } from "@/lib/api/unwrap";
 import { lessonKindFromDescription, mapStoredLessonKind } from "@/lib/learning/lesson-kind";
@@ -77,7 +78,7 @@ function mapCourseCard(data: unknown): CourseCardResponse | null {
   if (!isVisibleToStudent(status)) return null;
   return {
     id,
-    title: String(row.title ?? ""),
+    title: String(row.title ?? row.name ?? ""),
     category_id: parsePositiveInt(row.category_id) ?? undefined,
     category_name: optionalString(row.category_name),
     subject: optionalString(row.subject),
@@ -90,8 +91,9 @@ function mapCourseCard(data: unknown): CourseCardResponse | null {
     module_label: optionalString(row.module_label),
     status,
     status_label: optionalString(row.status_label),
-    thumbnail_url: optionalString(row.thumbnail_url),
+    thumbnail_url: pickDirectionThumbnail(row),
     kind: optionalString(row.kind),
+    retraining_type: optionalString(row.retraining_type),
     application_id: parsePositiveInt(row.application_id) ?? undefined,
     application_status: optionalString(row.application_status),
     can_apply: typeof row.can_apply === "boolean" ? row.can_apply : undefined,
@@ -222,11 +224,12 @@ export async function getCourses(
 export async function getCourse(
   id: string | number,
   silentAuth = false,
-  prefix: string = COURSES_API_PREFIX.malaka
+  prefix: string = COURSES_API_PREFIX.malaka,
+  query: Pick<CourseListQuery, "retraining_type"> = {}
 ) {
   const detail = mapCourseDetail(
     await apiRequest<unknown>(
-      coursesPath(prefix, `/${encodeURIComponent(String(id))}`),
+      `${coursesPath(prefix, `/${encodeURIComponent(String(id))}`)}${toQuery(query)}`,
       silentGet(silentAuth)
     )
   );
@@ -239,9 +242,13 @@ export async function getCourse(
 /** GET /courses/filters */
 export async function getCourseFilters(
   silentAuth = false,
-  prefix: string = COURSES_API_PREFIX.malaka
+  prefix: string = COURSES_API_PREFIX.malaka,
+  query: Pick<CourseListQuery, "retraining_type"> = {}
 ): Promise<CourseFiltersResponse> {
-  const data = await apiRequest<unknown>(coursesPath(prefix, "/filters"), silentGet(silentAuth));
+  const data = await apiRequest<unknown>(
+    `${coursesPath(prefix, "/filters")}${toQuery(query)}`,
+    silentGet(silentAuth)
+  );
   const row = asRecord(unwrapApiPayload(data));
   return {
     directions: mapFilterOptions(row.directions ?? row.categories),

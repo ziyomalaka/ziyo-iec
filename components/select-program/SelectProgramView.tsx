@@ -7,7 +7,8 @@ import { useRouter } from "@/i18n/navigation";
 import { ApiError } from "@/lib/api/errors";
 import { getAuthToken, getAuthUser } from "@/lib/auth/session";
 import { getPostLoginPath, isStaffRole } from "@/lib/auth/roles";
-import { fetchProgramType, programHomePath, saveProgramType } from "@/lib/auth/program";
+import { fetchStudentProgram, programHomePath, saveProgramType } from "@/lib/auth/program";
+import { isRetrainingApiEnabled, resolveFrontendProgram, setTempProgramType } from "@/lib/retraining/temp-state";
 import { signOut } from "@/lib/auth/sign-out";
 import type { ProgramType } from "@/lib/validations/register";
 import AuthPageTopBar from "@/components/auth/AuthPageTopBar";
@@ -42,12 +43,17 @@ export default function SelectProgramView() {
       return;
     }
 
-    // Profil yuklanmaguncha hech qayerga yubormaymiz.
-    fetchProgramType()
-      .then((program) => {
+    const temp = resolveFrontendProgram();
+    if (temp) {
+      router.replace(programHomePath(temp, getAuthUser()?.retraining_type));
+      return;
+    }
+
+    fetchStudentProgram()
+      .then((snapshot) => {
         if (!active) return;
-        if (program) {
-          router.replace(programHomePath(program));
+        if (snapshot.program) {
+          router.replace(programHomePath(snapshot.program, snapshot.retrainingType));
           return;
         }
         setChecking(false);
@@ -69,14 +75,12 @@ export default function SelectProgramView() {
 
     setSaving(true);
     try {
-      const saved = await saveProgramType(value);
-      if (!saved) {
-        // Backend so'rovni qabul qildi, lekin profilda program_type saqlanmadi.
-        throw new ApiError(501, t("toast.notSaved"));
-      }
-
+      if (!isRetrainingApiEnabled()) setTempProgramType(value);
+      const saved = isRetrainingApiEnabled()
+        ? await saveProgramType(value)
+        : value;
       toast.success(t("toast.successTitle"), { description: t("toast.successDescription") });
-      router.replace(programHomePath(saved));
+      router.replace(programHomePath(saved ?? value));
       router.refresh();
     } catch (caught) {
       const message = caught instanceof ApiError ? caught.message : t("toast.errorDescription");

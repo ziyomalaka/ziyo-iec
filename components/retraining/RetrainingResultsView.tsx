@@ -10,8 +10,15 @@ import EmptyState from "@/components/dashboard/ui/EmptyState";
 import ErrorState from "@/components/dashboard/ui/ErrorState";
 import LoadingState from "@/components/dashboard/ui/LoadingState";
 import { formatDate } from "@/lib/dashboard/utils";
-import { fetchMyTestResults, type StoredTestResultRow } from "@/lib/api/learning-progress";
-import { getRetrainingMyCourses } from "@/lib/api/retraining";
+import type { StoredTestResultRow } from "@/lib/api/learning-progress";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
+import { retrainingListMyCourses, retrainingListResults } from "@/lib/retraining/service";
+import { RETRAINING_SELECT_PATH } from "@/lib/auth/program";
+import { useRouter } from "@/i18n/navigation";
+import {
+  isRetrainingTypeMissingError,
+  useRequireRetrainingType,
+} from "@/lib/retraining/use-require-type";
 
 function groupAttempts(items: StoredTestResultRow[]) {
   const map = new Map<string, StoredTestResultRow[]>();
@@ -28,6 +35,9 @@ function groupAttempts(items: StoredTestResultRow[]) {
 }
 
 export default function RetrainingResultsView() {
+  const { badge } = useStudentProgramPaths();
+  const router = useRouter();
+  const requireType = useRequireRetrainingType();
   const [items, setItems] = useState<StoredTestResultRow[]>([]);
   const [lessonStats, setLessonStats] = useState({ total: 0, completed: 0, progress: 0 });
   const [loading, setLoading] = useState(true);
@@ -37,9 +47,11 @@ export default function RetrainingResultsView() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const type = await requireType();
+      if (!type) return;
       const [results, my] = await Promise.all([
-        fetchMyTestResults("retraining"),
-        getRetrainingMyCourses().catch(() => []),
+        retrainingListResults(type),
+        retrainingListMyCourses(type),
       ]);
       const totals = my.reduce(
         (acc, course) => {
@@ -55,14 +67,18 @@ export default function RetrainingResultsView() {
         completed: totals.completed,
         progress: my.length ? Math.round(totals.progress / my.length) : 0,
       });
-      setItems(results.items);
+      setItems(results);
       setError(null);
     } catch (caught) {
+      if (isRetrainingTypeMissingError(caught)) {
+        router.replace(RETRAINING_SELECT_PATH);
+        return;
+      }
       setError(caught);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [requireType, router]);
 
   useEffect(() => {
     void load();
@@ -84,7 +100,7 @@ export default function RetrainingResultsView() {
     <div className="min-w-0">
       <PageHeader
         title="Natija"
-        description="Faqat qayta tayyorlash test natijalari. Har bir urinish alohida saqlanadi."
+        description={`${badge} test natijalari. Har bir urinish alohida saqlanadi.`}
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
