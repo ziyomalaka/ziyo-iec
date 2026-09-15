@@ -57,6 +57,8 @@ export type LearningMaterial = {
   type?: MaterialType | string;
   material_type?: MaterialType | string;
   title?: string;
+  is_completed?: boolean;
+  completed?: boolean;
   url?: string;
   file_url?: string;
   content_url?: string;

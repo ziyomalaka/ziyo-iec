@@ -578,19 +578,35 @@ function looksLikeVideo(file: File) {
 
 function readVideoDuration(file: File) {
   if (!looksLikeVideo(file)) return Promise.resolve(null);
+
   return new Promise<number | null>((resolve) => {
     const url = URL.createObjectURL(file);
     const video = document.createElement("video");
+
+    const cleanup = () => {
+      video.onloadedmetadata = null;
+      video.onerror = null;
+      video.removeAttribute("src");
+      video.load();
+
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 0);
+    };
+
     video.preload = "metadata";
+
     video.onloadedmetadata = () => {
       const duration = video.duration;
-      URL.revokeObjectURL(url);
+      cleanup();
       resolve(Number.isFinite(duration) ? duration : null);
     };
+
     video.onerror = () => {
-      URL.revokeObjectURL(url);
+      cleanup();
       resolve(null);
     };
+
     video.src = url;
   });
 }

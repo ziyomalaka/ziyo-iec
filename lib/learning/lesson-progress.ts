@@ -60,8 +60,10 @@ export function resolveLessonProgressStatus(
     return "available";
   }
   if (lesson.is_locked === false || lesson.locked === false) return "available";
-  if (!progressRaw) return "available";
-  return "available";
+
+  // Backend progress holatini bermagan bo'lsa, darsni avtomatik ochmaymiz.
+  // Faqat backend aniq unlocked/current/completed/available yuborganda ochiladi.
+  return "locked";
 }
 
 /** in_progress → current. Yangi enum emas. */

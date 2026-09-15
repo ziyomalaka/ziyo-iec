@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { filterPublishedContentTrees } from "@/lib/publish-status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,9 +34,15 @@ export async function GET() {
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   }
-  return NextResponse.json(snapshot, {
-    headers: { "Cache-Control": "no-store" },
-  });
+  return NextResponse.json(
+    {
+      ...snapshot,
+      items: filterPublishedContentTrees(snapshot.items as never[]),
+    },
+    {
+      headers: { "Cache-Control": "no-store" },
+    }
+  );
 }
 
 export async function PUT(request: Request) {

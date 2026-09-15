@@ -318,7 +318,7 @@ export default function QualificationPage() {
     try {
       await forceDeleteDirection(direction);
       setItems((prev) => prev.filter((item) => directionKey(item) !== directionKey(direction)));
-      removeQualificationSnapshot(direction);
+      await removeQualificationSnapshot(direction);
       toast.success("Yo'nalish o'chirildi");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Yo'nalish o'chirilmadi");

@@ -8,6 +8,7 @@ import {
   readMaterialProgress,
   writeMaterialProgress,
   readLessonTestAttempt,
+  fetchMyTestResults,
 } from "@/lib/api/learning-progress";
 import type { LearningCourseResponse, LearningLessonDetail, LearningLessonSummary, LearningModule } from "@/lib/api/types/learning";
 import LessonMaterialsFlow from "@/components/dashboard/learning/LessonMaterialsFlow";
@@ -119,23 +120,63 @@ export default function LearningWorkspace({
   useEffect(() => {
     if (!lesson?.id) return;
     const saved = readLessonTestAttempt(lesson.id);
-    const testDone = Boolean(
+    const localTestDone = Boolean(
       saved?.result &&
         (saved.result.passed || isAttemptsExhausted(saved.result, MAX_LESSON_TEST_ATTEMPTS))
     );
-    setTestFlowDone(testDone);
-    const stored = readMaterialProgress(lesson.id);
-    const fromApi = (lesson.materials ?? [])
-      .filter((m) => {
-        const row = m as { is_completed?: boolean; completed?: boolean };
-        return m.id && (row.is_completed === true || row.completed === true);
-      })
+
+    setTestFlowDone(localTestDone);
+
+    void (async () => {
+      try {
+        const remote = await fetchMyTestResults();
+        const remoteDone = remote.items.some(
+          (row) =>
+            row.lessonId === lesson.id &&
+            (
+              row.passed === true ||
+              row.mastery_status === "completed" ||
+              row.mastery_status === "not_mastered" ||
+              (row.attempt ?? 0) >= MAX_LESSON_TEST_ATTEMPTS
+            )
+        );
+
+        if (remoteDone) {
+          setTestFlowDone(true);
+        }
+      } catch {
+        // Backend natija endpointi bo'lmasa local fallback ishlaydi.
+      }
+    })();
+    const materials = lesson.materials ?? [];
+    const apiHasProgress = materials.some(
+      (m) => m.is_completed !== undefined || m.completed !== undefined
+    );
+
+    const fromApi = materials
+      .filter(
+        (m) =>
+          m.id &&
+          (m.is_completed === true || m.completed === true)
+      )
       .map((m) => `material:${m.id}`);
-    const keys = new Set([...stored, ...fromApi]);
-    setCompletedKeys(keys);
+    let keys: Set<string>;
+
+    if (apiHasProgress) {
+      keys = new Set(fromApi);
+      setCompletedKeys(keys);
+      writeMaterialProgress(lesson.id, fromApi);
+    } else {
+      keys = new Set(readMaterialProgress(lesson.id));
+      setCompletedKeys(keys);
+    }
+
     const requiredNow = listRequiredMaterials(lesson);
     setMaterialsFlowFinished(
-      (prev) => prev || requiredNow.length === 0 || allRequiredCompleted(requiredNow, keys)
+      (prev) =>
+        prev ||
+        requiredNow.length === 0 ||
+        allRequiredCompleted(requiredNow, keys)
     );
   }, [lesson?.id, lesson?.materials]);
 
@@ -260,6 +301,7 @@ export default function LearningWorkspace({
                             progressStatus={progressStatus}
                             selected={selectedId === item.id}
                             disabled={disabled}
+                            kind={item.lesson_type}
                             onClick={() => onOpenLesson(item.id)}
                           />
                         </li>
@@ -289,7 +331,23 @@ export default function LearningWorkspace({
           >
             ← O&apos;quv jarayoni
           </Link>
-          <p className="text-sm font-semibold text-[#2563EB]">{lessonCode}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-[#2563EB]">{lessonCode}</p>
+            {lesson.lesson_type ? (
+              <span
+                className={cn(
+                  "inline-flex rounded-md px-2 py-0.5 text-xs font-semibold",
+                  String(lesson.lesson_type).toUpperCase() === "PRACTICAL"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-sky-50 text-sky-700"
+                )}
+              >
+                {String(lesson.lesson_type).toUpperCase() === "PRACTICAL"
+                  ? "Amaliy"
+                  : "Nazariy"}
+              </span>
+            ) : null}
+          </div>
           <h1 className="mt-1 break-words text-xl font-bold text-[#0C2340]">{lesson.title}</h1>
           {lesson.module_title ? <p className="mt-1 text-sm text-[#64748B]">{lesson.module_title}</p> : null}
 
@@ -303,6 +361,7 @@ export default function LearningWorkspace({
             hasTest={hasTest}
             testDone={testFlowDone}
             testSlot={
+              !canOpenLesson(resolveLessonProgressStatus(lesson)) ? null : (
               <LessonTest
                 key={`test-${lesson.id}`}
                 lessonId={lesson.id}
@@ -324,6 +383,7 @@ export default function LearningWorkspace({
                   onComplete?.({ goNext: true });
                 }}
               />
+              )
             }
           />
 

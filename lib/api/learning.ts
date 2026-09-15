@@ -75,6 +75,14 @@ function asMaterials(value: unknown): LearningMaterial[] {
       type,
       material_type: type,
       title: optionalString(row.title),
+      is_completed:
+        row.is_completed === undefined || row.is_completed === null
+          ? undefined
+          : Boolean(row.is_completed),
+      completed:
+        row.completed === undefined || row.completed === null
+          ? undefined
+          : Boolean(row.completed),
       url: fileUrl || undefined,
       file_url: fileUrl || undefined,
       content_url: optionalString(row.content_url),

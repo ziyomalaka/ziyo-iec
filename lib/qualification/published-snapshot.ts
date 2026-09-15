@@ -326,12 +326,24 @@ export function publishQualificationSnapshot(
   return enqueue(compactSnapshot(Array.from(byKey.values())), options?.notify === true, options?.immediate === true);
 }
 
-export function removeQualificationSnapshot(direction: Pick<QualificationDirection, "id" | "itId">) {
-  return enqueue(
-    readQualificationSnapshotLocal().filter(
-      (item) => item.id !== direction.id && item.itId !== direction.id && item.id !== direction.itId
-    ),
-    true,
-    true
+export async function removeQualificationSnapshot(
+  direction: Pick<QualificationDirection, "id" | "itId">
+) {
+  let current: QualificationDirection[];
+
+  try {
+    current = await readQualificationSnapshot({ forceNetwork: true });
+  } catch {
+    current = readQualificationSnapshotLocal();
+  }
+
+  const next = current.filter(
+    (item) =>
+      item.id !== direction.id &&
+      item.itId !== direction.id &&
+      item.id !== direction.itId &&
+      item.itId !== direction.itId
   );
+
+  await enqueue(next, true, true);
 }

@@ -8,6 +8,7 @@ import type {
 } from "@/lib/api/types/qualification";
 import type { RetrainingPanel } from "@/lib/retraining/admin-panels";
 import { QUALIFICATION_WIZARD_DRAFT_KEY, defaultMaterialTitle, formatLessonCode } from "@/lib/qualification/constants";
+import { safeRandomUUID } from "@/lib/random-id";
 
 export type WizardLaunch = {
   step?: number;
@@ -165,7 +166,7 @@ export const emptyWizardState = (): MaterialWizardState => ({
 export function emptyQuestions(): TestQuestion[] {
   return [
     {
-      id: crypto.randomUUID(),
+      id: safeRandomUUID(),
       question: "",
       options: [
         { key: "A", text: "" },

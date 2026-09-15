@@ -116,6 +116,7 @@ import {
   stateFromLaunch,
   syncMaterialsForTypes,
 } from "@/lib/qualification/wizard-state";
+import { safeRandomUUID } from "@/lib/random-id";
 
 function err(error: unknown) {
   return error instanceof ApiError ? error.message : "So'rov bajarilmadi";
@@ -188,8 +189,8 @@ export default function MaterialWizard() {
   const [publishOpen, setPublishOpen] = useState(false);
   const uploadAbort = useRef<AbortController | null>(null);
   const busyRef = useRef(false);
-  const moduleIdempotencyKey = useRef(crypto.randomUUID());
-  const lessonIdempotencyKey = useRef(crypto.randomUUID());
+  const moduleIdempotencyKey = useRef(safeRandomUUID());
+  const lessonIdempotencyKey = useRef(safeRandomUUID());
   /** API response dan tasdiqlangan modul PK — React stale state oldini oladi. */
   const confirmedModuleIdRef = useRef<number | null>(null);
 
@@ -402,8 +403,8 @@ export default function MaterialWizard() {
       return;
     }
     if (state.directionId && state.directionId !== id) {
-      moduleIdempotencyKey.current = crypto.randomUUID();
-      lessonIdempotencyKey.current = crypto.randomUUID();
+      moduleIdempotencyKey.current = safeRandomUUID();
+      lessonIdempotencyKey.current = safeRandomUUID();
       confirmedModuleIdRef.current = null;
       setState((prev) => ({
         ...resetDownstreamFromDirection(prev),
@@ -818,7 +819,7 @@ export default function MaterialWizard() {
           },
         });
       }
-      lessonIdempotencyKey.current = crypto.randomUUID();
+      lessonIdempotencyKey.current = safeRandomUUID();
       const created = isItSource(state.source)
         ? await createItLesson(selectedModuleId, {
             title: state.lessonTitle.trim(),
@@ -1208,8 +1209,8 @@ export default function MaterialWizard() {
         onAgain={() => {
           clearWizardDraft();
           setPublished(false);
-          moduleIdempotencyKey.current = crypto.randomUUID();
-          lessonIdempotencyKey.current = crypto.randomUUID();
+          moduleIdempotencyKey.current = safeRandomUUID();
+          lessonIdempotencyKey.current = safeRandomUUID();
           setState({
             ...emptyWizardState(),
             source: panelSource ?? undefined,
@@ -1378,8 +1379,8 @@ export default function MaterialWizard() {
         onClose={() => setCreateDirectionOpen(false)}
         onSaved={(created) => {
           confirmedModuleIdRef.current = null;
-          moduleIdempotencyKey.current = crypto.randomUUID();
-          lessonIdempotencyKey.current = crypto.randomUUID();
+          moduleIdempotencyKey.current = safeRandomUUID();
+          lessonIdempotencyKey.current = safeRandomUUID();
           setDirections((prev) => {
             const key = directionKey(created);
             if (prev.some((item) => directionKey(item) === key)) {
@@ -1415,8 +1416,8 @@ export default function MaterialWizard() {
               type="button"
               onClick={() => {
                 if (!directionWarning) return;
-                moduleIdempotencyKey.current = crypto.randomUUID();
-                lessonIdempotencyKey.current = crypto.randomUUID();
+                moduleIdempotencyKey.current = safeRandomUUID();
+                lessonIdempotencyKey.current = safeRandomUUID();
                 confirmedModuleIdRef.current = null;
                 setState((prev) => ({
                   ...resetDownstreamFromDirection(prev),

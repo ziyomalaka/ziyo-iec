@@ -11,6 +11,7 @@ export default function LessonNavCard({
   progressStatus,
   selected,
   disabled,
+  kind,
   onClick,
 }: {
   code: string;
@@ -76,6 +77,22 @@ export default function LessonNavCard({
         >
           {title}
         </span>
+
+        {kind ? (
+          <span
+            className={cn(
+              "mt-1 inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold",
+              locked
+                ? "bg-slate-100 text-slate-400"
+                : String(kind).toUpperCase() === "PRACTICAL"
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-sky-50 text-sky-700"
+            )}
+          >
+            {String(kind).toUpperCase() === "PRACTICAL" ? "Amaliy" : "Nazariy"}
+          </span>
+        ) : null}
+
         {current ? (
           <span className="mt-1 inline-flex rounded-md bg-[#2563EB] px-2 py-0.5 text-[11px] font-semibold text-white">
             Hozirgi dars

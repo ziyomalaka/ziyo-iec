@@ -12,9 +12,7 @@ export type UploadOptions = {
 
 /** Avval to'g'ridan-to'g'ri backend; CORS/ngrok yiqilsa same-origin `/backend` proxy. */
 export const UPLOAD_API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.API_URL ??
-  "https://hassle-conceded-washtub.ngrok-free.dev"
+  process.env.NEXT_PUBLIC_API_BASE ?? "/backend"
 ).replace(/\/$/, "");
 
 function uploadTarget(path: string, viaProxy: boolean) {

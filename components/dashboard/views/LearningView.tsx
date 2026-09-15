@@ -881,6 +881,14 @@ function LearningPlayer({
       courseHref={courseHref}
       pane={urlLessonId ? "lesson" : "outline"}
       onOpenLesson={(id) => {
+        const target = flattenLessons(course.modules ?? []).find((item) => item.id === id);
+        const targetStatus = target ? resolveLessonProgressStatus(target) : "locked";
+
+        if (!canOpenLesson(targetStatus)) {
+          toast.error("Dars hali ochilmagan — oldingi darsni tugating");
+          return;
+        }
+
         if (id !== urlLessonId) router.push(`${courseHref}/lesson/${id}`);
         void openLesson(id, canLearn);
       }}
