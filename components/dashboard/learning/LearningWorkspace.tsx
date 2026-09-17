@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import {
   completeLessonMaterial,
@@ -22,6 +23,17 @@ import {
   resolveLessonProgressStatus,
   toLessonUiState,
 } from "@/lib/learning/lesson-progress";
+import {
+  blockProgress,
+  buildRetrainingLearningTree,
+  canReviewLesson,
+  displayBlockLabel,
+  findLessonTrail,
+  flattenTreeLessons,
+  moduleProgress,
+  treeLessonStatus,
+} from "@/lib/retraining/learning-tree";
+import { RETRAINING_UNLOCK_LOCKED_MESSAGE } from "@/lib/retraining/lesson-unlock";
 import {
   allRequiredCompleted,
   lessonHasTest,
@@ -56,6 +68,8 @@ export type LearningWorkspaceProps = {
   onOpenLesson: (id: number) => void;
   onComplete?: (opts?: { goNext?: boolean }) => void;
   onTestPassed?: () => void;
+  /** Qayta tayyorlash 23 soatlik oyna countdown. Malaka uchun berilmaydi. */
+  unlockCountdown?: string | null;
 };
 
 export default function LearningWorkspace({
@@ -73,18 +87,25 @@ export default function LearningWorkspace({
   onOpenLesson,
   onComplete,
   onTestPassed,
+  unlockCountdown,
 }: LearningWorkspaceProps) {
   const paths = useStudentProgramPaths();
   const resolvedBackHref = backHref ?? (paths.kind === "retraining" ? paths.learning : paths.myCourses);
   const backLabel = paths.kind === "retraining" ? "← O'quv jarayoni" : "← Mening yo'nalishim";
   const tree = useMemo(() => ensureLearningTree(course), [course]);
+  const retrainingTree = useMemo(
+    () => (paths.kind === "retraining" ? buildRetrainingLearningTree(course) : null),
+    [course, paths.kind]
+  );
   const allLessons = useMemo(() => flattenLearningLessons(tree.modules ?? []), [tree]);
   const [openModules, setOpenModules] = useState<number[]>([]);
+  const [openBlocks, setOpenBlocks] = useState<number[]>([]);
   const [completedKeys, setCompletedKeys] = useState<Set<string>>(new Set());
   const [testFlowDone, setTestFlowDone] = useState(false);
   const [hasLiveTest, setHasLiveTest] = useState<boolean | null>(null);
   const [materialsFlowFinished, setMaterialsFlowFinished] = useState(false);
   const modulesInit = useRef(false);
+  const blocksInit = useRef(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
@@ -95,6 +116,24 @@ export default function LearningWorkspace({
   const hasTest = isRetraining ? hasLiveTest === true : (hasLiveTest ?? flaggedTest);
 
   useEffect(() => {
+    if (retrainingTree) {
+      const trail = findLessonTrail(retrainingTree, selectedId);
+      const blockId = trail?.block.id ?? retrainingTree.blocks[0]?.id;
+      const moduleId = trail?.module.id ?? retrainingTree.blocks[0]?.modules[0]?.id;
+      if (!blocksInit.current) {
+        blocksInit.current = true;
+        if (blockId) setOpenBlocks([blockId]);
+        if (moduleId) setOpenModules([moduleId]);
+        return;
+      }
+      if (blockId) {
+        setOpenBlocks((prev) => (prev.includes(blockId) ? prev : [...prev, blockId]));
+      }
+      if (moduleId) {
+        setOpenModules((prev) => (prev.includes(moduleId) ? prev : [...prev, moduleId]));
+      }
+      return;
+    }
     const currentModuleId =
       tree.modules?.find((module) =>
         moduleLessons(module).some(
@@ -108,7 +147,7 @@ export default function LearningWorkspace({
       return;
     }
     setOpenModules((prev) => (prev.includes(currentModuleId) ? prev : [...prev, currentModuleId]));
-  }, [selectedId, tree]);
+  }, [selectedId, tree, retrainingTree]);
 
   useEffect(() => {
     setHasLiveTest(null);
@@ -192,20 +231,37 @@ export default function LearningWorkspace({
     await completeLessonMaterial(lesson.id, opts, paths.learningApi, null);
   };
 
-  const prevId =
-    lesson?.prev_lesson_id ??
-    allLessons[allLessons.findIndex((item) => item.id === lesson?.id) - 1]?.id ??
-    null;
-  const nextId =
-    lesson?.next_lesson_id ??
-    allLessons[allLessons.findIndex((item) => item.id === lesson?.id) + 1]?.id ??
-    null;
+  const retrainingLessons = retrainingTree ? flattenTreeLessons(retrainingTree) : [];
+  const navLessons = isRetraining ? retrainingLessons : allLessons;
+  const navIndex = navLessons.findIndex((item) => item.id === lesson?.id);
+  const prevId = isRetraining
+    ? navLessons[navIndex - 1]?.id ?? null
+    : (lesson?.prev_lesson_id ?? allLessons[allLessons.findIndex((item) => item.id === lesson?.id) - 1]?.id ?? null);
+  const nextId = isRetraining
+    ? navLessons[navIndex + 1]?.id ?? null
+    : (lesson?.next_lesson_id ?? allLessons[allLessons.findIndex((item) => item.id === lesson?.id) + 1]?.id ?? null);
   const nextStatus = nextId
-    ? resolveLessonProgressStatus(allLessons.find((item) => item.id === nextId) ?? { status: "locked" })
+    ? resolveLessonProgressStatus(navLessons.find((item) => item.id === nextId) ?? { status: "locked" })
     : null;
-  const completed = Boolean(lesson && toLessonUiState(resolveLessonProgressStatus(lesson)) === "completed");
+  const completed = Boolean(
+    lesson &&
+      (isRetraining
+        ? lesson.is_completed === true ||
+          lesson.completed === true ||
+          String(lesson.status ?? "").toLowerCase() === "completed"
+        : toLessonUiState(resolveLessonProgressStatus(lesson)) === "completed")
+  );
+  const retrainingTrail = retrainingTree && lesson ? findLessonTrail(retrainingTree, lesson.id) : null;
   const lessonCode = useMemo(() => {
     if (!lesson) return "";
+    if (retrainingTrail) {
+      return displayLessonLabel(
+        retrainingTrail.module,
+        retrainingTrail.lesson,
+        retrainingTrail.lessonIndex,
+        retrainingTrail.moduleIndex
+      );
+    }
     for (let moduleIndex = 0; moduleIndex < (tree.modules ?? []).length; moduleIndex++) {
       const module = tree.modules![moduleIndex];
       const lessons = moduleLessons(module);
@@ -213,7 +269,7 @@ export default function LearningWorkspace({
       if (lessonIndex >= 0) return displayLessonLabel(module, lessons[lessonIndex], lessonIndex, moduleIndex);
     }
     return "Dars";
-  }, [lesson, tree]);
+  }, [lesson, tree, retrainingTrail]);
 
   const canManualComplete = isRetraining
     ? hasLiveTest === false && materialsDone && !completed
@@ -241,80 +297,189 @@ export default function LearningWorkspace({
     required.length,
   ]);
 
+  const progressPercent = retrainingTree?.progressPercent ?? tree.progress_percent ?? 0;
+  const outlineTitle = retrainingTree?.directionTitle || tree.title || "Kurs tarkibi";
+
+  const renderLessonList = (module: LearningModule, moduleIndex: number) => {
+    const lessons = moduleLessons(module);
+    if (!lessons.length) {
+      return <p className="mt-3 text-xs text-[#94A3B8]">Hozircha kontent qo&apos;shilmagan</p>;
+    }
+    return (
+      <ul className="mt-3 space-y-3">
+        {lessons.map((item, index) => {
+          const progressStatus = resolveLessonProgressStatus(item);
+          const timeLocked = isRetraining && !canReviewLesson(item);
+          const disabled = !canLearn || (isRetraining ? false : !canOpenLesson(progressStatus));
+          return (
+            <li key={item.id}>
+              <LessonNavCard
+                code={displayLessonLabel(module, item, index, moduleIndex)}
+                title={item.title}
+                progressStatus={
+                  isRetraining && treeLessonStatus(item) === "completed"
+                    ? "completed"
+                    : timeLocked
+                      ? "locked"
+                      : progressStatus
+                }
+                selected={selectedId === item.id}
+                disabled={disabled}
+                kind={item.lesson_type}
+                countdown={timeLocked && unlockCountdown ? unlockCountdown : undefined}
+                onClick={() => {
+                  if (timeLocked) {
+                    toast.error(RETRAINING_UNLOCK_LOCKED_MESSAGE);
+                    return;
+                  }
+                  onOpenLesson(item.id);
+                }}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
+
   const outline = (
     <aside className="min-w-0">
       <Link href={resolvedBackHref} className="mb-3 inline-flex min-h-11 items-center text-sm font-medium text-[#2563EB] lg:hidden">
         {backLabel}
       </Link>
-      <h2 className="break-words font-bold text-[#0C2340]">{tree.title || "Kurs tarkibi"}</h2>
-      <p className="mt-1 text-sm text-[#64748B]">Jarayon: {tree.progress_percent ?? 0}%</p>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#E8EDF5]">
-        <div
-          className="h-full rounded-full bg-[#0756F5]"
-          style={{ width: `${Math.min(100, tree.progress_percent ?? 0)}%` }}
-        />
+      <div className="rounded-2xl border border-[#E8EDF5] bg-white p-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-[#2563EB]">Yo&apos;nalish</p>
+        <h2 className="mt-1 break-words font-bold text-[#0C2340]">{outlineTitle}</h2>
+        <p className="mt-1 text-sm text-[#64748B]">Jarayon: {progressPercent}%</p>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#E8EDF5]">
+          <div className="h-full rounded-full bg-[#0756F5]" style={{ width: `${Math.min(100, progressPercent)}%` }} />
+        </div>
+        {isRetraining && unlockCountdown ? (
+          <p className="mt-2 text-xs font-medium text-[#64748B]">
+            Keyingi 3 dars: <span className="font-mono text-[#0C2340]">{unlockCountdown}</span>
+          </p>
+        ) : null}
       </div>
-      <div className="mt-4 space-y-4">
-        {(tree.modules ?? []).map((module, moduleIndex) => {
-          const moduleId = module.id || moduleIndex + 1;
-          const lessons = moduleLessons(module);
-          const expanded = openModules.includes(moduleId);
-          const lockedModule = lessons.length > 0 && lessons.every((item) => toLessonUiState(resolveLessonProgressStatus(item)) === "locked");
-          return (
-            <div key={moduleId} className="rounded-2xl border border-[#E8EDF5] bg-white p-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setOpenModules((prev) =>
-                    prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
-                  )
-                }
-                className="flex min-h-11 w-full items-start justify-between gap-3 text-left"
-                aria-expanded={expanded}
-              >
-                <span className="min-w-0">
-                  <span className="block text-xs font-bold uppercase tracking-wide text-[#2563EB]">
-                    {displayModuleLabel(module, moduleIndex)}
-                  </span>
-                  <span className="mt-0.5 block break-words text-sm font-semibold text-[#0C2340]">{module.title}</span>
-                  <span className="mt-1 block text-xs text-[#64748B]">
-                    {lessons.length} ta dars
-                    {lockedModule ? " · Yopiq" : ""}
-                  </span>
-                </span>
-                <ChevronDown
-                  className={`mt-1 h-4 w-4 shrink-0 text-[#2563EB] transition-transform ${expanded ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {expanded ? (
-                lessons.length ? (
-                  <ul className="mt-3 space-y-3">
-                    {lessons.map((item, index) => {
-                      const progressStatus = resolveLessonProgressStatus(item);
-                      const disabled = !canLearn || !canOpenLesson(progressStatus);
-                      return (
-                        <li key={item.id}>
-                          <LessonNavCard
-                            code={displayLessonLabel(module, item, index, moduleIndex)}
-                            title={item.title}
-                            progressStatus={progressStatus}
-                            selected={selectedId === item.id}
-                            disabled={disabled}
-                            kind={item.lesson_type}
-                            onClick={() => onOpenLesson(item.id)}
-                          />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-xs text-[#94A3B8]">Modulda darslar hali yuklanmagan.</p>
-                )
-              ) : null}
-            </div>
-          );
-        })}
+      <div className="mt-4 space-y-3">
+        {retrainingTree
+          ? retrainingTree.blocks.map((block, blockIndex) => {
+              const expanded = openBlocks.includes(block.id);
+              const progress = blockProgress(block);
+              return (
+                <div key={block.id} className="rounded-2xl border border-[#E8EDF5] bg-white p-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenBlocks((prev) =>
+                        prev.includes(block.id) ? prev.filter((id) => id !== block.id) : [...prev, block.id]
+                      )
+                    }
+                    className="flex min-h-11 w-full items-start justify-between gap-3 text-left"
+                    aria-expanded={expanded}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold uppercase tracking-wide text-[#2563EB]">
+                        {displayBlockLabel(block, blockIndex)}
+                      </span>
+                      <span className="mt-1 block text-xs text-[#64748B]">
+                        {progress.total ? `${progress.done} / ${progress.total} modul` : "Hozircha kontent qo'shilmagan"}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={`mt-1 h-4 w-4 shrink-0 text-[#2563EB] transition-transform ${expanded ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {expanded ? (
+                    <div className="mt-3 space-y-3 border-t border-[#EEF2F7] pt-3">
+                      {block.modules.length ? (
+                        block.modules.map((module, moduleIndex) => {
+                          const moduleId = module.id || moduleIndex + 1;
+                          const moduleOpen = openModules.includes(moduleId);
+                          const lessons = moduleLessons(module);
+                          const activeModule = lessons.some((item) => item.id === selectedId);
+                          const modProgress = moduleProgress(module);
+                          return (
+                            <div
+                              key={moduleId}
+                              className={cn(
+                                "rounded-xl border p-2.5",
+                                activeModule ? "border-[#2563EB]/40 bg-[#F8FBFF]" : "border-[#E8EDF5] bg-[#FCFDFE]"
+                              )}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenModules((prev) =>
+                                    prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
+                                  )
+                                }
+                                className="flex min-h-11 w-full items-start justify-between gap-3 text-left"
+                                aria-expanded={moduleOpen}
+                              >
+                                <span className="min-w-0">
+                                  <span className="block text-xs font-bold uppercase tracking-wide text-[#2563EB]">
+                                    {displayModuleLabel(module, moduleIndex)}
+                                  </span>
+                                  <span className="mt-0.5 block break-words text-sm font-semibold text-[#0C2340]">
+                                    {module.title}
+                                  </span>
+                                  <span className="mt-1 block text-xs text-[#64748B]">
+                                    {modProgress.done} / {modProgress.total} dars
+                                  </span>
+                                </span>
+                                <ChevronDown
+                                  className={`mt-1 h-4 w-4 shrink-0 text-[#2563EB] transition-transform ${moduleOpen ? "rotate-180" : ""}`}
+                                />
+                              </button>
+                              {moduleOpen ? renderLessonList(module, moduleIndex) : null}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="px-1 py-2 text-xs text-[#94A3B8]">Hozircha kontent qo&apos;shilmagan</p>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          : (tree.modules ?? []).map((module, moduleIndex) => {
+              const moduleId = module.id || moduleIndex + 1;
+              const lessons = moduleLessons(module);
+              const expanded = openModules.includes(moduleId);
+              const lockedModule =
+                lessons.length > 0 &&
+                lessons.every((item) => toLessonUiState(resolveLessonProgressStatus(item)) === "locked");
+              return (
+                <div key={moduleId} className="rounded-2xl border border-[#E8EDF5] bg-white p-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenModules((prev) =>
+                        prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
+                      )
+                    }
+                    className="flex min-h-11 w-full items-start justify-between gap-3 text-left"
+                    aria-expanded={expanded}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold uppercase tracking-wide text-[#2563EB]">
+                        {displayModuleLabel(module, moduleIndex)}
+                      </span>
+                      <span className="mt-0.5 block break-words text-sm font-semibold text-[#0C2340]">{module.title}</span>
+                      <span className="mt-1 block text-xs text-[#64748B]">
+                        {lessons.length} ta dars
+                        {lockedModule ? " · Yopiq" : ""}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={`mt-1 h-4 w-4 shrink-0 text-[#2563EB] transition-transform ${expanded ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {expanded ? renderLessonList(module, moduleIndex) : null}
+                </div>
+              );
+            })}
       </div>
     </aside>
   );
@@ -349,7 +514,17 @@ export default function LearningWorkspace({
             ) : null}
           </div>
           <h1 className="mt-1 break-words text-xl font-bold text-[#0C2340]">{lesson.title}</h1>
-          {lesson.module_title ? <p className="mt-1 text-sm text-[#64748B]">{lesson.module_title}</p> : null}
+          {retrainingTrail ? (
+            <p className="mt-1 text-sm text-[#64748B]">
+              {displayModuleLabel(retrainingTrail.module, retrainingTrail.moduleIndex)}
+              {" > "}
+              {displayBlockLabel(retrainingTrail.block, retrainingTrail.blockIndex)}
+              {" > "}
+              {outlineTitle}
+            </p>
+          ) : lesson.module_title ? (
+            <p className="mt-1 text-sm text-[#64748B]">{lesson.module_title}</p>
+          ) : null}
 
           <LessonMaterialsFlow
             key={lesson.id}
@@ -413,8 +588,15 @@ export default function LearningWorkspace({
               ) : null}
               <button
                 type="button"
-                disabled={!nextId || (nextStatus === "locked" && !lessonReadyForNext)}
-                onClick={() => nextId && onOpenLesson(nextId)}
+                disabled={!nextId || (!isRetraining && nextStatus === "locked" && !lessonReadyForNext)}
+                onClick={() => {
+                  if (!nextId) return;
+                  if (isRetraining && nextStatus === "locked") {
+                    toast.error(RETRAINING_UNLOCK_LOCKED_MESSAGE);
+                    return;
+                  }
+                  onOpenLesson(nextId);
+                }}
                 className="min-h-11 w-full rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-medium text-white disabled:opacity-40 sm:w-auto"
               >
                 Keyingi dars
@@ -424,10 +606,10 @@ export default function LearningWorkspace({
         </div>
       ) : canLearn && !lessonLoading && pane === "lesson" ? (
         <p className="text-[#64748B]">
-          {allLessons.length ? "Dars tanlang." : "Modulda darslar hali yuklanmagan."}
+          {allLessons.length ? "Chap tomondan darsni tanlang" : "Hozircha kontent qo'shilmagan"}
         </p>
       ) : canLearn && !lessonLoading && !allLessons.length ? (
-        <p className="text-[#64748B]">Modulda darslar hali yuklanmagan.</p>
+        <p className="text-[#64748B]">Hozircha kontent qo'shilmagan</p>
       ) : null}
     </div>
   );
@@ -435,12 +617,12 @@ export default function LearningWorkspace({
   return (
     <div className="min-w-0 overflow-x-hidden space-y-4">
       {banner}
-      <div className="flex min-w-0 flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
         <div className={cn(pane === "lesson" ? "hidden lg:block" : "block")}>{outline}</div>
         <div className={cn(pane === "outline" ? "hidden lg:block" : "block")}>
           {pane === "outline" && !lesson && !lessonLoading ? (
             <p className="hidden text-[#64748B] lg:block">
-              {allLessons.length ? "Dars tanlang." : "Modulda darslar hali yuklanmagan."}
+              {allLessons.length ? "Chap tomondan darsni tanlang" : "Hozircha kontent qo'shilmagan"}
             </p>
           ) : (
             lessonPane

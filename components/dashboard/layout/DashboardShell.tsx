@@ -13,6 +13,7 @@ import { useEscapeKey } from "@/lib/hooks/useEscapeKey";
 import { useLockBodyScroll } from "@/lib/hooks/useLockBodyScroll";
 import { cn } from "@/lib/cn";
 import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
+import { isRetrainingLearningPath } from "@/lib/retraining/learning-chrome";
 import type { ReactNode } from "react";
 
 function DashboardShellInner({
@@ -22,6 +23,7 @@ function DashboardShellInner({
   setMobileOpen,
   isCoursesCatalog,
   isMyDirection,
+  hideDesktopSidebar,
 }: {
   children: ReactNode;
   pathname: string;
@@ -29,12 +31,22 @@ function DashboardShellInner({
   setMobileOpen: (open: boolean) => void;
   isCoursesCatalog: boolean;
   isMyDirection: boolean;
+  hideDesktopSidebar: boolean;
 }) {
   const { hideBottomNav } = useLearningChrome();
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-white font-sans">
-      <DashboardSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-      <div className="min-h-screen min-w-0 lg:ml-[247px] lg:w-[calc(100%-247px)]">
+      <DashboardSidebar
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+        hideDesktop={hideDesktopSidebar}
+      />
+      <div
+        className={cn(
+          "min-h-screen min-w-0",
+          hideDesktopSidebar ? "" : "lg:ml-[247px] lg:w-[calc(100%-247px)]"
+        )}
+      >
         <DashboardHeader pathname={pathname} onMenuClick={() => setMobileOpen(true)} />
         <main
           className={cn(
@@ -42,7 +54,7 @@ function DashboardShellInner({
             hideBottomNav ? "pb-6" : "pb-[calc(4.75rem+env(safe-area-inset-bottom))]",
             isCoursesCatalog || isMyDirection
               ? "px-0 pt-0"
-              : "px-3 pt-4 sm:px-5 lg:px-6 xl:px-8 2xl:mx-auto 2xl:max-w-[1600px] 2xl:px-10"
+              : "px-3 pt-4 sm:px-4 lg:px-6 xl:px-8 2xl:mx-auto 2xl:max-w-[1600px] 2xl:px-10"
           )}
         >
           {children}
@@ -60,6 +72,8 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const isCoursesCatalog = pathname === paths.courses;
   const isMyDirection =
     pathname === paths.myCourses || pathname.startsWith(`${paths.base}/my-direction`);
+  const hideDesktopSidebar =
+    paths.kind === "retraining" && isRetrainingLearningPath(pathname, paths.learning);
 
   useLockBodyScroll(mobileOpen);
   useEscapeKey(mobileOpen, () => setMobileOpen(false));
@@ -75,6 +89,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
               setMobileOpen={setMobileOpen}
               isCoursesCatalog={isCoursesCatalog}
               isMyDirection={isMyDirection}
+              hideDesktopSidebar={hideDesktopSidebar}
             >
               {children}
             </DashboardShellInner>

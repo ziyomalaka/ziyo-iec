@@ -12,6 +12,7 @@ export default function LessonNavCard({
   selected,
   disabled,
   kind,
+  countdown,
   onClick,
 }: {
   code: string;
@@ -21,6 +22,7 @@ export default function LessonNavCard({
   disabled?: boolean;
   hasTests?: boolean;
   kind?: string;
+  countdown?: string;
   onClick: () => void;
 }) {
   const ui = toLessonUiState(progressStatus);
@@ -31,12 +33,14 @@ export default function LessonNavCard({
   return (
     <button
       type="button"
-      disabled={disabled || locked}
+      disabled={disabled}
       onClick={onClick}
-      aria-label={`${code}. ${title}${current ? ". Hozirgi dars" : ""}${locked ? ". Yopiq" : ""}`}
+      aria-label={`${code}. ${title}${current ? ". Hozirgi dars" : ""}${locked ? ". Yopiq" : ""}${countdown ? `. ${countdown}` : ""}`}
       className={cn(
         "flex w-full min-h-11 items-start gap-3 rounded-2xl px-3 py-3 text-left transition-shadow",
-        locked && "cursor-not-allowed bg-[#F8FAFC] text-[#94A3B8]",
+        locked && "bg-[#F8FAFC] text-[#94A3B8]",
+        locked && disabled && "cursor-not-allowed",
+        locked && !disabled && "cursor-pointer",
         !locked && "bg-white shadow-[0_10px_28px_rgba(15,23,42,0.08)]",
         current && !locked && "border-2 border-[#0756F5] bg-[#EEF4FF] ring-2 ring-[#2563EB]",
         selected && !current && !locked && "ring-1 ring-[#2563EB]/40",
@@ -91,6 +95,10 @@ export default function LessonNavCard({
           >
             {String(kind).toUpperCase() === "PRACTICAL" ? "Amaliy" : "Nazariy"}
           </span>
+        ) : null}
+
+        {locked && countdown ? (
+          <span className="mt-1 block font-mono text-[11px] font-semibold text-[#64748B]">{countdown}</span>
         ) : null}
 
         {current ? (

@@ -16,6 +16,7 @@ import { cn } from "@/lib/cn";
 type DashboardSidebarProps = {
   mobileOpen: boolean;
   onMobileClose: () => void;
+  hideDesktop?: boolean;
 };
 
 function NavLinks({
@@ -122,23 +123,28 @@ function SidebarChrome({
   );
 }
 
-export default function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebarProps) {
+export default function DashboardSidebar({ mobileOpen, onMobileClose, hideDesktop }: DashboardSidebarProps) {
   return (
     <>
-      <aside className="fixed top-0 left-0 z-40 hidden h-screen w-[247px] min-w-[247px] lg:block">
-        <SidebarChrome />
-      </aside>
+      {hideDesktop ? null : (
+        <aside className="fixed top-0 left-0 z-40 hidden h-screen w-[247px] min-w-[247px] lg:block">
+          <SidebarChrome />
+        </aside>
+      )}
 
       {mobileOpen ? (
         <>
           <button
             type="button"
-            className="fixed inset-0 z-40 bg-[#02183c]/60 lg:hidden"
+            className={cn("fixed inset-0 z-40 bg-[#02183c]/60", hideDesktop ? "" : "lg:hidden")}
             onClick={onMobileClose}
             aria-label="Menyuni yopish"
           />
           <aside
-            className="fixed inset-y-0 left-0 z-50 w-[min(22rem,86vw)] pb-[env(safe-area-inset-bottom)] lg:hidden"
+            className={cn(
+              "fixed inset-y-0 left-0 z-50 w-[min(22rem,86vw)] pb-[env(safe-area-inset-bottom)]",
+              hideDesktop ? "" : "lg:hidden"
+            )}
             role="dialog"
             aria-modal="true"
             aria-label="Navigatsiya"

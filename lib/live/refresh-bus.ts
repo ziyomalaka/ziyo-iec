@@ -6,6 +6,7 @@ const EVENT = "ziyomalaka:live-refresh";
 const CHANNEL = "ziyomalaka-live-refresh";
 const SNAPSHOT_KEY = "zm_mandatory_snapshot";
 const QUAL_SNAPSHOT_KEY = "zm_qualification_snapshot";
+const RETRAINING_SNAPSHOT_KEY = "zm_retraining_snapshot";
 const TICK_MS = 8_000;
 
 const listeners = new Set<Listener>();
@@ -72,7 +73,14 @@ export function ensureLiveRefreshTicker() {
   });
 
   window.addEventListener("storage", (event) => {
-    if (event.key && event.key !== SNAPSHOT_KEY && event.key !== QUAL_SNAPSHOT_KEY) return;
+    if (
+      event.key &&
+      event.key !== SNAPSHOT_KEY &&
+      event.key !== QUAL_SNAPSHOT_KEY &&
+      event.key !== RETRAINING_SNAPSHOT_KEY
+    ) {
+      return;
+    }
     if (listeners.size === 0) return;
     // Snapshot yozuvi mutation emas — aks holda admin list↔detail loop.
     requestLiveRefresh("tick", false);

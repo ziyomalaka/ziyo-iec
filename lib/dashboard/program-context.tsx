@@ -53,6 +53,7 @@ export function useStudentProgramPaths() {
     myCourses: `${base}/my-courses`,
     learning: `${base}/learning`,
     results: `${base}/results`,
+    library: `${base}/library`,
     notifications: `${base}/notifications`,
     profile: `${base}/profile`,
     tagline: program?.tagline ?? "Malaka oshirish platformasi",

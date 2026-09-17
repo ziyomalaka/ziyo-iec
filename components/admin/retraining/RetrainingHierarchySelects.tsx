@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { QualificationDirection, QualificationLesson, QualificationModule } from "@/lib/api/types/qualification";
 import { formatLessonCode } from "@/lib/qualification/constants";
 import {
+  blockLabel,
   buildContentTree,
   type RetrainingBlock,
 } from "@/lib/retraining/content-blocks";
@@ -141,7 +142,7 @@ export default function RetrainingHierarchySelects({
           <option value="">{value.directionId ? "Tanlang" : "Avval yo'nalishni tanlang"}</option>
           {blocks.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.block_number}-BLOK. {item.title}
+              {blockLabel(item)}
             </option>
           ))}
         </select>

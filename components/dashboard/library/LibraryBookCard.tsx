@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import LibraryCoverFallback from "@/components/dashboard/library/LibraryCoverFallback";
 import { resolveMediaUrl } from "@/lib/api/media";
 import type { LibraryItem } from "@/lib/api/types/library";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 import { libraryCategoryLabel, libraryFileTypeLabel } from "@/lib/library/constants";
 import { libraryCategoryIcon, libraryFileTypeIcon } from "@/lib/library/icons";
 
@@ -13,6 +14,7 @@ type LibraryBookCardProps = {
 };
 
 export default function LibraryBookCard({ item }: LibraryBookCardProps) {
+  const { library } = useStudentProgramPaths();
   const cover = item.cover_url ? resolveMediaUrl(item.cover_url) : "";
   const fileSrc = item.file_url ? resolveMediaUrl(item.file_url) : "";
   const CategoryIcon = libraryCategoryIcon(item.category);
@@ -44,7 +46,7 @@ export default function LibraryBookCard({ item }: LibraryBookCardProps) {
         </p>
         <div className="mt-auto grid grid-cols-1 gap-2 pt-4">
           <Link
-            href={`/dashboard/library/${item.id}`}
+            href={`${library}/${item.id}`}
             className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0756F5] px-3 text-[13px] font-semibold text-white"
           >
             <Eye className="h-4 w-4" strokeWidth={2} />

@@ -8,7 +8,9 @@ import { signOut } from "@/lib/auth/sign-out";
 import { dashboardLabels } from "@/lib/dashboard/labels";
 import { getDashboardPageTitle } from "@/lib/dashboard/navigation";
 import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
-import { mapAuthUserToDashboard, getShortName } from "@/lib/dashboard/utils";
+import { mapAuthUserToDashboard, getFullName, getShortName } from "@/lib/dashboard/utils";
+import BrandLogo from "@/components/ui/BrandLogo";
+import { isRetrainingLearningPath } from "@/lib/retraining/learning-chrome";
 import LogoutConfirmModal from "@/components/dashboard/layout/LogoutConfirmModal";
 import { useDashboardSearch } from "@/components/dashboard/layout/DashboardSearchContext";
 import { useNotifications } from "@/components/dashboard/layout/NotificationsContext";
@@ -44,6 +46,8 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
   const isMyDirectionPage =
     pathname === paths.myCourses || pathname.startsWith(`${paths.base}/my-direction`);
   const hideHeaderSearch = pathname !== paths.courses;
+  const isRetrainingLearning =
+    paths.kind === "retraining" && isRetrainingLearningPath(pathname, paths.learning);
 
   useEffect(() => {
     const handler = (e: PointerEvent) => {
@@ -77,24 +81,76 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
 
   return (
     <header className="sticky top-0 z-40 w-full overflow-visible border-b border-[#e8edf5] bg-white pt-[env(safe-area-inset-top)]">
-      <div className="flex h-14 w-full min-w-0 items-center justify-between gap-2 overflow-visible px-3 sm:h-16 sm:gap-4 sm:px-6 lg:h-[96px]">
+      <div
+        className={cn(
+          "flex w-full min-w-0 items-center justify-between gap-2 overflow-visible px-3 sm:gap-4 sm:px-6",
+          isRetrainingLearning ? "h-14 sm:h-16 lg:h-[72px]" : "h-14 sm:h-16 lg:h-[96px]"
+        )}
+      >
         <div className="flex min-w-0 items-center gap-2 sm:gap-6">
           <button
             type="button"
             onClick={onMenuClick}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5] lg:hidden"
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5]",
+              isRetrainingLearning ? "" : "lg:hidden"
+            )}
             aria-label="Menyu"
           >
             <Menu className="h-5 w-5" strokeWidth={1.75} />
           </button>
-          <Link href={paths.home} className="min-w-0 lg:hidden" aria-label="ZiyoMalaka">
-            <span className="block truncate text-[15px] font-bold leading-none text-[#0C2340]">ZiyoMalaka</span>
+          <Link href={paths.home} className="flex min-w-0 items-center gap-2" aria-label="ZiyoMalaka">
+            {isRetrainingLearning ? (
+              <>
+                <BrandLogo size="xs" className="hidden h-9 w-9 lg:block" />
+                <span className="block truncate text-[15px] font-bold leading-none text-[#0C2340] lg:text-[18px]">
+                  ZiyoMalaka
+                </span>
+              </>
+            ) : (
+              <span className="block truncate text-[15px] font-bold leading-none text-[#0C2340] lg:hidden">
+                ZiyoMalaka
+              </span>
+            )}
           </Link>
-          {isMyDirectionPage ? (
+          {isRetrainingLearning ? (
+            <nav className="hidden min-w-0 items-center gap-1 lg:flex">
+              <Link
+                href={paths.myCourses}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-medium",
+                  pathname === paths.myCourses || pathname.startsWith(`${paths.myCourses}/`)
+                    ? "text-[#0756F5]"
+                    : "text-[#475569] hover:bg-[#F7FAFE]"
+                )}
+              >
+                Mening kurslarim
+              </Link>
+              <Link
+                href={paths.home}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-medium",
+                  pathname === paths.home || pathname.startsWith(`${paths.learning}`)
+                    ? "text-[#0756F5]"
+                    : "text-[#475569] hover:bg-[#F7FAFE]"
+                )}
+              >
+                Qayta tayyorlash
+              </Link>
+              <Link
+                href="/aloqa"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[#475569] hover:bg-[#F7FAFE]"
+              >
+                Yordam
+              </Link>
+            </nav>
+          ) : null}
+          {isRetrainingLearning ? null : isMyDirectionPage ? (
             <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[9px] border border-[#dce5f2] bg-white text-[#0756F5] lg:flex">
               <BookOpen className="h-5 w-5" strokeWidth={1.75} />
             </span>
           ) : null}
+          {isRetrainingLearning ? null : (
           <div className="hidden min-w-0 lg:block">
             {paths.badge ? (
               <span className="mb-1 inline-flex rounded-md bg-[#EEF4FF] px-2.5 py-0.5 text-[11px] font-semibold text-[#2563EB]">
@@ -110,6 +166,7 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
               {pageTitle}
             </h1>
           </div>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -217,11 +274,30 @@ export default function DashboardHeader({ pathname, onMenuClick }: DashboardHead
               aria-expanded={menuOpen}
               aria-haspopup="menu"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0756F5] text-[14px] font-bold text-white sm:h-[46px] sm:w-[46px]">
+              <div
+                className={cn(
+                  "flex items-center justify-center rounded-full bg-[#0756F5] font-bold text-white",
+                  isRetrainingLearning ? "h-9 w-9 text-[13px] sm:h-10 sm:w-10" : "h-10 w-10 text-[14px] sm:h-[46px] sm:w-[46px]"
+                )}
+              >
                 {user.avatarInitials}
               </div>
-              <span className="hidden text-[14px] font-semibold text-[#101c3d] sm:inline">{getShortName(user)}</span>
-              <ChevronDown className={cn("hidden h-4 w-4 text-[#536287] sm:block", menuOpen && "rotate-180")} strokeWidth={1.75} />
+              <span
+                className={cn(
+                  "hidden max-w-[180px] truncate text-[14px] font-semibold text-[#101c3d]",
+                  isRetrainingLearning ? "lg:inline" : "sm:inline"
+                )}
+              >
+                {isRetrainingLearning ? getFullName(user) : getShortName(user)}
+              </span>
+              <ChevronDown
+                className={cn(
+                  "hidden h-4 w-4 text-[#536287]",
+                  isRetrainingLearning ? "lg:block" : "sm:block",
+                  menuOpen && "rotate-180"
+                )}
+                strokeWidth={1.75}
+              />
             </button>
 
             {menuOpen ? (

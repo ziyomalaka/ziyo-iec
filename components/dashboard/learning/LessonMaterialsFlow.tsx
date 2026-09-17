@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronRight, FileText, FlaskConical, Lock, Presentation, Video } from "lucide-react";
+import { BookOpen, Check, ChevronRight, ClipboardList, FileText, FlaskConical, Lock, Presentation, Video } from "lucide-react";
 import { lessonVideoUrl } from "@/lib/api/learning";
 import { pickFileUrl, resolveMediaUrl } from "@/lib/api/media";
 import type { LearningAssignment, LearningLessonDetail, LearningMaterial } from "@/lib/api/types/learning";
@@ -55,6 +55,16 @@ const KIND_ICON = {
   laboratory: FlaskConical,
 } as const;
 
+function iconForLabel(label: string, kind: RequiredLessonMaterial["kind"]) {
+  const lower = label.toLowerCase();
+  if (lower.includes("qo'llanma") || lower.includes("qollanma")) return BookOpen;
+  if (lower.includes("mustaqil")) return ClipboardList;
+  if (kind === "video" || kind === "presentation" || kind === "lecture" || kind === "seminar" || kind === "laboratory") {
+    return KIND_ICON[kind];
+  }
+  return FileText;
+}
+
 export default function LessonMaterialsFlow({
   lesson,
   lessonCode,
@@ -64,6 +74,8 @@ export default function LessonMaterialsFlow({
   testSlot,
   hasTest,
   testDone,
+  items,
+  variant = "default",
 }: {
   lesson: LearningLessonDetail;
   lessonCode: string;
@@ -74,8 +86,10 @@ export default function LessonMaterialsFlow({
   testSlot?: ReactNode;
   hasTest?: boolean;
   testDone?: boolean;
+  items?: RequiredLessonMaterial[];
+  variant?: "default" | "retraining";
 }) {
-  const required = useMemo(() => listRequiredMaterials(lesson), [lesson]);
+  const required = useMemo(() => items ?? listRequiredMaterials(lesson), [items, lesson]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -128,7 +142,10 @@ export default function LessonMaterialsFlow({
         </p>
       </div>
       <div className="mb-4 h-2 overflow-hidden rounded-full bg-[#E8EDF5]">
-        <div className="h-full rounded-full bg-[#0756F5]" style={{ width: `${Math.min(100, percent)}%` }} />
+        <div
+          className={cn("h-full rounded-full", variant === "retraining" ? "bg-[#2563EB]" : "bg-[#0756F5]")}
+          style={{ width: `${Math.min(100, percent)}%` }}
+        />
       </div>
 
       {active ? (
@@ -147,9 +164,13 @@ export default function LessonMaterialsFlow({
         <ul className="space-y-3">
           {required.map((item, index) => {
             const state = stepState(index, completedKeys, required);
-            const Icon = item.kind === "video" || item.kind === "presentation" || item.kind === "lecture" || item.kind === "seminar" || item.kind === "laboratory"
-              ? KIND_ICON[item.kind]
-              : FileText;
+            const Icon = iconForLabel(item.label, item.kind);
+            const subtitle =
+              variant === "retraining"
+                ? item.title && item.title.toLowerCase() !== item.label.toLowerCase()
+                  ? item.title
+                  : `${lessonCode} ${item.label.toLowerCase()}`
+                : item.title;
             return (
               <li key={item.key}>
                 <button
@@ -157,28 +178,57 @@ export default function LessonMaterialsFlow({
                   disabled={state === "locked"}
                   onClick={() => openStep(item, index)}
                   className={cn(
-                    "flex w-full min-h-11 items-start gap-3 rounded-2xl border px-4 py-3 text-left",
+                    "flex w-full items-center gap-3 rounded-2xl border text-left",
+                    variant === "retraining" ? "min-h-16 px-3 py-3 sm:min-h-[72px] sm:px-4" : "min-h-11 items-start px-4 py-3",
                     state === "current" && "border-[#2563EB] bg-[#EEF4FF]",
                     state === "completed" && "border-[#BBF7D0] bg-white",
-                    state === "locked" && "cursor-not-allowed border-[#E8EDF5] bg-[#F8FAFC] opacity-70"
+                    state === "locked" &&
+                      cn(
+                        "cursor-not-allowed border-[#E8EDF5] bg-[#F8FAFC] text-[#94A3B8]",
+                        variant !== "retraining" && "opacity-70"
+                      ),
+                    state !== "current" && state !== "completed" && state !== "locked" && "border-[#E8EDF5] bg-white"
                   )}
                 >
-                  <Icon
+                  <span
                     className={cn(
-                      "mt-0.5 h-5 w-5 shrink-0",
-                      state === "locked" ? "text-[#94A3B8]" : "text-[#2563EB]"
+                      "flex shrink-0 items-center justify-center",
+                      variant === "retraining"
+                        ? cn(
+                            "h-9 w-9 rounded-xl sm:h-10 sm:w-10",
+                            state === "locked" ? "bg-[#F1F5F9] text-[#94A3B8]" : "bg-[#EEF4FF] text-[#2563EB]"
+                          )
+                        : cn("mt-0.5 h-5 w-5", state === "locked" ? "text-[#94A3B8]" : "text-[#2563EB]")
                     )}
-                  />
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-[#0C2340]">{item.label}</span>
-                    <span className="mt-0.5 block break-words text-xs text-[#64748B]">{item.title}</span>
+                    <span
+                      className={cn(
+                        "block font-semibold break-words",
+                        variant === "retraining" ? "text-[14px] sm:text-[15px]" : "text-sm",
+                        state === "locked" ? "text-[#94A3B8]" : "text-[#0C2340]"
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-0.5 block break-words",
+                        variant === "retraining" ? "text-[12px] sm:text-[13px]" : "text-xs",
+                        "text-[#64748B]"
+                      )}
+                    >
+                      {subtitle}
+                    </span>
                   </span>
                   {state === "completed" ? (
-                    <Check className="mt-0.5 h-5 w-5 shrink-0 text-[#16A34A]" />
+                    <Check className="h-5 w-5 shrink-0 text-[#16A34A]" />
                   ) : state === "locked" ? (
-                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-[#94A3B8]" />
+                    <Lock className="h-4 w-4 shrink-0 text-[#94A3B8]" />
                   ) : (
-                    <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-[#2563EB]" />
+                    <ChevronRight className="h-5 w-5 shrink-0 text-[#2563EB]" />
                   )}
                 </button>
               </li>
@@ -187,7 +237,7 @@ export default function LessonMaterialsFlow({
           {testSlot ? <li>{testSlot}</li> : null}
           {!required.length && !hasTest && !testSlot ? (
             <li className="rounded-2xl border border-[#E8EDF5] bg-[#F7F9FC] px-4 py-5 text-sm text-[#64748B]">
-              Bu darsda qo&apos;shimcha material yo&apos;q.
+              Bu dars uchun materiallar mavjud emas.
             </li>
           ) : null}
         </ul>

@@ -7,15 +7,11 @@ import {
   createItLessonTestWithQuestions,
   deleteItLesson,
   updateItLesson,
-  updateItModule,
 } from "@/lib/api/admin-it";
 import { ApiError, FORBIDDEN_ACTION_MESSAGE, isAuthorizationError, isDataConstraintError, isForceDeleteEligible } from "@/lib/api/errors";
 import { pickFileUrl } from "@/lib/api/media";
 import { pickDirectionThumbnail } from "@/lib/qualification/direction-image";
-import {
-  deleteQualificationModule,
-  uploadAdminFile,
-} from "@/lib/api/qualification";
+import { uploadAdminFile } from "@/lib/api/qualification";
 import type { UploadOptions } from "@/lib/api/upload";
 import type {
   CreateQualificationDirectionPayload,
@@ -46,9 +42,12 @@ import {
   type RetrainingMaterialType,
 } from "@/lib/retraining/material-types";
 import {
+  getModuleBlockId,
   parseBlockMeta,
+  resolveBlocksForDirection,
   serializeBlockMeta,
   stripBlockMeta,
+  stripModuleBlockMarker,
   type RetrainingBlock,
   withModuleBlockMarker,
 } from "@/lib/retraining/content-blocks";
@@ -133,8 +132,38 @@ function directionModulesPath(panel: RetrainingPanel, directionId: number) {
   return `${retrainingPanelRoot(panel)}/${directionId}/modules`;
 }
 
+function modulePath(panel: RetrainingPanel, moduleId: number) {
+  return `${retrainingPanelRoot(panel)}/modules/${moduleId}`;
+}
+
 function moduleLessonsPath(panel: RetrainingPanel, moduleId: number) {
-  return `${retrainingPanelRoot(panel)}/modules/${moduleId}/lessons`;
+  return `${modulePath(panel, moduleId)}/lessons`;
+}
+
+function moduleWriteBody(payload: CreateQualificationModulePayload) {
+  const body: Record<string, unknown> = {
+    title: payload.title.trim(),
+  };
+  if (payload.module_number != null) {
+    body.module_number = payload.module_number;
+    body.sort_order = payload.module_number;
+  }
+  if (payload.description !== undefined) body.description = payload.description.trim();
+  if (payload.status) body.status = payload.status;
+  return body;
+}
+
+/** PATCH, 405 bo'lsa PUT — ikkala route ham backendda bor. */
+async function mutateRetrainingModule(path: string, body: Record<string, unknown>) {
+  const payload = JSON.stringify(body);
+  try {
+    return await retrainingApi<unknown>(path, { method: "PATCH", body: payload });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 405) {
+      return retrainingApi<unknown>(path, { method: "PUT", body: payload });
+    }
+    throw error;
+  }
 }
 
 function lessonMaterialsPath(panel: RetrainingPanel, lessonId: number) {
@@ -488,7 +517,9 @@ export async function getRetrainingDirection(
   }));
 
   if (!fetchMaterials) {
-    return { ...direction, id: direction.id || id, modules: normalizedModules };
+    const next = { ...direction, id: direction.id || id, modules: normalizedModules };
+    void upsertRetrainingDirectionThumbs([next], { notify: true });
+    return next;
   }
 
   const withMaterials = await Promise.all(
@@ -504,7 +535,9 @@ export async function getRetrainingDirection(
     })
   );
 
-  return { ...direction, id: direction.id || id, modules: withMaterials };
+  const next = { ...direction, id: direction.id || id, modules: withMaterials };
+  void upsertRetrainingDirectionThumbs([next], { notify: true });
+  return next;
 }
 
 /** Modul darslari 404/400 bo'lsa yo'nalish yuklanishini to'xtatmaydi (backend: "modul topilmadi"). */
@@ -658,16 +691,19 @@ export async function createRetrainingModule(
   } satisfies QualificationModule;
 }
 
-export async function updateRetrainingModule(id: number, payload: CreateQualificationModulePayload) {
-  const updated = await updateItModule(id, {
-    title: payload.title.trim(),
-    order_index: payload.module_number,
-    status: payload.status,
-  });
+/** PATCH/PUT /api/v1/admin/retraining/{panel}/modules/{moduleId} */
+export async function updateRetrainingModule(
+  routePanel: RetrainingPanel,
+  id: number,
+  payload: CreateQualificationModulePayload,
+  context?: RetrainingRequestContext
+) {
+  const panel = requireRetrainingPanel(routePanel, context?.direction);
+  const updated = await mutateRetrainingModule(modulePath(panel, id), moduleWriteBody(payload));
   const mapped = mapModule(updated);
   return {
     ...mapped,
-    id,
+    id: mapped.id || id,
     module_number: mapped.module_number ?? payload.module_number,
     title: mapped.title || payload.title.trim(),
     description: payload.description ?? mapped.description,
@@ -675,9 +711,33 @@ export async function updateRetrainingModule(id: number, payload: CreateQualific
   } satisfies QualificationModule;
 }
 
-export async function deleteRetrainingModule(id: number) {
-  assertItRetrainingAccess();
-  return deleteQualificationModule(id);
+/** DELETE /api/v1/admin/retraining/{panel}/modules/{moduleId} */
+export async function deleteRetrainingModule(
+  routePanel: RetrainingPanel,
+  id: number,
+  context?: RetrainingRequestContext
+) {
+  const panel = requireRetrainingPanel(routePanel, context?.direction);
+  const path = modulePath(panel, id);
+  try {
+    return await retrainingApi<unknown>(path, { method: "DELETE" });
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return null;
+    if (isAuthorizationError(error)) {
+      throw new ApiError(error.status, FORBIDDEN_ACTION_MESSAGE, error.raw);
+    }
+    if (!isForceDeleteEligible(error)) {
+      throw error instanceof ApiError ? error : new ApiError(400, "Modul o'chirilmadi");
+    }
+    try {
+      return await retrainingApi<unknown>(`${path}?force=true`, { method: "DELETE" });
+    } catch (forceError) {
+      if (isAuthorizationError(forceError)) {
+        throw new ApiError(forceError.status, FORBIDDEN_ACTION_MESSAGE, forceError.raw);
+      }
+      throw error instanceof ApiError ? error : new ApiError(400, "Modul o'chirilmadi");
+    }
+  }
 }
 
 // ─── Blok (description meta — backend block API yo'q) ───────────────────────
@@ -696,7 +756,7 @@ export async function saveRetrainingBlocks(
 ) {
   const current = await getRetrainingDirectionRecord(panel, directionId);
   const description = serializeBlockMeta(blocks, humanDescription ?? stripBlockMeta(current.description));
-  return updateRetrainingDirection(panel, directionId, {
+  const saved = await updateRetrainingDirection(panel, directionId, {
     title: current.title,
     category_id: current.category_id,
     description,
@@ -704,6 +764,63 @@ export async function saveRetrainingBlocks(
     language: current.language,
     status: current.status,
   });
+  const { invalidateLearningCache } = await import("@/lib/api/learning");
+  invalidateLearningCache(directionId);
+  return saved;
+}
+
+/** PATCH yo'nalish description (ZM_BLOCKS) — swaggerda alohida /blocks endpoint yo'q. */
+export async function updateRetrainingBlock(
+  panel: RetrainingPanel,
+  directionId: number,
+  block: RetrainingBlock,
+  title: string
+) {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    throw new ApiError(400, "Blok nomi majburiy");
+  }
+  const direction = await getRetrainingDirection(panel, directionId, false, { fetchMaterials: false });
+  const existing = resolveBlocksForDirection(direction);
+  if (!existing.some((item) => item.id === block.id)) {
+    throw new ApiError(404, "Blok topilmadi");
+  }
+  const next = existing.map((item) => (item.id === block.id ? { ...item, title: trimmed } : item));
+  return saveRetrainingBlocks(panel, directionId, next, direction.description);
+}
+
+/** DELETE blok — remaining ZM_BLOCKS PATCH + modul marker tozalash. */
+export async function deleteRetrainingBlock(
+  panel: RetrainingPanel,
+  directionId: number,
+  blockId: number
+) {
+  const direction = await getRetrainingDirection(panel, directionId, false, { fetchMaterials: false });
+  const existing = resolveBlocksForDirection(direction);
+  const next = existing.filter((item) => item.id !== blockId);
+  if (next.length === existing.length) {
+    throw new ApiError(404, "Blok topilmadi");
+  }
+  const saved = await saveRetrainingBlocks(panel, directionId, next, direction.description);
+  const marked = (direction.modules ?? []).filter((item) => getModuleBlockId(item) === blockId);
+  for (const qualModule of marked) {
+    try {
+      await updateRetrainingModule(
+        panel,
+        qualModule.id,
+        {
+          module_number: qualModule.module_number ?? 1,
+          title: qualModule.title,
+          status: qualModule.status,
+          description: stripModuleBlockMarker(qualModule.description),
+        },
+        { direction: saved }
+      );
+    } catch {
+      /* blok description'dan o'chirilgan; marker qolsa unassigned ga tushadi */
+    }
+  }
+  return saved;
 }
 
 export async function assignRetrainingModuleBlock(
@@ -712,12 +829,16 @@ export async function assignRetrainingModuleBlock(
   blockId: number
 ) {
   const description = withModuleBlockMarker(qualModule.description, blockId);
-  return updateRetrainingModule(qualModule.id, {
-    module_number: qualModule.module_number ?? 1,
-    title: qualModule.title,
-    status: qualModule.status,
-    description,
-  });
+  return updateRetrainingModule(
+    panel,
+    qualModule.id,
+    {
+      module_number: qualModule.module_number ?? 1,
+      title: qualModule.title,
+      status: qualModule.status,
+      description,
+    }
+  );
 }
 
 // ─── Dars ────────────────────────────────────────────────────────────────────
@@ -1039,10 +1160,29 @@ export async function publishRetrainingLesson(
   return retrainingApi<unknown>(lessonPublishPath(panel, lessonId), { method: "POST" });
 }
 
+export async function setRetrainingModuleStatus(
+  routePanel: RetrainingPanel,
+  moduleId: number,
+  status: "DRAFT" | "PUBLISHED" | "INACTIVE" | "ARCHIVED",
+  module?: { module_number?: number; title?: string; description?: string },
+  context?: RetrainingRequestContext
+) {
+  return updateRetrainingModule(
+    routePanel,
+    moduleId,
+    {
+      module_number: module?.module_number ?? 1,
+      title: module?.title?.trim() || "",
+      description: module?.description,
+      status,
+    },
+    context
+  );
+}
+
 export {
   saveLessonDraft as saveRetrainingLessonDraft,
   setLessonStatus as setRetrainingLessonStatus,
-  setModuleStatus as setRetrainingModuleStatus,
   uploadAdminFile,
 } from "@/lib/api/qualification";
 export { createItLessonTestWithQuestions as createRetrainingLessonTest } from "@/lib/api/admin-it";

@@ -553,10 +553,10 @@ export default function MaterialWizard() {
             title: state.moduleTitle.trim(),
           });
         } else if (isRetrainingSource(state.source)) {
-          await updateRetrainingModule(state.moduleId, {
+          await updateRetrainingModule(retrainingPanel!, state.moduleId, {
             module_number: state.moduleNumber,
             title: state.moduleTitle.trim(),
-          });
+          }, retrainingMaterialContext);
         } else {
           await updateQualificationModule(state.moduleId, {
             module_number: state.moduleNumber,

@@ -18,7 +18,6 @@ import type { LibraryItem, LibraryListQuery } from "@/lib/api/types/library";
 import { formatDate } from "@/lib/dashboard/utils";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
 import {
-  LIBRARY_CATEGORIES,
   LIBRARY_FILE_TYPES,
   LIBRARY_LANGUAGES,
   LIBRARY_STATUSES,
@@ -45,7 +44,6 @@ export default function LibraryAdminPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("");
   const [language, setLanguage] = useState("");
   const [fileType, setFileType] = useState("");
   const [status, setStatus] = useState("");
@@ -66,7 +64,6 @@ export default function LibraryAdminPage() {
     async (silent = false) => {
       const params: LibraryListQuery = {
         search: query,
-        category: category || undefined,
         language: language || undefined,
         file_type: fileType || undefined,
         status: status || undefined,
@@ -85,7 +82,7 @@ export default function LibraryAdminPage() {
         if (!silent) setLoading(false);
       }
     },
-    [query, category, language, fileType, status, page]
+    [query, language, fileType, status, page]
   );
 
   useEffect(() => {
@@ -159,7 +156,7 @@ export default function LibraryAdminPage() {
         </button>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <select
           className={fieldClass}
           value={status}
@@ -170,21 +167,6 @@ export default function LibraryAdminPage() {
         >
           <option value="">Barcha holatlar</option>
           {LIBRARY_STATUSES.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-        <select
-          className={fieldClass}
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">Barcha kategoriyalar</option>
-          {LIBRARY_CATEGORIES.map((item) => (
             <option key={item.value} value={item.value}>
               {item.label}
             </option>

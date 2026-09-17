@@ -9,6 +9,7 @@ import { lessonKindFromDescription, mapStoredLessonKind, stripLessonKindMarker }
 import { isLessonListedForStudent, isModuleListedForStudent, isRemovedLessonRecord, isVisibleToStudent } from "@/lib/publish-status";
 import type {
   LearningAssignment,
+  LearningBlock,
   LearningCourseResponse,
   LearningLessonDetail,
   LearningLessonStatus,
@@ -165,6 +166,7 @@ function asLessonList(value: unknown): LearningLessonSummary[] {
       duration_label: optionalString(row.duration_label),
       order_index: Number.isFinite(order) && order > 0 ? order : undefined,
       lesson_code: optionalString(row.lesson_code),
+      materials: asMaterials(row.materials ?? row.lesson_materials),
     });
   }
   return lessons.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
@@ -184,46 +186,139 @@ export function lessonUiStatus(lesson: Pick<LearningLessonSummary, "status" | "i
   return "available";
 }
 
+function asLearningModule(item: unknown): LearningModule | null {
+  const row = asRecord(item);
+  if (!isModuleListedForStudent(optionalString(row.status))) return null;
+  const id = parsePositiveInt(row.id);
+  if (!id) return null;
+  const order =
+    Number(row.order_index) ||
+    Number(row.order) ||
+    Number(row.module_number) ||
+    Number(row.sort_order);
+  const block =
+    parsePositiveInt(row.block_id) ??
+    parsePositiveInt(row.blockId) ??
+    parsePositiveInt(asRecord(row.block).id);
+  return {
+    id,
+    title: String(row.title ?? ""),
+    order_index: Number.isFinite(order) && order > 0 ? order : undefined,
+    status: optionalString(row.status),
+    description: optionalString(row.description),
+    block_id: block ?? undefined,
+    lessons: asLessonList(row.lessons ?? row.items ?? row.topics ?? row.children),
+  };
+}
+
+function pickLearningBlocks(course: Record<string, unknown>, root: Record<string, unknown>) {
+  const keys = ["blocks", "content_blocks", "retraining_blocks", "direction_blocks", "learning_blocks"];
+  const bags = [course, root, asRecord(course.direction), asRecord(root.direction), asRecord(course.curriculum), asRecord(root.curriculum)];
+  for (const bag of bags) {
+    if (!Object.keys(bag).length) continue;
+    for (const key of keys) {
+      const value = bag[key];
+      if (Array.isArray(value) && value.length) return value;
+    }
+    const sections = bag.sections;
+    if (Array.isArray(sections) && sections.length) {
+      const first = asRecord(sections[0]);
+      if (Array.isArray(first.modules) || first.block_number != null || first.block_id != null) {
+        return sections;
+      }
+    }
+  }
+  return [];
+}
+
+function asLearningBlocks(value: unknown): { blocks: LearningBlock[]; nestedModules: LearningModule[]; fromApi: boolean } {
+  if (!Array.isArray(value) || value.length === 0) {
+    return { blocks: [], nestedModules: [], fromApi: false };
+  }
+  const blocks: LearningBlock[] = [];
+  const nestedModules: LearningModule[] = [];
+  let fromApi = false;
+  for (const item of value) {
+    const row = asRecord(item);
+    const id = parsePositiveInt(row.id) ?? parsePositiveInt(row.block_id);
+    if (!id) continue;
+    fromApi = true;
+    const order =
+      Number(row.order_index) ||
+      Number(row.block_number) ||
+      Number(row.order) ||
+      Number(row.sort_order);
+    const blockNumber = parsePositiveInt(row.block_number) ?? (Number.isFinite(order) && order > 0 ? order : undefined);
+    blocks.push({
+      id,
+      title: String(row.title ?? row.name ?? row.block_title ?? ""),
+      order_index: Number.isFinite(order) && order > 0 ? order : undefined,
+      block_number: blockNumber,
+    });
+    const nested = Array.isArray(row.modules) ? row.modules : Array.isArray(row.items) ? row.items : [];
+    for (const nestedItem of nested) {
+      const mapped = asLearningModule(nestedItem);
+      if (!mapped) continue;
+      nestedModules.push({ ...mapped, block_id: mapped.block_id ?? id });
+    }
+  }
+  return {
+    blocks: blocks.sort(
+      (a, b) => (a.order_index ?? a.block_number ?? 0) - (b.order_index ?? b.block_number ?? 0) || a.id - b.id
+    ),
+    nestedModules,
+    fromApi,
+  };
+}
+
 export function normalizeLearningCourse(data: unknown): LearningCourseResponse {
   const root = asRecord(unwrapApiPayload(data));
   const course = asRecord(root.course && typeof root.course === "object" ? { ...root, ...asRecord(root.course) } : root);
+  const parsedBlocks = asLearningBlocks(pickLearningBlocks(course, root));
   const rawModules = Array.isArray(course.modules)
     ? course.modules
     : Array.isArray(root.modules)
       ? root.modules
       : [];
 
-  const modules = rawModules
-    .map((item) => {
-      const row = asRecord(item);
-      if (!isModuleListedForStudent(optionalString(row.status))) return null;
-      const order =
-        Number(row.order_index) ||
-        Number(row.order) ||
-        Number(row.module_number) ||
-        Number(row.sort_order);
-      return {
-        id: parsePositiveInt(row.id) ?? 0,
-        title: String(row.title ?? ""),
-        order_index: Number.isFinite(order) && order > 0 ? order : undefined,
-        status: optionalString(row.status),
-        lessons: asLessonList(row.lessons ?? row.items ?? row.topics ?? row.children),
-      } satisfies LearningModule;
-    })
-    .filter((item): item is LearningModule => Boolean(item && item.id))
-    .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const topModules = rawModules
+    .map((item) => asLearningModule(item))
+    .filter((item): item is LearningModule => Boolean(item));
+
+  const nestedById = new Map(parsedBlocks.nestedModules.map((item) => [item.id, item]));
+  const topById = new Map(topModules.map((item) => [item.id, item]));
+  const modules = (
+    parsedBlocks.nestedModules.length
+      ? [
+          ...parsedBlocks.nestedModules.map((item) => {
+            const top = topById.get(item.id);
+            return {
+              ...item,
+              lessons: item.lessons?.length ? item.lessons : top?.lessons ?? item.lessons,
+              description: item.description ?? top?.description,
+            };
+          }),
+          ...topModules.filter((item) => !nestedById.has(item.id)),
+        ]
+      : topModules
+  ).sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
 
   const progress = Number(course.progress_percent);
   const courseId = parsePositiveInt(course.course_id) ?? parsePositiveInt(course.id) ?? 0;
   const lessonHasTests = modules.some((m) =>
     (m.lessons ?? []).some((l) => l.has_tests === true)
   );
+  const blockBackendSupport =
+    parsedBlocks.fromApi || modules.some((item) => typeof item.block_id === "number" && item.block_id > 0);
 
   return {
     id: courseId,
     course_id: courseId,
     title: String(course.course_title ?? course.title ?? ""),
-    description: optionalString(course.description),
+    description:
+      optionalString(course.description) ||
+      optionalString(asRecord(course.direction).description) ||
+      optionalString(root.description),
     enrolled: course.enrolled === true,
     can_learn: courseCanLearn(course),
     application_status: optionalString(course.application_status),
@@ -237,6 +332,8 @@ export function normalizeLearningCourse(data: unknown): LearningCourseResponse {
       lessonHasTests ||
       undefined,
     modules,
+    blocks: parsedBlocks.blocks.length ? parsedBlocks.blocks : undefined,
+    block_backend_support: blockBackendSupport || undefined,
   };
 }
 

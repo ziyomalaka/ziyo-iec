@@ -1,4 +1,4 @@
-import { Award, Bell, BookMarked, BookOpen, FileText, GraduationCap } from "lucide-react";
+import { Award, Bell, BookMarked, BookOpen, FileText, GraduationCap, LibraryBig } from "lucide-react";
 import type { DashboardNavItem } from "@/lib/dashboard/navigation";
 import type { StudentProgramConfig } from "@/lib/dashboard/program-context";
 import {
@@ -14,6 +14,7 @@ function createRetrainingNav(base: string): DashboardNavItem[] {
     { href: `${base}/my-courses`, labelKey: "myCourses", icon: BookOpen },
     { href: `${base}/learning`, labelKey: "learning", icon: BookMarked },
     { href: `${base}/results`, labelKey: "results", icon: Award },
+    { href: `${base}/library`, labelKey: "library", icon: LibraryBig },
     { href: `${base}/notifications`, labelKey: "notifications", icon: Bell },
   ];
 }
@@ -33,6 +34,7 @@ export function getRetrainingPageTitle(pathname: string, type: RetrainingType) {
   const base = retrainingBasePath(type);
   if (pathname.includes("/courses/") && !pathname.endsWith("/courses")) return "Kurs haqida";
   if (pathname.includes("/learning/")) return "O'quv jarayoni";
+  if (pathname.includes("/library/")) return "Kutubxona";
   const titles: Record<string, string> = {
     [base]: meta.title,
     [`${base}/courses`]: "Kurslar",
@@ -41,6 +43,7 @@ export function getRetrainingPageTitle(pathname: string, type: RetrainingType) {
     [`${base}/my-courses`]: "Mening kurslarim",
     [`${base}/learning`]: "O'quv jarayoni",
     [`${base}/results`]: "Natija",
+    [`${base}/library`]: "Kutubxona",
     [`${base}/notifications`]: "Bildirishnomalar",
     [`${base}/profile`]: "Profil",
   };
@@ -69,6 +72,7 @@ export const retrainingMenuLabels: Record<string, string> = {
   myCourses: "Mening kurslarim",
   learning: "O'quv jarayoni",
   results: "Natija",
+  library: "Kutubxona",
   notifications: "Bildirishnomalar",
   profile: "Profil",
 };
@@ -78,5 +82,6 @@ export const retrainingMenuShort: Record<string, string> = {
   myCourses: "Kurslarim",
   learning: "O'quv",
   results: "Natija",
-  notifications: "Habar",
+  notifications: "Xabarlar",
+  profile: "Profil",
 };

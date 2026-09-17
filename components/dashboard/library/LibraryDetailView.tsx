@@ -12,6 +12,7 @@ import type { LibraryItem } from "@/lib/api/types/library";
 import { libraryCategoryLabel, libraryFileTypeLabel, libraryLanguageLabel } from "@/lib/library/constants";
 import { libraryCategoryIcon, libraryFileTypeIcon } from "@/lib/library/icons";
 import { useLiveRefresh } from "@/lib/hooks/useLiveRefresh";
+import { useStudentProgramPaths } from "@/lib/dashboard/program-context";
 
 function keywordList(value?: string) {
   return (value ?? "")
@@ -21,6 +22,7 @@ function keywordList(value?: string) {
 }
 
 export default function LibraryDetailView({ id }: { id: string }) {
+  const { library } = useStudentProgramPaths();
   const [item, setItem] = useState<LibraryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -84,7 +86,7 @@ export default function LibraryDetailView({ id }: { id: string }) {
   return (
     <div className="min-w-0 overflow-x-hidden">
       <Link
-        href="/dashboard/library"
+        href={library}
         className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-[#0756F5]"
       >
         <ArrowLeft className="h-4 w-4" strokeWidth={2} />

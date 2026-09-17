@@ -180,8 +180,11 @@ export async function forceDeleteModule(
     for (const lessonId of lessonIds) {
       await goneOrOk(() => forceDeleteLesson(lessonId, null, "retraining"));
     }
+    if (!retrainingPanel) {
+      throw new ApiError(400, "Qayta tayyorlash paneli aniqlanmadi");
+    }
     try {
-      await deleteRetrainingModule(id);
+      await deleteRetrainingModule(retrainingPanel, id);
       return;
     } catch (error) {
       if (error instanceof ApiError && (error.status === 404 || error.status === 410)) return;

@@ -15,12 +15,14 @@ import {
   assignRetrainingModuleBlock,
   createRetrainingDirection,
   createRetrainingModule,
+  deleteRetrainingBlock,
   getRetrainingDirection,
   getRetrainingLessonMaterials,
   getRetrainingModuleLessonsSafe,
   saveRetrainingBlocks,
   setRetrainingLessonStatus,
   setRetrainingModuleStatus,
+  updateRetrainingBlock,
   updateRetrainingDirection,
   updateRetrainingModule,
 } from "@/lib/api/retraining-admin";
@@ -83,7 +85,8 @@ export default function RetrainingDirectionDetailPage({ panel, directionId }: Re
   const [error, setError] = useState<unknown>(null);
   const [loadingIds, setLoadingIds] = useState<string[]>([]);
   const [moduleForm, setModuleForm] = useState<{ editing: QualificationModule } | null>(null);
-  const [blockForm, setBlockForm] = useState<{ title: string } | null>(null);
+  const [blockForm, setBlockForm] = useState<{ title: string; editing?: RetrainingBlock } | null>(null);
+  const [pendingBlock, setPendingBlock] = useState<RetrainingBlock | null>(null);
   const [moduleCreate, setModuleCreate] = useState<{ block: RetrainingBlock; title: string } | null>(null);
   const [directionForm, setDirectionForm] = useState(false);
   const [pendingLesson, setPendingLesson] = useState<{
@@ -118,7 +121,7 @@ export default function RetrainingDirectionDetailPage({ panel, directionId }: Re
 
   useLiveRefresh(
     (reason) => {
-      if (moduleForm || directionForm || saving || pendingLesson) return;
+      if (moduleForm || directionForm || saving || pendingLesson || blockForm || pendingBlock) return;
       if (reason === "mutation") void loadDirection(true);
     },
     { skipTick: true }
@@ -258,10 +261,11 @@ export default function RetrainingDirectionDetailPage({ panel, directionId }: Re
     if (!direction || !qualModule.id || (qualModule.status || "").toUpperCase() === status) return;
     setSaving(true);
     try {
-      await setRetrainingModuleStatus(qualModule.id, status, {
+      await setRetrainingModuleStatus(panel, qualModule.id, status, {
         module_number: qualModule.module_number,
         title: qualModule.title,
-      });
+        description: qualModule.description,
+      }, { direction });
       setDirection((prev) => {
         if (!prev) return prev;
         return {
@@ -389,6 +393,8 @@ export default function RetrainingDirectionDetailPage({ panel, directionId }: Re
         onLoadModuleLessons={(qualModule) => void loadModuleLessons(qualModule)}
         onAddBlock={() => setBlockForm({ title: "" })}
         onAddModule={(block) => setModuleCreate({ block, title: "" })}
+        onEditBlock={(block) => setBlockForm({ title: block.title, editing: block })}
+        onDeleteBlock={(block) => setPendingBlock(block)}
         onEditModule={(_, qualModule) => setModuleForm({ editing: qualModule })}
         onDeleteModule={(_, qualModule) => void deleteModule(qualModule)}
         onDeleteLesson={(block, qualModule, lesson) =>
@@ -436,15 +442,68 @@ export default function RetrainingDirectionDetailPage({ panel, directionId }: Re
         </DashboardModal>
       ) : null}
 
+      {pendingBlock ? (
+        <DashboardModal
+          open
+          size="md"
+          title="Ushbu blokni o'chirmoqchimisiz?"
+          onClose={() => {
+            if (!saving) setPendingBlock(null);
+          }}
+          footer={
+            <>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setPendingBlock(null)}
+                className="rounded-lg border border-[#E8EDF5] px-4 py-2 text-sm disabled:opacity-60"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={async () => {
+                  if (!direction || !pendingBlock) return;
+                  setSaving(true);
+                  try {
+                    await deleteRetrainingBlock(panel, direction.id, pendingBlock.id);
+                    toast.success("Blok o'chirildi");
+                    setPendingBlock(null);
+                    await refreshTree();
+                  } catch (err) {
+                    toast.error(err instanceof ApiError ? err.message : "Blok o'chirilmadi");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60"
+              >
+                {saving ? "O'chirilmoqda..." : "O'chirish"}
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-[#64748B]">{pendingBlock.title}</p>
+        </DashboardModal>
+      ) : null}
+
       {blockForm ? (
         <DashboardModal
           open
-          onClose={() => setBlockForm(null)}
-          title="Blok qo'shish"
+          onClose={() => {
+            if (!saving) setBlockForm(null);
+          }}
+          title={blockForm.editing ? "Blokni tahrirlash" : "Blok qo'shish"}
           size="md"
           footer={
             <>
-              <button type="button" onClick={() => setBlockForm(null)} className="rounded-lg border border-[#E8EDF5] px-4 py-2 text-sm">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setBlockForm(null)}
+                className="rounded-lg border border-[#E8EDF5] px-4 py-2 text-sm disabled:opacity-60"
+              >
                 Bekor
               </button>
               <button
@@ -457,17 +516,22 @@ export default function RetrainingDirectionDetailPage({ panel, directionId }: Re
                   }
                   setSaving(true);
                   try {
-                    const existing = resolveBlocksForDirection(direction);
-                    const next = [
-                      ...existing,
-                      {
-                        id: nextBlockId(existing),
-                        block_number: nextBlockNumber(existing),
-                        title: blockForm.title.trim(),
-                      },
-                    ];
-                    await saveRetrainingBlocks(panel, direction.id, next, direction.description);
-                    toast.success("Blok qo'shildi");
+                    if (blockForm.editing) {
+                      await updateRetrainingBlock(panel, direction.id, blockForm.editing, blockForm.title.trim());
+                      toast.success("Blok yangilandi");
+                    } else {
+                      const existing = resolveBlocksForDirection(direction);
+                      const next = [
+                        ...existing,
+                        {
+                          id: nextBlockId(existing),
+                          block_number: nextBlockNumber(existing),
+                          title: blockForm.title.trim(),
+                        },
+                      ];
+                      await saveRetrainingBlocks(panel, direction.id, next, direction.description);
+                      toast.success("Blok qo'shildi");
+                    }
                     setBlockForm(null);
                     await refreshTree();
                   } catch (err) {
@@ -487,7 +551,7 @@ export default function RetrainingDirectionDetailPage({ panel, directionId }: Re
             Blok nomi *
             <input
               value={blockForm.title}
-              onChange={(e) => setBlockForm({ title: e.target.value })}
+              onChange={(e) => setBlockForm((prev) => (prev ? { ...prev, title: e.target.value } : prev))}
               className={fieldClass}
               placeholder="Masalan: Mutaxassislik fanlari bloki"
             />
@@ -575,11 +639,12 @@ export default function RetrainingDirectionDetailPage({ panel, directionId }: Re
                   }
                   setSaving(true);
                   try {
-                    await updateRetrainingModule(moduleForm.editing.id, {
+                    await updateRetrainingModule(panel, moduleForm.editing.id, {
                       module_number: moduleForm.editing.module_number ?? 1,
                       title: moduleForm.editing.title.trim(),
                       status: moduleForm.editing.status,
-                    });
+                      description: moduleForm.editing.description,
+                    }, { direction });
                     toast.success("Modul yangilandi");
                     setModuleForm(null);
                     await refreshTree();

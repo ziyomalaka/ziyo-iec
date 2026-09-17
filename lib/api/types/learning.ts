@@ -32,8 +32,19 @@ export type LearningModule = {
   title: string;
   order_index?: number;
   status?: string;
+  description?: string;
+  /** Real backend block entity id — description marker emas. */
+  block_id?: number;
   lessons?: LearningLessonSummary[];
   items?: LearningLessonSummary[];
+};
+
+/** GET learning course `blocks[]` — faqat backend entity bo'lsa. */
+export type LearningBlock = {
+  id: number;
+  title: string;
+  order_index?: number;
+  block_number?: number;
 };
 
 export type LearningCourseResponse = {
@@ -50,6 +61,9 @@ export type LearningCourseResponse = {
   /** Kursda umuman test bormi (sidebar) */
   has_tests?: boolean;
   modules?: LearningModule[];
+  blocks?: LearningBlock[];
+  /** True faqat response da real `blocks[]` yoki `module.block_id` bo'lsa. */
+  block_backend_support?: boolean;
 };
 
 export type LearningMaterial = {

@@ -8,9 +8,7 @@ import LibraryFilterSheet from "@/components/dashboard/library/LibraryFilterShee
 import EmptyState from "@/components/dashboard/ui/EmptyState";
 import ErrorState from "@/components/dashboard/ui/ErrorState";
 import { emptyLibraryFilters, useStudentLibrary } from "@/lib/hooks/useLibrary";
-import { LIBRARY_CATEGORIES, LIBRARY_FILE_TYPES, LIBRARY_LANGUAGES } from "@/lib/library/constants";
-import { LibraryAllIcon, libraryCategoryIcon } from "@/lib/library/icons";
-import { cn } from "@/lib/cn";
+import { LIBRARY_FILE_TYPES, LIBRARY_LANGUAGES } from "@/lib/library/constants";
 
 export default function LibraryView() {
   const [search, setSearch] = useState("");
@@ -22,10 +20,6 @@ export default function LibraryView() {
   useEffect(() => {
     setPage(1);
   }, [filters, search]);
-
-  const setCategory = (category: string) => {
-    setFilters((prev) => ({ ...prev, category }));
-  };
 
   const filterSelectClass =
     "min-h-11 min-w-[160px] rounded-xl border border-[#E8EDF5] bg-white px-3 text-sm text-[#0C2340] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15";
@@ -88,38 +82,6 @@ export default function LibraryView() {
         </button>
       </div>
 
-      <div className="-mx-3 mt-4 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-5 sm:px-5 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden">
-        <button
-          type="button"
-          onClick={() => setCategory("")}
-          className={cn(
-            "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium",
-            !filters.category ? "bg-[#0756F5] text-white" : "border border-[#E8EDF5] bg-white text-[#0C2340]"
-          )}
-        >
-          <LibraryAllIcon className="h-4 w-4" strokeWidth={1.75} />
-          Barchasi
-        </button>
-        {LIBRARY_CATEGORIES.map((item) => {
-          const Icon = libraryCategoryIcon(item.value);
-          const active = filters.category === item.value;
-          return (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setCategory(item.value)}
-              className={cn(
-                "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium",
-                active ? "bg-[#0756F5] text-white" : "border border-[#E8EDF5] bg-white text-[#0C2340]"
-              )}
-            >
-              <Icon className={cn("h-4 w-4", active ? "text-white" : "text-[#0756F5]")} strokeWidth={1.75} />
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-
       <div className="mt-5">
         {loading ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
@@ -140,7 +102,7 @@ export default function LibraryView() {
           <EmptyState
             icon={LibraryBig}
             title="Hozircha kutubxona materiallari mavjud emas."
-            description={search || filters.category || filters.language || filters.file_type ? "Qidiruv so'zini yoki filtrlarni o'zgartirib ko'ring." : "Materiallar qo'shilgach, shu yerda chiqadi."}
+            description={search || filters.language || filters.file_type ? "Qidiruv so'zini yoki filtrlarni o'zgartirib ko'ring." : "Materiallar qo'shilgach, shu yerda chiqadi."}
           />
         ) : (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">

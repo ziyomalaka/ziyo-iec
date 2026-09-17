@@ -63,16 +63,13 @@ export default function RetrainingCourseCard({ course, application }: Retraining
           <p className="mt-2 line-clamp-3 break-words text-[13px] leading-snug text-[#64748B]">{course.description}</p>
         ) : null}
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {course.duration ? <DashboardBadge variant="neutral">{course.duration}</DashboardBadge> : null}
-          {course.hours ? <DashboardBadge variant="neutral">{course.hours} soat</DashboardBadge> : null}
-          {format ? <DashboardBadge variant="neutral">{format}</DashboardBadge> : null}
-          {status && cta !== "apply" && cta !== "none" ? (
+        {status && cta !== "apply" && cta !== "none" ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <DashboardBadge variant={kind === "approved" ? "success" : kind === "rejected" ? "danger" : "info"}>
               {status.emoji} {status.label}
             </DashboardBadge>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <div className="mt-3 flex flex-wrap items-center gap-2.5 text-[13px] text-[#445574]">
           <span className="inline-flex items-center gap-1">

@@ -57,7 +57,17 @@ export type CourseModuleResponse = {
   title: string;
   order_index?: number;
   status?: string;
+  description?: string;
+  block_id?: number;
   lessons?: CourseLessonSummary[];
+};
+
+export type CourseBlockResponse = {
+  id: number;
+  title: string;
+  block_number?: number;
+  order_index?: number;
+  modules?: CourseModuleResponse[];
 };
 
 export type CourseDetailResponse = CourseCardResponse & {
@@ -67,6 +77,7 @@ export type CourseDetailResponse = CourseCardResponse & {
   admission?: string;
   study_form?: string;
   modules?: CourseModuleResponse[];
+  blocks?: CourseBlockResponse[];
 };
 
 export type CourseListResponse = {

@@ -7,6 +7,7 @@
  * Backend block API paydo bo'lganda shu fayl almashtiriladi.
  */
 import type { QualificationDirection, QualificationModule } from "@/lib/api/types/qualification";
+import { toRoman } from "@/lib/retraining/roman";
 
 export const BLOCK_META_PREFIX = "ZM_BLOCKS:";
 export const MODULE_BLOCK_PREFIX = /^ZM_BLOCK:(\d+)\s*(?:\n|$)/;
@@ -150,5 +151,8 @@ export function findBlockForModule(direction: QualificationDirection, qualModule
 }
 
 export function blockLabel(block: RetrainingBlock) {
-  return `${block.block_number}-BLOK. ${block.title}`;
+  const roman = toRoman(block.block_number) || String(block.block_number);
+  const title = block.title.trim().replace(/^\d+-blok\.?\s*/i, "").trim();
+  if (!title) return `${roman}-BLOK`;
+  return `${roman}-BLOK. ${title}`;
 }

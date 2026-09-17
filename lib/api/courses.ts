@@ -11,6 +11,7 @@ import { asList, asPaged, parsePositiveInt, unwrapApiPayload } from "@/lib/api/u
 import { lessonKindFromDescription, mapStoredLessonKind } from "@/lib/learning/lesson-kind";
 import { isRemovedLessonRecord, isVisibleToStudent } from "@/lib/publish-status";
 import type {
+  CourseBlockResponse,
   CourseCardResponse,
   CourseDetailResponse,
   CourseFiltersResponse,
@@ -149,24 +150,68 @@ function mapLesson(data: unknown): CourseLessonSummary | null {
   };
 }
 
-function mapModule(data: unknown): CourseModuleResponse | null {
+function mapModule(data: unknown, fallbackBlockId?: number): CourseModuleResponse | null {
   const row = asRecord(data);
   const id = parsePositiveInt(row.id);
   if (!id) return null;
   const status = optionalString(row.status);
   if (!isVisibleToStudent(status)) return null;
-  const order = Number(row.order_index);
+  const order = Number(row.order_index) || Number(row.module_number) || Number(row.sort_order);
   const lessons = Array.isArray(row.lessons)
     ? row.lessons.map(mapLesson).filter((item): item is CourseLessonSummary => item !== null)
     : undefined;
   if (lessons && lessons.length === 0) return null;
+  const blockId =
+    parsePositiveInt(row.block_id) ??
+    parsePositiveInt(row.blockId) ??
+    parsePositiveInt(asRecord(row.block).id) ??
+    fallbackBlockId;
   return {
     id,
     title: String(row.title ?? ""),
-    order_index: Number.isFinite(order) ? order : undefined,
+    order_index: Number.isFinite(order) && order > 0 ? order : undefined,
     status,
+    description: optionalString(row.description),
+    block_id: blockId,
     lessons,
   };
+}
+
+function mapCourseBlocks(value: unknown): CourseBlockResponse[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => {
+      const row = asRecord(item);
+      const id = parsePositiveInt(row.id) ?? parsePositiveInt(row.block_id);
+      if (!id) return null;
+      const order = Number(row.order_index) || Number(row.block_number) || Number(row.order);
+      const modules = Array.isArray(row.modules)
+        ? row.modules.map((mod) => mapModule(mod, id)).filter((mod): mod is CourseModuleResponse => Boolean(mod))
+        : [];
+      return {
+        id,
+        title: String(row.title ?? row.name ?? row.block_title ?? ""),
+        block_number: parsePositiveInt(row.block_number) ?? (Number.isFinite(order) && order > 0 ? order : index + 1),
+        order_index: Number.isFinite(order) && order > 0 ? order : undefined,
+        modules,
+      } satisfies CourseBlockResponse;
+    })
+    .filter((item): item is CourseBlockResponse => item !== null);
+}
+
+function pickCourseBlocks(row: Record<string, unknown>) {
+  const keys = ["blocks", "content_blocks", "retraining_blocks", "direction_blocks"];
+  for (const key of keys) {
+    if (Array.isArray(row[key]) && (row[key] as unknown[]).length) return mapCourseBlocks(row[key]);
+  }
+  const sections = row.sections;
+  if (Array.isArray(sections) && sections.length) {
+    const first = asRecord(sections[0]);
+    if (Array.isArray(first.modules) || first.block_number != null || first.block_id != null) {
+      return mapCourseBlocks(sections);
+    }
+  }
+  return [];
 }
 
 function mapCourseDetail(data: unknown): CourseDetailResponse {
@@ -176,9 +221,24 @@ function mapCourseDetail(data: unknown): CourseDetailResponse {
     title: String(row.title ?? ""),
     status: optionalString(row.status),
   };
-  const modules = Array.isArray(row.modules)
-    ? row.modules.map(mapModule).filter((item): item is CourseModuleResponse => item !== null)
+  const blocks = pickCourseBlocks(row);
+  const nestedModules = blocks.flatMap((item) => item.modules ?? []);
+  const topModules = Array.isArray(row.modules)
+    ? row.modules.map((item) => mapModule(item)).filter((item): item is CourseModuleResponse => item !== null)
     : [];
+  const byId = new Map<number, CourseModuleResponse>();
+  for (const item of topModules) byId.set(item.id, item);
+  for (const item of nestedModules) {
+    const prev = byId.get(item.id);
+    byId.set(item.id, {
+      ...prev,
+      ...item,
+      block_id: item.block_id ?? prev?.block_id,
+      description: item.description ?? prev?.description,
+      lessons: item.lessons?.length ? item.lessons : prev?.lessons,
+    });
+  }
+  const modules = [...byId.values()].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
   return {
     ...card,
     description: optionalString(row.description),
@@ -186,7 +246,8 @@ function mapCourseDetail(data: unknown): CourseDetailResponse {
     requirements: optionalString(row.requirements),
     admission: optionalString(row.admission ?? row.admission_terms),
     study_form: optionalString(row.study_form ?? row.study_format ?? row.format),
-    modules: modules.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+    modules,
+    blocks: blocks.length ? blocks : undefined,
   };
 }
 

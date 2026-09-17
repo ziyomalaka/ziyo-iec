@@ -36,6 +36,8 @@ type RetrainingBlockTreeProps = {
   onLoadModuleLessons?: (qualModule: QualificationModule) => void | Promise<void>;
   onAddBlock: () => void;
   onAddModule: (block: RetrainingBlock) => void;
+  onEditBlock?: (block: RetrainingBlock) => void;
+  onDeleteBlock?: (block: RetrainingBlock) => void;
   onEditModule: (block: RetrainingBlock, qualModule: QualificationModule) => void;
   onDeleteModule: (block: RetrainingBlock, qualModule: QualificationModule) => void;
   onDeleteLesson: (
@@ -110,6 +112,8 @@ export default function RetrainingBlockTree({
   onLoadModuleLessons,
   onAddBlock,
   onAddModule,
+  onEditBlock,
+  onDeleteBlock,
   onEditModule,
   onDeleteModule,
   onDeleteLesson,
@@ -159,6 +163,8 @@ export default function RetrainingBlockTree({
           onLoadLesson={onLoadLesson}
           onLoadModuleLessons={onLoadModuleLessons}
           onAddModule={() => onAddModule(block)}
+          onEditBlock={onEditBlock ? () => onEditBlock(block) : undefined}
+          onDeleteBlock={onDeleteBlock ? () => onDeleteBlock(block) : undefined}
           onEditModule={(qualModule) => onEditModule(block, qualModule)}
           onDeleteModule={(qualModule) => onDeleteModule(block, qualModule)}
           onDeleteLesson={(qualModule, lesson) => onDeleteLesson(block, qualModule, lesson)}
@@ -191,6 +197,8 @@ function BlockNode({
   onLoadLesson,
   onLoadModuleLessons,
   onAddModule,
+  onEditBlock,
+  onDeleteBlock,
   onEditModule,
   onDeleteModule,
   onDeleteLesson,
@@ -206,6 +214,8 @@ function BlockNode({
   onLoadLesson?: RetrainingBlockTreeProps["onLoadLesson"];
   onLoadModuleLessons?: RetrainingBlockTreeProps["onLoadModuleLessons"];
   onAddModule: () => void;
+  onEditBlock?: () => void;
+  onDeleteBlock?: () => void;
   onEditModule: (qualModule: QualificationModule) => void;
   onDeleteModule: (qualModule: QualificationModule) => void;
   onDeleteLesson: (qualModule: QualificationModule, lesson: QualificationLesson) => void;
@@ -226,9 +236,40 @@ function BlockNode({
           <ChevronDown className={cn("h-4 w-4 shrink-0 text-[#64748B] transition-transform", !open && "-rotate-90")} />
           <span className="font-semibold text-[#0C2340]">{blockLabel(block)}</span>
         </button>
+        {onEditBlock ? (
+          <button
+            type="button"
+            title="Tahrirlash"
+            aria-label="Tahrirlash"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEditBlock();
+            }}
+            className="rounded border border-[#E8EDF5] p-1.5 text-[#0756F5]"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        {onDeleteBlock ? (
+          <button
+            type="button"
+            title="O'chirish"
+            aria-label="O'chirish"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDeleteBlock();
+            }}
+            className="rounded border border-[#E8EDF5] p-1.5 text-red-600"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
         <button
           type="button"
-          onClick={onAddModule}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddModule();
+          }}
           className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-[#0756F5] px-3 py-1.5 text-xs font-medium text-white"
         >
           <Plus className="h-3.5 w-3.5" />

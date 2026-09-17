@@ -12,6 +12,12 @@ import { normalizeRetrainingType, type RetrainingType } from "@/lib/retraining/k
 const KEY = "zm_retraining_snapshot";
 const PATH = "/api/public-retraining";
 
+export type RetrainingPublishedModule = {
+  id: number;
+  title?: string;
+  description?: string;
+};
+
 export type RetrainingDirectionThumb = {
   id: number;
   title: string;
@@ -19,7 +25,28 @@ export type RetrainingDirectionThumb = {
   retraining_type?: string;
   retraining_panel?: string;
   status?: string;
+  /** Yo'nalish description — ZM_BLOCKS meta bo'lishi mumkin. */
+  description?: string;
+  modules?: RetrainingPublishedModule[];
 };
+
+function asPublishedModules(value: unknown): RetrainingPublishedModule[] | undefined {
+  if (!Array.isArray(value) || !value.length) return undefined;
+  const modules = value.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const item = row as RetrainingPublishedModule;
+    const id = Number(item.id);
+    if (!(id > 0)) return [];
+    return [
+      {
+        id,
+        title: item.title ? String(item.title) : undefined,
+        description: item.description ? String(item.description) : undefined,
+      } satisfies RetrainingPublishedModule,
+    ];
+  });
+  return modules.length ? modules : undefined;
+}
 
 function asThumbs(data: unknown): RetrainingDirectionThumb[] {
   const rows = Array.isArray(data)
@@ -32,6 +59,7 @@ function asThumbs(data: unknown): RetrainingDirectionThumb[] {
       if (!row || typeof row !== "object") return null;
       const item = row as RetrainingDirectionThumb;
       if (!(Number(item.id) > 0)) return null;
+      const description = item.description ? String(item.description) : undefined;
       return {
         id: Number(item.id),
         title: String(item.title ?? ""),
@@ -39,12 +67,19 @@ function asThumbs(data: unknown): RetrainingDirectionThumb[] {
         retraining_type: item.retraining_type,
         retraining_panel: item.retraining_panel,
         status: item.status,
+        description,
+        modules: asPublishedModules(item.modules),
       } satisfies RetrainingDirectionThumb;
     })
     .filter((item): item is RetrainingDirectionThumb => item !== null);
 }
 
-function slim(item: Pick<QualificationDirection, "id" | "title" | "thumbnail_url" | "retraining_type" | "retraining_panel" | "status">): RetrainingDirectionThumb | null {
+function slim(
+  item: Pick<
+    QualificationDirection,
+    "id" | "title" | "thumbnail_url" | "retraining_type" | "retraining_panel" | "status" | "description" | "modules"
+  >
+): RetrainingDirectionThumb | null {
   if (!(item.id > 0)) return null;
   return {
     id: item.id,
@@ -53,6 +88,8 @@ function slim(item: Pick<QualificationDirection, "id" | "title" | "thumbnail_url
     retraining_type: item.retraining_type,
     retraining_panel: item.retraining_panel,
     status: item.status,
+    description: item.description,
+    modules: asPublishedModules(item.modules),
   };
 }
 
@@ -65,6 +102,8 @@ function fingerprint(items: RetrainingDirectionThumb[]) {
       retraining_type: item.retraining_type,
       retraining_panel: item.retraining_panel,
       status: item.status,
+      description: item.description,
+      modules: item.modules?.map((mod) => ({ id: mod.id, description: mod.description })),
     }))
   );
 }
@@ -168,7 +207,12 @@ function enqueue(items: RetrainingDirectionThumb[], notify = false) {
 }
 
 export function upsertRetrainingDirectionThumbs(
-  directions: Array<Pick<QualificationDirection, "id" | "title" | "thumbnail_url" | "retraining_type" | "retraining_panel" | "status">>,
+  directions: Array<
+    Pick<
+      QualificationDirection,
+      "id" | "title" | "thumbnail_url" | "retraining_type" | "retraining_panel" | "status" | "description" | "modules"
+    >
+  >,
   options?: { notify?: boolean }
 ) {
   const prev = readRetrainingDirectionSnapshotLocal();
@@ -181,6 +225,8 @@ export function upsertRetrainingDirectionThumbs(
       ...existing,
       ...next,
       thumbnail_url: next.thumbnail_url || existing?.thumbnail_url,
+      description: next.description || existing?.description,
+      modules: next.modules?.length ? next.modules : existing?.modules,
     });
   }
   return enqueue(Array.from(byId.values()), options?.notify === true);
@@ -189,18 +235,34 @@ export function upsertRetrainingDirectionThumbs(
 /** Admin panel ro'yxati — shu panel snapshotini to'liq almashtiradi (bo'sh bo'lsa mijozda ham yo'qoladi). */
 export function replaceRetrainingPanelSnapshot(
   panel: RetrainingPanel,
-  directions: Array<Pick<QualificationDirection, "id" | "title" | "thumbnail_url" | "retraining_type" | "retraining_panel" | "status">>,
+  directions: Array<
+    Pick<
+      QualificationDirection,
+      "id" | "title" | "thumbnail_url" | "retraining_type" | "retraining_panel" | "status" | "description" | "modules"
+    >
+  >,
   options?: { notify?: boolean }
 ) {
-  const kept = readRetrainingDirectionSnapshotLocal().filter((item) => {
+  const prev = readRetrainingDirectionSnapshotLocal();
+  const kept = prev.filter((item) => {
     if (itemBelongsToPanel(item, panel)) return false;
     return Boolean(item.retraining_panel && isRetrainingPanel(item.retraining_panel)) ||
       Boolean(panelFromRetrainingType(item.retraining_type));
   });
+  const previousPanel = new Map(prev.filter((item) => itemBelongsToPanel(item, panel)).map((item) => [item.id, item]));
   const next = directions
     .map((item) => slim({ ...item, retraining_panel: panel, retraining_type: item.retraining_type }))
     .filter((item): item is RetrainingDirectionThumb => Boolean(item))
-    .map((item) => ({ ...item, retraining_panel: panel }));
+    .map((item) => {
+      const existing = previousPanel.get(item.id);
+      return {
+        ...item,
+        retraining_panel: panel,
+        thumbnail_url: item.thumbnail_url || existing?.thumbnail_url,
+        description: item.description || existing?.description,
+        modules: item.modules?.length ? item.modules : existing?.modules,
+      };
+    });
   return enqueue([...kept, ...next], options?.notify !== false);
 }
 
